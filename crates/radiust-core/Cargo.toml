@@ -1,0 +1,16 @@
+[package]
+name = "radiust-core"
+version = "0.0.1"
+edition = "2024"
+description = "Rust core for the radiust radar data toolkit"
+license = "Apache-2.0"
+repository = "https://github.com/chorust/radiust"
+homepage = "https://github.com/chorust/radiust"
+readme = "README.md"
+keywords = ["radar", "weather", "meteorology"]
+categories = ["science", "network-programming"]
+
+[lib]
+name = "radiust_core"
+path = "src/lib.rs"
+
