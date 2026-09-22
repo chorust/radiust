@@ -37,17 +37,40 @@ radiust cat --file ./data/path/to/frame.nc --renderer text
 
 实际输出目录和 manifest 的命名规则见 [docs/cli.md](docs/cli.md) 与 [docs/output-maintenance.md](docs/output-maintenance.md)。
 
-## 台湾 CWA 原生数值雷达
+## 数据源支持情况
 
-`tw` 的 `grid` 产品直接读取 CWA `O-A0059-001.json` 中的原始 dBZ 网格，可在允许公网访问后运行：
+以下是**截至 2026-09-21 的仓库内验证记录**，涵盖全部 26 个已注册来源（含 2 个历史来源）。所有来源均有适配器和离线测试，但**适配器存在、离线 fixture 通过或能够下载图片，不代表已经支持可信的科学数值解码**。“在线原始获取”描述有记录的实测结果，不保证此后上游持续可用；“科学数据”仅指有证据支持的解码能力。
 
-```bash
-RADIUST_RUNTIME__ALLOW_NETWORK=true uv run radiust download tw --product grid --latest --output ./data --json
-```
+| 数据源 ID | 提供方 / 数据 | 在线原始获取 | 科学数据支持 / 当前限制 |
+| --- | --- | --- | --- |
+| `au` | 澳大利亚 BoM 雷达 | 已实测（FTP） | 原始资料；色标与原生几何待验证 |
+| `bmkg` | 印尼 BMKG 瓦片 | 上游 HTTP 403 | 原始获取受阻；科学解码未验收 |
+| `br_cptec` | 巴西 CPTEC WMS（历史来源） | 历史帧已实测；最新帧返回上游错误 | 原始图像；物理色标与几何待验证 |
+| `br_sipam` | 巴西 SIPAM（历史来源） | 已实测 | 原始图像；物理色标与像素定位待验证 |
+| `ca` | 加拿大 ECCC | 已实测 | 原始资料；色标与原生几何待验证 |
+| `cam` | 柬埔寨雷达 | 已实测 | 原始图像；科学解码与几何待验证 |
+| `es` | 西班牙 AEMET | 已实测 | 原始资料；色标与原生几何待验证 |
+| `fr` | 法国 Météo-France WMS | 已实测 | 原始图像；颜色到 dBZ 的映射待验证 |
+| `id` | 印尼 BMKG 雷达 | 需有效授权，未完成在线验收 | 原始获取受限；科学解码未验收 |
+| `id_sidarma` | 印尼 SIDARMA CMAX | 需授权；现有探测返回 HTTP 403 | 原始获取受限；科学解码未验收 |
+| `kr` | 韩国 KMA | 已实测 | 原始资料；色标与原生几何待验证 |
+| `my` | 马来西亚气象局 | 已实测 | 原始图像；时次、色标、几何与再利用许可待验证 |
+| `nz` | 新西兰 MetService | 已实测 | 原始资料；色标与原生几何待验证 |
+| `opensnow` | OpenSnow 瓦片 | 上游 HTTP 403；需授权访问 | 原始获取受阻；科学解码未验收 |
+| `ph` | 菲律宾 PAGASA | 需外部凭据 / 浏览器获取条件 | 在线原始获取与科学解码未验收 |
+| `pt` | 葡萄牙 IPMA | 已实测 | **支持有序降雨强度类别**；不提供逐像素数值雨强 |
+| `rainviewer` | RainViewer 瓦片 | 已实测 | **支持经提供方色表验证的 dBZ 解码** |
+| `sg` | 新加坡 NEA | 已实测并对照官方 API | **支持有序降雨强度类别**；不提供定量 mm/h |
+| `th` | 泰国 TMD | 已实测 | 原始 GIF；时次、色标与几何待验证 |
+| `th_royalrain` | 泰国 Royal Rainmaking | 曾实测；近期请求失败 | 原始资料；色标与原生几何待验证 |
+| `tw` | 台湾 CWA | 已实测 | **`grid` 支持原生 TWD67 数值 dBZ**；`observation` PNG 仅原始获取，色标与像素定位待验证 |
+| `tw-http` | 台湾 CWA HTTP 图片 | 已实测 | 原始图像；色标与原生几何待验证 |
+| `uk` | 英国 Met Office DataPoint | 上游已停运（保留例外） | 不支持在线获取 |
+| `vn` | 越南 Hymetnet CMAX | 已实测 | 原始资料；色标与原生几何待验证 |
+| `windy` | Windy 瓦片 | 已实测 | 原始瓦片；物理色标及时次绑定待验证 |
+| `wunderground` | Weather Underground 瓦片 | 需有效 API key，未完成在线验收 | 原始获取受限；科学解码及时次绑定未验收 |
 
-该产品输出 921×881 的 TWD67（EPSG:3821）原生经纬网格；`-99` 为无效数据、`-999` 为观测范围外或经质控移除的资料，两者均保存为 NaN 并通过 `quality` 区分。使用 `--grid geographic` 时需注意目标 EPSG:4326 与原生 TWD67 的基准面转换。默认的 `tw` `observation` 产品仍保留 3600×3600 PNG 供原始资料获取，其像素地理定位和物理色标尚未验证，不支持直接科学解码；`tw-http` 的图像也需独立验证。实测证据见 [validation-results/live-cli-tw-grid.json](validation-results/live-cli-tw-grid.json)。
-
-CWA 官方图像产品编号、提供者声明的 PNG 范围/尺寸，以及数值网格的独立坐标系说明见 [docs/cwa-radar-products.md](docs/cwa-radar-products.md)。
+对于仅标注“原始资料 / 原始图像”的来源，可使用 `--raw-only` 保留原始文件；不要将图像颜色直接解释为物理反射率或雨强。逐来源迁移状态、限制和实测证据见 [migration/sources/](migration/sources/)、[docs/migration.md](docs/migration.md) 与 [validation-results/](validation-results/)；台湾 CWA 数值网格的技术细节仍保留在 [docs/cwa-radar-products.md](docs/cwa-radar-products.md)。
 
 ## Python SDK
 
