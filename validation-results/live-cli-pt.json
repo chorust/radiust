@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-21T13:30:14Z",
+  "task": "T149",
+  "source": "pt",
+  "status": "live_cli_acquisition_and_decode_passed",
+  "credentials_used": false,
+  "network_opt_in": "temporary configuration only; runtime.allow_network=true",
+  "download": {
+    "command": "uv run radiust download pt --latest --station PTST2 --output /private/tmp/radiust-pt-live-20260921 --no-cache --conf /private/tmp/radiust-pt-live.yaml --json",
+    "written": 1,
+    "failed": 0,
+    "valid_time": "2026-09-21T13:15:00.000000Z",
+    "output_uri": "/private/tmp/radiust-pt-live-20260921/source=pt/product=composite/date=2026-09-21/hour=13/PTST2_20260921T131500Z_e2c4dd8a8d8c.nc"
+  },
+  "cat": {
+    "command": "uv run radiust cat --file <written NetCDF> --renderer text",
+    "result": "source=pt product=composite station=PTST2 time=2026-09-21T13:15:00.000000Z variable=rain_intensity shape=(1526, 1500) units=1 valid_range=0..0 missing=0.02%",
+    "netcdf_sha256": "254a19bde4cf62064c4a12f3b5489ea50a2245fd85cf9d65ea0fd317ed692349",
+    "netcdf_dimensions": {
+      "latitude": 1526,
+      "longitude": 1500
+    },
+    "quality_counts": {
+      "missing": 487,
+      "below_detection": 2288513
+    },
+    "colored_rain_pixels": 0
+  },
+  "fixture_reacquisition": {
+    "url": "https://www.ipma.pt/resources.www/transf/radar/mad/pcr_pst-2026-09-18T0250.png",
+    "http_status": 200,
+    "size_bytes": 24754,
+    "sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa",
+    "matches_retained_fixture": true
+  },
+  "live_smoke": {
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q 'tests/live/test_representative_sources.py::test_public_latest_raw_smoke[pt-stations8]'",
+    "result": "1 passed"
+  },
+  "limits": [
+    "The public page reports rainfall intensity in mm/h, but the decoded raster stores ordinal legend intervals with unit 1, not continuous per-pixel rate estimates.",
+    "No displayed colored return is represented as below-detection, not measured zero rain.",
+    "The public page says the information is for informational use and not official evidence for weather-related incidents or accidents."
+  ]
+}

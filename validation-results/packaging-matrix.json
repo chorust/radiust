@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-22",
+  "status": "partial-platform-matrix",
+  "local_platform": "macOS 11+ arm64",
+  "wheel_builds": [
+    {
+      "python": "CPython 3.10",
+      "filename": "radiust-0.1.0-cp310-cp310-macosx_11_0_arm64.whl",
+      "sha256": "343ef6ea1c184581eb4b714a623c0c06d2d1288c4332feb5dbb3ab8aab997dd4"
+    },
+    {
+      "python": "CPython 3.11",
+      "filename": "radiust-0.1.0-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "38476f39695a4f91fd461bbfe4df1c20303d20ba00ca08482b659fa8881d31ad"
+    },
+    {
+      "python": "CPython 3.12",
+      "filename": "radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+      "sha256": "fa02b4a70b485319c3bec37f1d3215cfafc6c141bd35e409c067eec1ea3165d2"
+    },
+    {
+      "python": "CPython 3.13",
+      "filename": "radiust-0.1.0-cp313-cp313-macosx_11_0_arm64.whl",
+      "sha256": "5a94c518c8684e23e3b5cc9ab3869d1b8aa2fff8dd49647b5c7adeb4cdf581ef"
+    }
+  ],
+  "additional_local_platform": {
+    "host": "macOS 26 arm64 under Rosetta",
+    "wheel_architecture": "x86_64",
+    "python_versions": [
+      "3.10",
+      "3.11",
+      "3.12",
+      "3.13"
+    ],
+    "wheel_builds": 4,
+    "core_installed_wheel_smokes": "4/4 passed",
+    "extra_smokes": "Current-worktree x86_64 CPython 3.10: all eight selections passed; x86_64 CPython 3.11–3.13 were not re-run for extras.",
+    "evidence": "validation-results/release-checks.md, Packaging matrix continuation — macOS x86_64",
+    "current_worktree_cp310_wheel_sha256": "1fb1e6d1e97e377004b0d353a4a10723c449c9da10a48ef09aa6daade00097f7",
+    "current_worktree_cp310_extra_smokes": "8/8 passed (core, geotiff, zarr, playwright, recovery, scraping, storage, all)",
+    "linux_arm64_cp313_current_worktree_job": "passed under local Act; wheel build plus 3 packaging tests"
+  },
+  "installed_wheel_smoke": {
+    "test": "tests/packaging/test_installed_wheel.py",
+    "result": "passed",
+    "runs": 32,
+    "passed": 32,
+    "failed": 0,
+    "python_versions": [
+      "3.10",
+      "3.11",
+      "3.12",
+      "3.13"
+    ],
+    "extras": [
+      "core",
+      "geotiff",
+      "zarr",
+      "playwright",
+      "recovery",
+      "scraping",
+      "storage",
+      "all"
+    ],
+    "isolated_runner_warning": "The temporary pytest-only runner emitted Unknown config option: asyncio_mode because it intentionally excluded the project conftest/plugin; this is a harness warning, not a wheel smoke failure.",
+    "verified": [
+      "clean child-venv installation outside the source tree",
+      "optional-dependency isolation for each selected extra",
+      "catalog and static resource inclusion",
+      "fixture SDK fetch and default NetCDF/HDF5 data-quality readback",
+      "GeoTIFF data and quality readback for geotiff/all",
+      "Zarr data and quality readback for zarr/all"
+    ]
+  },
+  "declared_workflow_matrix": {
+    "workflow": ".github/workflows/wheels.yml",
+    "build_combinations": 16,
+    "extra_python_combinations": 28,
+    "local_build_combinations_covered": 16,
+    "local_build_combinations_unverified": 0,
+    "local_coverage_detail": "All 16 declared wheel build combinations completed locally: four macOS arm64 builds, four macOS x86_64 builds under Rosetta, four Ubuntu 24.04 arm64 Act builds, and four Ubuntu 24.04 x86_64 Act builds under AMD64 emulation on the arm64 host. Each Linux Act cell passed its wheel packaging tests and installed-wheel core smoke; each new Linux artifact archive was verified to contain exactly one wheel. These are local environments, not GitHub-hosted runs or native Intel hardware.",
+    "workflow_extra_jobs_run_locally": 1,
+    "hosted_ci": "not dispatched from this uncommitted workspace",
+    "local_extra_matrix_status": "All 28 Python/extra smoke selections passed in four local Act runner jobs. The temporary derived workflow retained artifact download, wheel selection, CI sync, bootstrap install, and the installed-wheel test, but replaced 28 separate extra jobs with a loop per Python version; needs: build was removed because the matching local build artifacts already existed."
+  },
+  "runner_label_verification": {
+    "checked": "2026-09-22",
+    "macos_15_intel": "listed in GitHub-hosted standard runner labels; runner-images announcement says available through August 2027",
+    "sources": [
+      "https://docs.github.com/en/actions/reference/runners/github-hosted-runners",
+      "https://github.com/actions/runner-images/issues/13045"
+    ],
+    "execution_status": "label availability verified; hosted matrix jobs remain unrun"
+  },
+  "blockers": [
+    "GitHub-hosted Actions and native Intel runner execution remain unverified; Linux x86_64 Act jobs ran under AMD64 emulation on an arm64 host.",
+    "The 28 extra/Python selections passed in four aggregated local Act jobs; the production 28-cell job scheduling and full hosted matrix were not dispatched."
+  ],
+  "current_worktree_recheck": {
+    "date": "2026-09-22",
+    "python": "CPython 3.12.7",
+    "platform": "macOS 26.6.2 arm64",
+    "wheel_filename": "radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_sha256": "4cbb80fed7fe2cbc0f8911ffc546ad8d3ad2b498067e1670d852e69ac157e879",
+    "installed_wheel_smokes": {
+      "core": "passed",
+      "all": "passed"
+    },
+    "verified": [
+      "clean child-venv installations outside the source tree",
+      "catalog and static resource inclusion",
+      "default NetCDF/HDF5 reflectivity and quality readback",
+      "all-extra GeoTIFF and Zarr reflectivity and quality readback",
+      "current PAGASA URL-encoding source change is included in the wheel build"
+    ],
+    "scope": "One current-worktree CPython 3.12 arm64 wheel; the complete declared platform/extra matrix remains unverified."
+  },
+  "previous_worktree_recheck_2026-09-21": {
+    "date": "2026-09-21",
+    "python": "CPython 3.12",
+    "platform": "macOS arm64",
+    "wheel_filename": "radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_sha256": "80b16d1b1a5c67815e634383243dbc13d2f3b0d7c1089f490e5bc85041d57cb8",
+    "installed_wheel_smokes": {
+      "core": "passed",
+      "all": "passed"
+    },
+    "verified_adapter_modules": [
+      "radiust.sources.th.ThSource",
+      "radiust.sources._th_time"
+    ],
+    "assertions": [
+      "the TMD adapter and OCR timestamp helper are present in the wheel and import without Tesseract",
+      "clean child-venv installs outside source tree",
+      "default NetCDF/HDF5 data-quality readback",
+      "all-extras GeoTIFF/Zarr data-quality readback"
+    ],
+    "system_tesseract": "required to decode TMD observation footer timestamps; installed by the offline GitHub Actions job"
+  },
+  "current_worktree_x86_64_recheck": {
+    "date": "2026-09-22",
+    "python": "CPython 3.10.18",
+    "host": "macOS 26 arm64 under Rosetta",
+    "wheel_architecture": "x86_64",
+    "wheel_filename": "radiust-0.1.0-cp310-cp310-macosx_11_0_x86_64.whl",
+    "wheel_sha256": "1fb1e6d1e97e377004b0d353a4a10723c449c9da10a48ef09aa6daade00097f7",
+    "installed_wheel_smokes": {
+      "core": "passed",
+      "geotiff": "passed",
+      "zarr": "passed",
+      "playwright": "passed",
+      "recovery": "passed",
+      "scraping": "passed",
+      "storage": "passed",
+      "all": "passed"
+    },
+    "smoke_runs": 8,
+    "passed": 8,
+    "failed": 0,
+    "constraints": "constraints/python-3.10.txt",
+    "verified": [
+      "clean child-venv installs outside the source tree",
+      "optional-dependency isolation for every extra selection",
+      "catalog and packaged static resources",
+      "default NetCDF/HDF5 reflectivity and quality readback",
+      "GeoTIFF and Zarr reflectivity and quality readback for enabled extras"
+    ],
+    "scope": "Current-worktree Rosetta x86_64 CPython 3.10 wheel only; not a native Intel runner or Linux platform result."
+  },
+  "current_worktree_linux_arm64_recheck": {
+    "date": "2026-09-22",
+    "workflow": ".github/workflows/wheels.yml",
+    "workflow_job": "build",
+    "event": "pull_request emulated locally with Act v0.2.89",
+    "runner": "radiust-act-runner:ubuntu24 (Ubuntu 24.04 arm64)",
+    "python": "CPython 3.13.15",
+    "wheel_filename": "radiust-0.1.0-cp313-cp313-manylinux_2_38_aarch64.whl",
+    "wheel_sha256": "6f2519c5db1950a879ea123d537832ca6aa281219c0180d7d6bbbaffc1a2141a",
+    "job_result": "passed",
+    "packaging_tests": {
+      "passed": 3,
+      "failed": 0
+    },
+    "verified": [
+      "locked CI dependency sync",
+      "release wheel build using the configured UV_PROJECT_ENVIRONMENT interpreter",
+      "isolated installed-wheel NetCDF/HDF5 science and quality readback",
+      "wheel import/build configuration contracts",
+      "artifact uploaded to the local Act artifact server",
+      "matrix-specific wheel output directories prevent local Act workspace cross-contamination",
+      "RADIUST_WHEEL explicitly selects the current build/download artifact before the installed-wheel smoke",
+      "all four Linux ARM64 artifact archives contain exactly one wheel, with the recorded wheel hash verified against its archive"
+    ],
+    "scope": "Four local Act Linux arm64 build cells for CPython 3.10-3.13; not GitHub-hosted Actions or Linux x86_64 execution.",
+    "workflow_contract_test": "tests/contract/test_packaging_workflow.py (3 passed; interpreter path and build/extra artifact isolation contracts)",
+    "artifact_storage": "Local Act artifact server under /private/tmp; each new ARM64 artifact archive contains one wheel and was not published to GitHub.",
+    "verified_matrix_cells": [
+      {
+        "python": "3.10.21",
+        "wheel_filename": "radiust-0.1.0-cp310-cp310-manylinux_2_38_aarch64.whl",
+        "wheel_sha256": "3b43d9444369f0952e8b385af86442597023dab8eba21174085d6cd63a889990",
+        "artifact_zip_sha256": "dc348726e8cf11b3ec07901d7de4b4dec5c32094e968400f78a23e70b6851ece",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      },
+      {
+        "python": "3.11.16",
+        "wheel_filename": "radiust-0.1.0-cp311-cp311-manylinux_2_38_aarch64.whl",
+        "wheel_sha256": "5e1b7417d62e83ef11e8f7c6c88dd31971338e196a6d5fd5f677bf36fc01bc3b",
+        "artifact_zip_sha256": "04348ec0bc67391c53d15bd7ddaff3d87a03e2b66bff0073e4e0b460a54b7815",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      },
+      {
+        "python": "3.12.14",
+        "wheel_filename": "radiust-0.1.0-cp312-cp312-manylinux_2_38_aarch64.whl",
+        "wheel_sha256": "48666890c7cd845b6a33fea91490e4270db626f213a09b91d2990edfb1e99c30",
+        "artifact_zip_sha256": "48829743ddefd1f13a3d6eb5622911d797003f9cb6ee71c1438fbbb39fa22c2d",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      },
+      {
+        "python": "3.13.15",
+        "wheel_filename": "radiust-0.1.0-cp313-cp313-manylinux_2_38_aarch64.whl",
+        "wheel_sha256": "a58d067c6ef930368c7600d4e5192f735096e5ac3bc8173454c9838e012881a5",
+        "artifact_zip_sha256": "beb17ab660fc97bb609eafb48cb5267d26325141ef38c9b1cccd275bb0d24463",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      }
+    ]
+  },
+  "current_worktree_linux_x86_64_recheck": {
+    "date": "2026-09-22",
+    "workflow": ".github/workflows/wheels.yml",
+    "workflow_job": "build",
+    "event": "pull_request emulated locally with Act v0.2.89",
+    "runner": "Ubuntu 24.04 x86_64 under AMD64 emulation on macOS 26 arm64",
+    "job_result": "all four build cells passed",
+    "packaging_tests_per_cell": {
+      "passed": 3,
+      "failed": 0
+    },
+    "artifact_archives": "Each local Act artifact zip contains exactly one wheel; hashes were checked against the archive contents.",
+    "scope": "Local emulated Act result, not native x86_64 hardware or GitHub-hosted Actions.",
+    "verified_matrix_cells": [
+      {
+        "python": "3.10.21",
+        "wheel_filename": "radiust-0.1.0-cp310-cp310-manylinux_2_38_x86_64.whl",
+        "wheel_sha256": "c130434151bcea1dc713a1c0d5748c5d39b3c8b0c08dc513cc59124e44484550",
+        "artifact_zip_sha256": "72dd575542c6194937a62786eff4e1a972df14d1be5a3e77c5fc2ef3eb34c208",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      },
+      {
+        "python": "3.11.16",
+        "wheel_filename": "radiust-0.1.0-cp311-cp311-manylinux_2_38_x86_64.whl",
+        "wheel_sha256": "f9a616e8657c26d18ae5989a4349e72ca10914a11accc64b6017ce63ad3c16e8",
+        "artifact_zip_sha256": "f1b2dd0dbe9e52c6de1d9e38c4234a7c0e1aea36deb4a2ea4ff3a70cd0fbea16",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      },
+      {
+        "python": "3.12.14",
+        "wheel_filename": "radiust-0.1.0-cp312-cp312-manylinux_2_38_x86_64.whl",
+        "wheel_sha256": "fa21135d1c4c03d1eebcb3b51ece600a59c0453e6bfeb3fb0dff4a123a4ade0d",
+        "artifact_zip_sha256": "81187079abcc32b9e63a418a27833c29c190a844d4e722c84ccd3c2906862238",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      },
+      {
+        "python": "3.13.15",
+        "wheel_filename": "radiust-0.1.0-cp313-cp313-manylinux_2_38_x86_64.whl",
+        "wheel_sha256": "758e16030b3f40413ca2c52d9c9105095f0f809c7c46dd95b2b6c97dd032b573",
+        "artifact_zip_sha256": "261820acfadc9abbb097a4e278d0bcec381baec53f83c4cc1733ec5c35988538",
+        "artifact_wheel_count": 1,
+        "packaging_tests": {
+          "passed": 3,
+          "failed": 0
+        },
+        "job_result": "passed"
+      }
+    ]
+  },
+  "current_worktree_linux_x86_64_extra_recheck": {
+    "date": "2026-09-22",
+    "workflow": ".github/workflows/wheels.yml",
+    "workflow_job": "extras",
+    "event": "pull_request emulated locally with Act v0.2.89",
+    "runner": "Ubuntu 24.04 x86_64 under AMD64 emulation on macOS 26 arm64",
+    "python_versions": [
+      "3.10",
+      "3.11",
+      "3.12",
+      "3.13"
+    ],
+    "extras": [
+      "geotiff",
+      "zarr",
+      "playwright",
+      "recovery",
+      "scraping",
+      "storage",
+      "all"
+    ],
+    "selections": 28,
+    "passed": 28,
+    "failed": 0,
+    "job_result": "four local Act jobs passed",
+    "harness_scope": "A temporary derivative of the production extras job reused locally uploaded build artifacts, kept the artifact download/selection, locked CI sync, selected-wheel bootstrap install, and installed-wheel smoke test, then looped over the seven extras once per Python version. It removed needs: build because the build artifacts already existed locally. This validates all 28 test selections but does not claim that 28 independent production matrix jobs or GitHub-hosted Actions ran.",
+    "verified": [
+      "clean child-venv installation of the matching Linux x86_64 wheel",
+      "optional-dependency isolation for every selected extra",
+      "catalog and packaged static resources",
+      "default NetCDF/HDF5 data and quality readback",
+      "GeoTIFF and Zarr data and quality readback for enabled extras"
+    ]
+  }
+}

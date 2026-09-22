@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "bmkg",
+  "origin": "https://inasiam.bmkg.go.id/api23/mpl_req/radar/radar/0/",
+  "collected_at": "2026-09-18T00:00:00Z",
+  "license_basis": "No raw artifact retained because the current public tile probe returned a provider error; this manifest records the blocking attempt.",
+  "status": "blocked",
+  "evidence": ["migration/sources/bmkg.json"],
+  "blockers": ["No canonical live tile and no verified IDCOMP scientific palette."],
+  "frames": []
+}

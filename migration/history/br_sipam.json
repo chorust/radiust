@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "source": "br_sipam",
+  "historical_commit": "39f07beff4528f2334803c1ee2aedc9b87c9c38e",
+  "old_path": "core/scrapers/br_sipam_scraper.py",
+  "status": "adapter-acquisition-verified-science-geometry-blocked",
+  "adapter": "python/radiust/sources/br_sipam.py",
+  "resource": "python/radiust/resources/sources/br_sipam.json",
+  "fixture": "tests/fixtures/sources/br_sipam/fixture.json",
+  "migration": "migration/sources/br_sipam.json",
+  "test": "tests/sources/test_br_sipam.py",
+  "old_behavior": {
+    "radar_list": "https://apihidro.sipam.gov.br/radares/",
+    "image_template": "https://siger.sipam.gov.br/radar/{radar}/{product}/{YYYY_MM_DD_HH_MM_SS}.png",
+    "product": "dbz",
+    "time_semantics": "varreduras ISO UTC",
+    "post_process": "legacy luminance map and station publication"
+  },
+  "evidence": [
+    "git show 39f07beff4528f2334803c1ee2aedc9b87c9c38e:core/scrapers/br_sipam_scraper.py",
+    "live GET https://apihidro.sipam.gov.br/radares/ returned HTTP 200 with radar metadata on 2026-09-18",
+    "live GET https://siger.sipam.gov.br/radar/sbbe/dbz/2026_09_18_06_20_05.png returned a 1000x1000 PNG on 2026-09-18",
+    "direct historical adapter smoke acquired latest BRBE at 2026-09-21T04:20:06Z, 7458 bytes, SHA-256 95fae3ec1eb58160d541c047232a1edae3d7ef8f65078e0d967c7e50323d850b",
+    "python/radiust/sources/br_sipam.py",
+    "tests/sources/test_br_sipam.py",
+    "tests/fixtures/sources/br_sipam/fixture.json"
+  ],
+  "blockers": [
+    "The old post-process grayscale encoding is invertible as dBZ (`gray / 16 * 5`) when its output artifact is explicitly identified; the retained provider PNG has not been proven to be that artifact.",
+    "The provider bbox is retained, but pixel control points and native grid semantics are not verified."
+  ]
+}

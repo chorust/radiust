@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "ph",
+  "origin": "https://www.panahon.gov.ph/api/v1/radar/timeline",
+  "collected_at": "2026-09-18T00:00:00Z",
+  "license_basis": "No raw artifact retained because the current timeline credential is not available in this workspace.",
+  "status": "blocked",
+  "evidence": ["migration/sources/ph.json", "tests/sources/test_external_credentials.py", "tests/sources/test_ph_fallback.py", "tests/live/test_ph_browser_replay.py"],
+  "blockers": ["A current authorized timeline token and legally retainable canonical provider image are required; the local Chromium CSRF/cookie replay passes against localhost only and is not PAGASA provider evidence."],
+  "frames": []
+}

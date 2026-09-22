@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "source": "id",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/id_scraper.py",
+  "adapter": "python/radiust/sources/id.py",
+  "status": "credential-blocked",
+  "credential_audit": {
+    "legacy_token_literal_present": true,
+    "value_copied_or_migrated": false,
+    "authorized_current_token_configured": false,
+    "synthetic_replay_uses_fixture_only_value": true
+  },
+  "differences": [
+    "Legacy embedded BMKG credentials are deliberately not migrated.",
+    "TLS verification remains enabled by the shared transport.",
+    "The old radarlist is copied into the source-specific id.json resource; this adapter no longer reads id_sidarma.json."
+  ],
+  "evidence": [
+    "python/radiust/sources/id.py",
+    "python/radiust/resources/sources/id.json",
+    "tests/sources/test_id.py",
+    "tests/sources/test_external_credentials.py",
+    "synthetic discovery/acquisition replay verifies UTC parsing, credential redaction, and raw hash preservation; decoder remains fail-closed",
+    "tests/sources/test_id.py::test_id_transport_error_does_not_echo_query_token verifies configured BMKG query tokens are removed from transport errors"
+  ],
+  "blockers": [
+    "A local legacy *_source.png payload was recovered, but its BMKG discovery response and referenced image URL were not retained; the legacy HTTP client disabled TLS verification, and the filename timestamp is not independently bound to provider metadata.",
+    "A current authorized provider token is required to verify live discovery and raw acquisition.",
+    "Palette/native geometry remain unverified."
+  ],
+  "legacy_raw_recovery": {
+    "artifact_path": "tests/fixtures/sources/id/raw/ID-ICUSRC-MAJ_20251230075900_merca_r_source.png",
+    "source_archive_path": "output/id/ID-ICUSRC-MAJ_20251230075900_merca_r_source.png",
+    "artifact_sha256": "2c82b22aee6fb8891169cbc32f4d821b27c9dbc311fecfe71a5446ff0f558df3",
+    "size_bytes": 84756,
+    "dimensions": [4084, 4084],
+    "mode": "RGBA",
+    "legacy_filename_time": "2025-12-30T07:59:00Z",
+    "payload_url_retained": false,
+    "discovery_response_retained": false,
+    "legacy_tls_verification": "disabled",
+    "time_binding": "not independently verified from provider metadata; not a canonical frame",
+    "license_basis": "Recovered from the local legacy repository's ignored output tree for private offline migration evidence; upstream redistribution and usage terms were not independently verified."
+  }
+}

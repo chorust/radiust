@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "source": "pt",
+  "origin": "https://www.ipma.pt/resources.www/transf/radar/imgs-radar-md.json",
+  "source_commit": "official-live-api",
+  "collected_at": "2026-09-18T03:05:26Z",
+  "reacquired_at": "2026-09-21",
+  "license_basis": "official IPMA public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+  "reference_resources": [{
+    "role": "display_legend",
+    "uri": "https://www.ipma.pt/resources.www/transf/radar/png-geo/legenda-radar.png",
+    "path": "reference/IPMA-radar-rain-intensity-legend.png",
+    "sha256": "78c3127b6274e0417b708b998311d4bdeed2b784cc4368404b9af8a21f9a7f3e",
+    "verified_against": "https://www.ipma.pt/pt/otempo/obs.remote/index-md.jsp"
+  }],
+  "frames": [{
+    "product": "composite",
+    "station": "PTST2",
+    "valid_time": "2026-09-18T02:50:00Z",
+    "uri": "https://www.ipma.pt/resources.www/transf/radar/mad/pcr_pst-2026-09-18T0250.png",
+    "locator_version": "ipma-madeira-v1",
+    "revision": "pcr_pst-2026-09-18T0250",
+    "metadata": {
+      "reference_shape": [1526, 1500],
+      "reference_dtype": "float32",
+      "raw_mode": "P",
+      "reference_variable": "rain_intensity",
+      "reference_units": "1",
+      "geometry_status": "verified_ipma_image_overlay",
+      "reference_grid": {
+        "kind": "geographic",
+        "crs": "EPSG:4326",
+        "bounds_wsen": [-19.87034, 30.01467, -12.89697, 35.96053],
+        "first_pixel_center_lonlat": [-19.86801554333333, 35.95858181520315],
+        "last_pixel_center_lonlat": [-12.89929445666667, 30.016618184796855]
+      },
+      "reference_quality": {
+        "0": "no displayed colored return; below-detection quality 32",
+        "1-16": "visible official rainfall-intensity interval; quality 0",
+        "missing": "opaque black is absent from the legend; missing quality 1"
+      },
+      "reference_pixels": [
+        {"row": 553, "column": 709, "rgb": [0, 138, 80], "category": 4},
+        {"row": 532, "column": 740, "rgb": [0, 150, 137], "category": 3},
+        {"row": 430, "column": 527, "rgb": [0, 186, 188], "category": 2},
+        {"row": 434, "column": 521, "rgb": [0, 116, 232], "category": 1}
+      ],
+      "transparent_pixel_quality": "below-detection; no displayed return is not numeric zero rainfall",
+      "opaque_black_pixel_quality": "missing; black is absent from the official legend",
+      "scientific_reference_status": "verified: ordinal rainfall-intensity intervals; continuous mm/h values are not recovered"
+    },
+    "artifacts": [{"name": "PTST2.png", "path": "raw/PTST2.png", "role": "data", "media_type": "image/png", "sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa"}]
+  }]
+}

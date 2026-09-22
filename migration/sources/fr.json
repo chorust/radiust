@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "source": "fr",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/fr_meteofrance_scraper.py",
+  "adapter": "python/radiust/sources/fr.py",
+  "status": "acquisition-verified-science-blocked",
+  "upstream": {
+    "page": "https://meteofrance.com/images-radar",
+    "wms": "https://rwg.meteofrance.com/geoservices/Radar-mapcache-WMS",
+    "station": "FRCOMP",
+    "layer": "BASE_REFLECTIVITY",
+    "style": "synopsis_reflectivity_oppidum_transparence",
+    "period_minutes": 15,
+    "time_semantics": "explicit WMS time dimension"
+  },
+  "differences": [
+    "The adapter derives the WMS token from the public page mfsession cookie at runtime when response headers are available; the cookie/token are not persisted.",
+    "The ephemeral WMS session token is appended only at the transport boundary; it is absent from FrameRef URI, locator, logical identity, and safe reporting projections.",
+    "The current WMS requires an explicit time dimension; the old request without time returned InvalidDimensionValue during the 2026-09-18 migration check.",
+    "WMS raw output has a stable timestamped PNG filename so HTTP 200 XML ServiceException responses fail the image-integrity check before an output can be committed.",
+    "The exact 700x600 EPSG:3857 WMS portrayal request bounds and a pixel-center control point are retained in FrameRef metadata and checked independently against pyproj; they cannot establish the native geometry of the radar measurements.",
+    "The old post-process encoding is reversible as dBZ (`gray / 16 * 5`) only when the artifact is explicitly identified as output after legacy reflectivity recovery. The current WMS RGBA artifact is not such a verified gray artifact, so scientific decode still fails until provider color mapping and native geometry are verified."
+  ],
+  "evidence": [
+    "tests/fixtures/sources/fr/fixture.json",
+    "tests/fixtures/sources/fr/raw/FRCOMP.png",
+    "tests/sources/test_fr.py",
+    "tests/sources/test_fr.py::test_fr_derives_session_token_and_builds_current_wms_time_request",
+    "tests/integration/test_source_cli_matrix.py",
+    "live page + WMS acquisition on 2026-09-18",
+    "validation-results/live-cli-public.json"
+  ],
+  "live_capabilities_audit": {
+    "checked_at": "2026-09-20T03:52:03Z",
+    "capabilities_endpoint": "https://rwg.meteofrance.com/geoservices/Radar-mapcache-WMS?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0",
+    "authentication": "derived at runtime from the official radar page; token not persisted",
+    "http_status": 200,
+    "response_version": "1.1.1",
+    "layer": "BASE_REFLECTIVITY",
+    "queryable": false,
+    "advertised_styles": [],
+    "legend_urls": 0,
+    "operations": [
+      "GetCapabilities",
+      "GetMap",
+      "GetFeatureInfo"
+    ],
+    "get_legend_graphic_probe": {
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "result": "upstream request-rejection page; no legend image or color values returned"
+    },
+    "conclusion": "The advertised rendered layer exposes no queryable pixel values or legend/color-ramp reference; scientific color-to-dBZ decoding remains blocked."
+  },
+  "official_scientific_api_audit": {
+    "checked_at": "2026-09-20",
+    "documentation": "https://confluence-meteofrance.atlassian.net/wiki/spaces/OpenDataMeteoFrance/pages/670924818/Donn%2Bes%2Bradars",
+    "api_documentation": "https://confluence-meteofrance.atlassian.net/wiki/spaces/OpenDataMeteoFrance/pages/853639355",
+    "encoding_faq": "https://confluence-meteofrance.atlassian.net/wiki/spaces/OpenDataMeteoFrance/pages/1353023522",
+    "product": "Metropolitan radar reflectivity mosaic",
+    "cadence_minutes": 5,
+    "retention_hours": 20,
+    "historical_archive": false,
+    "authentication": "registered API bearer token required",
+    "format": "gzip-compressed BUFR",
+    "nominal_resolution_m": 1000,
+    "units": "dBZ",
+    "valid_time_field": "validity_time",
+    "reflectivity_codes": "official FAQ defines codes 0-79 as reflectivity intervals and 255 as missing; code 0 is near the noise floor",
+    "license": "Etalab Open Licence; attribute Météo-France",
+    "migration_assessment": "This is a viable provider-native scientific product path, but it does not prove the legacy WMS PNG palette or its requested EPSG:3857 portrayal grid. Adopting it requires an authorized API token, BUFR decoding/tables and a separate source-contract decision."
+  },
+  "retained_frame_validation": {
+    "test": "tests/sources/test_fr.py::test_fr_retained_wms_frame_matches_references_and_stays_display_only",
+    "fixture_sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248",
+    "dimensions": [700, 600],
+    "valid_time": "2026-09-18T02:45:00Z",
+    "reference_rgba_samples": "all manifest samples match the retained raw PNG",
+    "decode": "fails closed for the current raw RGBA WMS artifact; the versioned legacy gray decoder is available only for explicitly identified post-process grayscale artifacts",
+    "scope": "T063 migration complete for verified WMS acquisition and scientific correction; native reflectivity mapping and radar-native geometry remain blocked under T065"
+  },
+  "blockers": [
+    "A verified BASE_REFLECTIVITY color-to-dBZ mapping is still required before the legacy WMS PNG can become a scientific RadarField.",
+    "The official BUFR API is a candidate provider-native alternative, but no authorized token or retained BUFR sample is available for contract validation."
+  ]
+}

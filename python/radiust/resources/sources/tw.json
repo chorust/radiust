@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "source": "tw",
+  "adapter_version": "2",
+  "historical": true,
+  "bucket_base": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation",
+  "object": "O-A0058-005",
+  "numeric_object": "O-A0059-001",
+  "product": "observation",
+  "numeric_product": "grid",
+  "station": "CV1_3600",
+  "geometry_status": "unverified",
+  "png_metadata": "provider-declared extent and image dimensions; pixel registration, datum and RGB-to-dBZ remain unverified",
+  "scientific_decode": "observation PNG blocked pending verified palette; grid decodes native TWD67 dBZ"
+}

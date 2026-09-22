@@ -1,0 +1,514 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-21T13:30:14Z",
+  "task": "registered public adapter raw-only CLI smoke",
+  "command_template": "uv run radiust --conf <temporary>/online.json download <source> --latest [--station <station>] --raw-only --no-cache --output <temporary>/<source> --json",
+  "temporary_config": {
+    "runtime.allow_network": true,
+    "runtime.request_timeout": 15,
+    "runtime.frame_deadline": 90
+  },
+  "outputs_retained": false,
+  "sources": [
+    {
+      "source": "au",
+      "station": "AU02",
+      "valid_time": "2026-09-21T06:01:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 10.84,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "IDR021.T.202609210601.png",
+          "size_bytes": 2337,
+          "sha256": "a3e89d41beaaef66c204439f4bcd1ac29968db6b1547e88044bea858ed0cf717"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1509,
+        "sha256": "a103bf6b59ba60f1aa411fc085d729e9601b3008486588a31007093c94604813"
+      },
+      "science_geometry": "blocked; product palette and native grid control points are unverified"
+    },
+    {
+      "source": "ca",
+      "station": "CASFT",
+      "valid_time": "2026-09-21T06:24:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 3.57,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "202609210624_CASFT_CAPPI_1.5_RAIN.gif",
+          "size_bytes": 17402,
+          "sha256": "f11fcd16a26efc08d5c7546772ac7028ab9dda059360d6a083a797355cf34bed"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1537,
+        "sha256": "01f7c2d798372548507c5b8be48999ce4f17ef056f31627a20ee76de332482ff"
+      },
+      "science_geometry": "blocked; ECCC raw acquisition passes, but palette/value mapping and native grid control points remain unverified"
+    },
+    {
+      "source": "cam",
+      "station": "ZIWR03",
+      "valid_time": "2026-09-21T06:00:04.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 3.49,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "T_ZIWR03_C_VDPP_20260921060004_cambodia_SRI_CAMBODIA.jpg",
+          "size_bytes": 78991,
+          "sha256": "e8bac1d564468b6970f0973885b425870f152410e3f3b1069457edc77ab798e2"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1579,
+        "sha256": "2bbf2e74fe763afea1a70330cf3be046c30b598b392bde5b8549957b04d5a0a5"
+      },
+      "science_geometry": "blocked; SRI legend semantics, fixture reuse basis, and native map transform are unverified"
+    },
+    {
+      "source": "es",
+      "station": "ESCOMP",
+      "valid_time": "2026-09-21T06:00:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 1.68,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "radw202609210600_3857.png",
+          "size_bytes": 5476,
+          "sha256": "92a55b63dba307336f810fad418c302774a0aabdd4e7bf17777f446b28eeca8b"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1515,
+        "sha256": "92003e81d2bab613fa8718084539488c1db2944f27310c618610e59fef8c8acd"
+      },
+      "science_geometry": "blocked; EPSG:3857 claim lacks control-point validation and the physical palette is unverified"
+    },
+    {
+      "source": "fr",
+      "station": "FRCOMP",
+      "valid_time": "2026-09-21T06:00:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 6.0,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "FRCOMP_20260921T060000Z.png",
+          "size_bytes": 37780,
+          "sha256": "60861f8d368aba6905a2d74a5277995a1861c137f05cf5961f24d821e97fb74a"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1521,
+        "sha256": "d7792b36f88ca0d2aee067070f301f4c8b7b515e31e602b5b228112b8fb7e070"
+      },
+      "science_geometry": "blocked; WMS portrayal is acquired, but color-to-reflectivity mapping is unverified"
+    },
+    {
+      "source": "kr",
+      "station": "BRI",
+      "valid_time": "2026-09-21T05:10:00Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 14.62,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "nph-rdr_stn1_img",
+          "size_bytes": 23819,
+          "sha256": "01f2b4142757790e7497f0578154c70a77dbf9e5d4673c886b7788461a2ddaa1"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 839,
+        "sha256": "d101d2102c44df8fa57e8f198d79558329de6cf72997841b9c4c9f271fc25260"
+      },
+      "science_geometry": "blocked"
+    },
+    {
+      "source": "nz",
+      "station": "NZAU2",
+      "valid_time": "2026-09-21T05:13:00Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 13.43,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "radarImage",
+          "size_bytes": 200643,
+          "sha256": "19a78f907223b86b767480d5852f0219a2b1a3e9404f7ca62a06443db41705bb"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 833,
+        "sha256": "33855cf66ae6478439ab38259cf9958afef96adbf4c848e3e82c66fd07647ad2"
+      },
+      "science_geometry": "blocked"
+    },
+    {
+      "source": "pt",
+      "station": "PTST2",
+      "valid_time": "2026-09-21T06:00:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 2.3,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "pcr_pst-2026-09-21T0600.png",
+          "size_bytes": 2377,
+          "sha256": "9616d49aefcad0b708b3b53e47f7617c58099b8fb717b0d4d6411dd71357409e"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1516,
+        "sha256": "fe324d2ece2502849cdb030708d5bd3f7e4857af9b26b9a3b7669a94b7d4bda8"
+      },
+      "science_geometry": "blocked; reflectivity mapping and projected pixel geometry remain unverified"
+    },
+    {
+      "source": "rainviewer",
+      "station": null,
+      "valid_time": "2026-09-21T06:10:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 4.01,
+      "raw_complete": true,
+      "manifest_artifact_count": 5,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "tile-z1-x0-y0.png",
+          "size_bytes": 21208,
+          "sha256": "324a4e18b8c77a175f48ba6579209209adf8550648e07f71211cdde0b7df13f0"
+        },
+        {
+          "name": "tile-z1-x1-y0.png",
+          "size_bytes": 19553,
+          "sha256": "c65b2fbbe334fa794b87c0945e67cb456f27ba9b9332d1f6ecba70d2d9713638"
+        },
+        {
+          "name": "tile-z1-x0-y1.png",
+          "size_bytes": 2845,
+          "sha256": "370bd1b571b951e563e34c1f78e4bdd74fdc57b0ac70ce25e940468b55df170f"
+        },
+        {
+          "name": "tile-z1-x1-y1.png",
+          "size_bytes": 3284,
+          "sha256": "7dfd9b7287072e84ab4ce1f54cdead916ef44cdeb18d9fc384d5dd5d2c58d472"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 2540,
+        "sha256": "23b77de4acdf35be1a2b619ec5a960d81b37a117773c4faaf24888348ad3c801"
+      },
+      "science_geometry": "raw-only CLI in this run; separate adapter replay covers decoded grid references"
+    },
+    {
+      "source": "sg",
+      "station": "SGCOMP",
+      "valid_time": "2026-09-21T06:00:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 2.2,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "dpsri_240km_2026092114000000dBR.dpsri.png",
+          "size_bytes": 9404,
+          "sha256": "4a80fca551fa08914a439df317ec0a1f5b7515ee3ede97a778c9bb3dce882c41"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1547,
+        "sha256": "c65b752e2e80e8ff9df7a5bd7f0ea8a58230345ecdca5e7c82277afb49da6b94"
+      },
+      "science_geometry": "blocked; rainfall legend semantics and native geometry are unverified"
+    },
+    {
+      "source": "th",
+      "station": "cmp1",
+      "valid_time": "2023-04-22T14:30:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 1.23,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "cmp1.gif",
+          "size_bytes": 158551,
+          "sha256": "55c279de79da7f45acefe2fbff1a03faa1e15b0dadd186d2c2d8b7a93451999e"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1495,
+        "sha256": "c0f0dbf55071cb0102834a8bbe20a898ae98055352c48ed14c362284e7cfc4a7"
+      },
+      "science_geometry": "raw-only; footer observation time verified; palette and native geometry remain unverified",
+      "reported_valid_time_at_run": "2026-09-21T06:14:12.213516Z",
+      "time_binding_correction": "Footer OCR of the exact retained raw SHA-256 establishes the provider observation time; the earlier CLI value was retrieval time."
+    },
+    {
+      "source": "th_royalrain",
+      "station": "takhli",
+      "valid_time": "2026-09-21T06:18:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 43.66,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "2026092106180400dBZ.cappi.png",
+          "size_bytes": 666045,
+          "sha256": "c73c8f2380dfde2af78cf4d2b23db9f637f40afb0c8e0f8d4103372e41df6a13"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1525,
+        "sha256": "902f6f8c620b9caa680d5ef34407b931b02da31561dd86c15aa47e3a76b6dc9f"
+      },
+      "science_geometry": "blocked; Royal Rain CAPPI raw bytes acquired, but palette and native geometry remain unverified"
+    },
+    {
+      "source": "tw-http",
+      "station": "CV1_3600",
+      "valid_time": "2026-09-21T06:00:00.000000Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 3.0,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "CV1_3600_202609211400.png",
+          "size_bytes": 620644,
+          "sha256": "c20ec28d6b09cccdc6848aa0a6566e12166b6982b5d560afffbd986fe699673c"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 1523,
+        "sha256": "bd209f881f05154939df7cf43cb399826a0d7782a2232a96112747dcc0e4007d"
+      },
+      "science_geometry": "blocked; PNG palette and native geometry are not verified"
+    },
+    {
+      "source": "vn",
+      "station": "DHA",
+      "valid_time": "2026-09-21T05:10:00Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 19.87,
+      "raw_complete": true,
+      "manifest_artifact_count": 2,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "DHA_202609210510_CMAX00.png",
+          "size_bytes": 49936,
+          "sha256": "03734971256bf22e88b8e13c1bf2f096549c80c4b68f7fdfa07ec44b0026fb57"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 830,
+        "sha256": "b7b014c0586d6700b64a92538576512d3bdb416fb56de199b8c6ed2dd06cc576"
+      },
+      "science_geometry": "blocked"
+    },
+    {
+      "source": "windy",
+      "station": "global",
+      "valid_time": "2026-09-21T05:15:00Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "elapsed_seconds": 3.03,
+      "raw_complete": true,
+      "manifest_artifact_count": 5,
+      "integrity_verified": true,
+      "raw_artifacts": [
+        {
+          "name": "tile-z1-x0-y0.png",
+          "size_bytes": 6774,
+          "sha256": "af0a44f6ba847a3e3abf6992dabb91ddf92cf116f92d4493207a48a77da0f7e1"
+        },
+        {
+          "name": "tile-z1-x1-y0.png",
+          "size_bytes": 6290,
+          "sha256": "fe4347dddb38b25f7c40c7c23e49d7f24ab6999d09b993df4a98d838570f5e23"
+        },
+        {
+          "name": "tile-z1-x0-y1.png",
+          "size_bytes": 2222,
+          "sha256": "af021a6204ffea48136d37cc184641b45bcc42eb448d9572ec1599f9d955aa69"
+        },
+        {
+          "name": "tile-z1-x1-y1.png",
+          "size_bytes": 2547,
+          "sha256": "ae2497fb690cdd97817ff65b6842a205ffd3f0bf68d372cef7c903aa9eed6513"
+        }
+      ],
+      "raw_manifest": {
+        "size_bytes": 2017,
+        "sha256": "d7b2af3ff9e480f75b91099e6cacf254ceb901cbed93d4b99f2b29374c4c38f9"
+      },
+      "science_time_binding": "blocked; adapter time is a cadence-floor assumption"
+    }
+  ],
+  "additional_station_probes": [
+    {
+      "source": "th",
+      "station": "kkn240Loop",
+      "checked_at": "2026-09-21T08:51:48Z",
+      "retrieval_time": "2026-09-21T08:51:48.097098Z",
+      "exit_code": 0,
+      "written": 1,
+      "failed": 0,
+      "raw_complete": true,
+      "manifest_artifact_count": 1,
+      "raw_size_bytes": 2669199,
+      "raw_sha256": "efa96f9775b84609b940ecb95674c9266c96e6f4b4b98efb7fcd7d5530450990",
+      "raw_retained": false,
+      "scope": "latest raw-only CLI; temporary output manifest and artifact integrity checked before cleanup"
+    }
+  ],
+  "scope": "15 public source adapters have successful actual CLI raw-only runs with verified output manifests and artifact path containment, byte sizes, and SHA-256; an additional live probe verified Thailand's kkn240Loop endpoint. All outputs were confined to temporary directories and deleted. These runs prove acquisition/commit only, not palette semantics, scientific decode, or native geometry.",
+  "secret_values_recorded": false,
+  "verified_source_count": 15,
+  "attempted_source_count": 15,
+  "extended_station_probe_config": {
+    "runtime.allow_network": true,
+    "runtime.request_timeout": 20,
+    "runtime.frame_deadline": 90,
+    "sources": [
+      "ca/CASFT",
+      "th_royalrain/takhli"
+    ]
+  },
+  "station_filter_recheck": {
+    "ca": {
+      "previous_unfiltered_seconds": 39.59,
+      "requested_station": "CASFT",
+      "filtered_seconds": 3.57,
+      "result": "written_and_verified"
+    },
+    "th_royalrain": {
+      "previous_unfiltered_status": "outer_timeout_at_130.01_seconds",
+      "requested_station": "takhli",
+      "filtered_seconds": 43.66,
+      "result": "written_and_verified"
+    },
+    "behavior": "A query-aware discovery hook now prevents these adapters from fetching every station page when the CLI names a station."
+  },
+  "pt_decoded_cli_recheck": {
+    "checked_at": "2026-09-21T13:30:14Z",
+    "network_opt_in": "temporary config with runtime.allow_network=true; no credentials",
+    "download_command": "uv run radiust download pt --latest --station PTST2 --output /private/tmp/radiust-pt-live-20260921 --no-cache --conf /private/tmp/radiust-pt-live.yaml --json",
+    "download_result": {
+      "written": 1,
+      "failed": 0,
+      "valid_time": "2026-09-21T13:15:00.000000Z"
+    },
+    "cat_command": "uv run radiust cat --file <written NetCDF> --renderer text",
+    "cat_result": "source=pt product=composite station=PTST2 time=2026-09-21T13:15:00.000000Z variable=rain_intensity shape=(1526, 1500) units=1 valid_range=0..0 missing=0.02%",
+    "netcdf_sha256": "254a19bde4cf62064c4a12f3b5489ea50a2245fd85cf9d65ea0fd317ed692349",
+    "netcdf_dimensions": {
+      "latitude": 1526,
+      "longitude": 1500
+    },
+    "quality_counts": {
+      "missing": 487,
+      "below_detection": 2288513
+    },
+    "colored_rain_pixels": 0,
+    "interpretation": "The latest captured frame had no displayed colored rain; this is not a quantitative zero-rain measurement.",
+    "raw_latest_image_hash": "not retained by this decoded CLI run"
+  },
+  "tmd_footer_time_binding_recheck": {
+    "checked_at": "2026-09-21",
+    "command_template": "RADIUST_RUNTIME__ALLOW_NETWORK=true uv run radiust download th --latest --station <station> --raw-only --no-cache --output <temporary> --json",
+    "results": [
+      {
+        "station": "cmp1",
+        "exit_code": 0,
+        "written": 1,
+        "failed": 0,
+        "valid_time": "2023-04-22T14:30:00.000000Z",
+        "size_bytes": 158551,
+        "sha256": "55c279de79da7f45acefe2fbff1a03faa1e15b0dadd186d2c2d8b7a93451999e",
+        "footer_times": [
+          "2023-04-22T14:30:00Z"
+        ]
+      },
+      {
+        "station": "kkn240Loop",
+        "exit_code": 0,
+        "written": 1,
+        "failed": 0,
+        "valid_time": "2023-04-22T16:00:05.000000Z",
+        "size_bytes": 2666961,
+        "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+        "footer_times": [
+          "2023-04-22T14:45:05Z",
+          "2023-04-22T15:00:05Z",
+          "2023-04-22T15:15:05Z",
+          "2023-04-22T15:30:05Z",
+          "2023-04-22T15:45:05Z",
+          "2023-04-22T16:00:05Z"
+        ]
+      }
+    ],
+    "mutable_endpoint_protection": "The first split discover/acquire probe detected a changed GIF and failed without writing output. Query-driven CLI downloads now share one operation context and hash-check the exact discovery payload.",
+    "observation": "Both public endpoints returned April 2023 frames during the September 2026 recheck; latest reports provider time and max_age filters stale data.",
+    "outputs_retained": false,
+    "secret_values_recorded": false
+  }
+}

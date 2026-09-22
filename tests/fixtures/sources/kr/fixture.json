@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "kr",
+  "origin": "https://radar.kma.go.kr/radar/individual.do",
+  "source_commit": "official-live-api",
+  "collected_at": "2026-09-18T03:50:00Z",
+  "license_basis": "official KMA public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [{
+    "product": "composite",
+    "station": "KWK",
+    "valid_time": "2026-09-18T03:50:00Z",
+    "uri": "https://radar.kma.go.kr/cgi-bin/center/nph-rdr_stn1_img",
+    "locator_version": "kr-legacy-v1",
+    "revision": "KWK-202609181250",
+    "metadata": {"reference_shape": [740, 755], "raw_mode": "P", "geometry_status": "unverified", "scientific_reference_status": "blocked: palette not verified"},
+    "artifacts": [{"name": "KWK.png", "path": "raw/KWK.png", "role": "data", "media_type": "image/png", "sha256": "7a8c77b24859eefdaf6208c4a288850980c0260f7d3b5caf2c50578bc09b59bc"}]
+  }]
+}

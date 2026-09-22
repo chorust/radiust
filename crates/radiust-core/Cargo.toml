@@ -1,7 +1,8 @@
 [package]
 name = "radiust-core"
-version = "0.0.1"
-edition = "2024"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
 description = "Rust core for the radiust radar data toolkit"
 license = "Apache-2.0"
 repository = "https://github.com/chorust/radiust"
@@ -13,4 +14,31 @@ categories = ["science", "network-programming"]
 [lib]
 name = "radiust_core"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
+[features]
+extension-module = ["dep:pyo3", "dep:pyo3-async-runtimes", "pyo3/extension-module"]
+
+[dependencies]
+bytes.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+image.workspace = true
+opendal.workspace = true
+parking_lot.workspace = true
+pyo3 = { workspace = true, optional = true }
+pyo3-async-runtimes = { workspace = true, optional = true }
+reqwest.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+suppaftp.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tokio-rustls.workspace = true
+url.workspace = true
+uuid.workspace = true
+webpki-roots.workspace = true

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source": "opensnow",
+  "adapter_version": "1",
+  "historical": false,
+  "endpoint": "https://opensnow.com/tiles/rvp/v2/radar/{timestamp}/256/1/{x}/{y}/6/1_0.png",
+  "product": "composite",
+  "tile_size": 256,
+  "zoom": 1,
+  "cadence_seconds": 600,
+  "time_semantics": "cadence_floor_assumption",
+  "geometry_status": "web_mercator_locator_only",
+  "scientific_decode": "blocked_pending_provider_palette_and_frame_identity"
+}

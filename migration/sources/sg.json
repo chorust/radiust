@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "source": "sg",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/sg_scraper.py",
+  "adapter": "python/radiust/sources/sg.py",
+  "status": "implemented-contract-passed-ordinal-only",
+  "upstream": {
+    "legacy_page": "https://www.weather.gov.sg/weather-rain-area-240km",
+    "reference_api": "https://api-open.data.gov.sg/v2/real-time/api/weather-radar-images/240km",
+    "time_semantics": "DPSRI filename timestamp is Asia/Singapore local time; verified against the matching API record.",
+    "projection": "Azimuthal Equidistant centered at 103.972583 E, 1.34911 N",
+    "range_m": 240000,
+    "boundary_box_epsg4326": [101.810507, -0.809711, 106.130495, 3.506012]
+  },
+  "differences": [
+    "The adapter preserves the legacy slideshowimages/DPSRI discovery contract and normalizes its timestamp to UTC.",
+    "The official API response for the fixture's exact timestamp has the same 480x480 visible pixels and alpha mask as the retained legacy raw; only hidden RGB values under transparent pixels differ.",
+    "The provider legend publishes five ordinal rainfall-intensity categories across 33 exact RGB colors. The adapter does not turn these categories into unsupported mm/h or dBZ values.",
+    "Transparent pixels within the nominal radius are reported as no displayed rain with BELOW_DETECTION quality, not as a quantitative zero. The source does not disambiguate below-threshold from unobserved returns within range.",
+    "Pixel centers outside the nominal 240 km circular range are masked with OUTSIDE quality; an absent slideshow frame remains NoDataError.",
+    "The spherical AEQD radius 6,371,000 m is inferred from the provider's EPSG:4326 boundary box and is recorded as an inference."
+  ],
+  "evidence": [
+    "tests/fixtures/sources/sg/fixture.json",
+    "tests/sources/test_sg.py",
+    "python/radiust/resources/palettes/sg_rain_intensity.json",
+    "migration/geometry-audit.json",
+    "official NEA data.gov.sg radar API specification, retrieved 2026-09-21",
+    "live matching-frame API comparison on 2026-09-21; signed image URL was not retained"
+  ],
+  "scientific_limits": [
+    "Rainfall intensity is an ordinal class only; no numeric rain rate is supported by the published color legend.",
+    "The image cannot distinguish truly dry pixels from below-threshold or unobserved transparent pixels within radar range."
+  ]
+}

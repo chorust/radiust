@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "wunderground",
+  "origin": "https://api0.weather.com/v3/TileServer/tile",
+  "collected_at": "2026-09-18T00:00:00Z",
+  "license_basis": "No raw artifact retained because a current Weather.com API key is not available in this workspace.",
+  "status": "blocked",
+  "evidence": ["migration/sources/wunderground.json", "tests/sources/test_external_credentials.py"],
+  "blockers": ["A current API key and provider-backed tile frame identity are required."],
+  "frames": []
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "id_sidarma",
+  "origin": "https://api.bmkg.go.id/sidarma/sidarma-nowcast/android/ssx{radar_id}.json",
+  "collected_at": "2026-09-18T00:00:00Z",
+  "license_basis": "No raw artifact retained because the current provider API requires an authorized key.",
+  "status": "blocked",
+  "evidence": ["migration/sources/id_sidarma.json", "tests/sources/test_id_sidarma.py"],
+  "blockers": ["A current authorized API key and verified palette are required."],
+  "frames": []
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "vn",
+  "origin": "http://hymetnet.gov.vn/radar/PLI",
+  "source_commit": "official-live-html",
+  "collected_at": "2026-09-18T03:50:00Z",
+  "license_basis": "official Hymetnet public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [{
+    "product": "cmax",
+    "station": "PLI",
+    "valid_time": "2026-09-18T03:50:00Z",
+    "uri": "http://hymetnet.gov.vn/dataout_web/PLI/20260918/PLI_202609180350_CMAX00.png",
+    "locator_version": "vn-legacy-v1",
+    "revision": "PLI-202609180350",
+    "metadata": {"geometry_status": "unverified", "reference_shape": [2310, 2310], "raw_mode": "RGBA", "scientific_reference_status": "blocked: palette not verified"},
+    "artifacts": [{"name": "PLI.png", "path": "raw/PLI.png", "role": "data", "media_type": "image/png", "sha256": "c6e6f1cffec92a519a1e9f6db8f84ae81e5825538aa8f2ac2286814802324832"}]
+  }]
+}

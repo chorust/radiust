@@ -1,0 +1,138 @@
+name: wheels
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            python: "3.10"
+            architecture: x86_64
+          - os: ubuntu-24.04
+            python: "3.11"
+            architecture: x86_64
+          - os: ubuntu-24.04
+            python: "3.12"
+            architecture: x86_64
+          - os: ubuntu-24.04
+            python: "3.13"
+            architecture: x86_64
+          - os: ubuntu-24.04-arm
+            python: "3.10"
+            architecture: aarch64
+          - os: ubuntu-24.04-arm
+            python: "3.11"
+            architecture: aarch64
+          - os: ubuntu-24.04-arm
+            python: "3.12"
+            architecture: aarch64
+          - os: ubuntu-24.04-arm
+            python: "3.13"
+            architecture: aarch64
+          - os: macos-15-intel
+            python: "3.10"
+            architecture: x86_64
+          - os: macos-15-intel
+            python: "3.11"
+            architecture: x86_64
+          - os: macos-15-intel
+            python: "3.12"
+            architecture: x86_64
+          - os: macos-15-intel
+            python: "3.13"
+            architecture: x86_64
+          - os: macos-14
+            python: "3.10"
+            architecture: arm64
+          - os: macos-14
+            python: "3.11"
+            architecture: arm64
+          - os: macos-14
+            python: "3.12"
+            architecture: arm64
+          - os: macos-14
+            python: "3.13"
+            architecture: arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Use runner temporary storage for the virtual environment
+        run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
+      - name: Set macOS deployment target
+        if: runner.os == 'macOS'
+        run: echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> "$GITHUB_ENV"
+      - run: uv sync --no-dev --group ci --locked
+      - name: Build wheel for this matrix cell
+        run: uv run --no-sync maturin build --release --interpreter "$UV_PROJECT_ENVIRONMENT/bin/python" --out "$WHEEL_DIR"
+        env:
+          WHEEL_DIR: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}
+      - name: Select the wheel built for this matrix cell
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          wheels = sorted(Path(os.environ["WHEEL_DIR"]).glob("*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected one wheel in {os.environ['WHEEL_DIR']}, found {len(wheels)}")
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as github_env:
+              github_env.write(f"RADIUST_WHEEL={wheels[0].resolve()}\n")
+          PY
+        env:
+          WHEEL_DIR: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}
+      - run: uv run --no-sync pytest tests/packaging -v
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radiust-wheel-${{ matrix.python }}-${{ matrix.os }}-${{ matrix.architecture }}
+          path: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}/*.whl
+
+  extras:
+    name: wheel extra ${{ matrix.extra }} / CPython ${{ matrix.python }}
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+        extra: [geotiff, zarr, playwright, recovery, scraping, storage, all]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Use runner temporary storage for the virtual environment
+        run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: radiust-wheel-${{ matrix.python }}-ubuntu-24.04-x86_64
+          path: validation-results/wheels/${{ matrix.python }}-${{ matrix.extra }}
+      - name: Select the downloaded wheel for this extra
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          wheels = sorted(Path(os.environ["WHEEL_DIR"]).glob("*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected one wheel in {os.environ['WHEEL_DIR']}, found {len(wheels)}")
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as github_env:
+              github_env.write(f"RADIUST_WHEEL={wheels[0].resolve()}\n")
+          PY
+        env:
+          WHEEL_DIR: validation-results/wheels/${{ matrix.python }}-${{ matrix.extra }}
+      - run: uv sync --no-dev --group ci --locked --no-install-project
+      - name: Install selected wheel for repository test bootstrap
+        run: uv pip install --python "$UV_PROJECT_ENVIRONMENT/bin/python" --no-deps "$RADIUST_WHEEL"
+      - run: uv run --no-sync pytest tests/packaging/test_installed_wheel.py -v
+        env:
+          RADIUST_TEST_WHEEL_EXTRA: ${{ matrix.extra }}
+          RADIUST_TEST_WHEEL_CONSTRAINTS: constraints/python-${{ matrix.python }}.txt

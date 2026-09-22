@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-20T02:52:55Z",
+  "task": "RainViewer real-network CLI smoke",
+  "source": "rainviewer",
+  "network_opt_in": "temporary CLI config with runtime.allow_network=true",
+  "output_scope": "/private/tmp/radiust-cli-live-rainviewer.b7obqC",
+  "frame": {
+    "product": "composite",
+    "valid_time": "2026-09-20T02:50:00.000000Z",
+    "revision": "18decb07d8c7",
+    "logical_id": "cd5ecd1928fa00ee0e374602b8499b3f9a27f9f8e924b0f24456cc569c43e314",
+    "shape": [1024, 1024],
+    "units": "dBZ",
+    "missing_percent": 98.02
+  },
+  "cli": {
+    "initial_download": {
+      "command": "uv run radiust download rainviewer --latest --output <temp> --raw --conf <temp>/online.yaml --json",
+      "written": 1,
+      "failed": 0,
+      "status": "written"
+    },
+    "text_readback": "source=rainviewer product=composite station=unknown time=2026-09-20T02:50:00.000000Z variable=reflectivity shape=(1024, 1024) units=dBZ valid_range=-10..65 missing=98.02%",
+    "repeat_download": {
+      "command": "uv run radiust download rainviewer --at 2026-09-20T02:50:00Z --output <same-temp> --raw --conf <temp>/online.yaml --json",
+      "written": 0,
+      "skipped": 1,
+      "failed": 0,
+      "status": "skipped"
+    }
+  },
+  "raw": {
+    "complete": true,
+    "artifact_count": 4,
+    "artifacts": [
+      {"name": "tile-z1-x0-y0.png", "size_bytes": 20125, "sha256": "a29996774dc30c976cec1f0cd80e96c3b4e4b7e039703c00f73149ebf6dc2725"},
+      {"name": "tile-z1-x1-y0.png", "size_bytes": 19357, "sha256": "55eb32a76ae41ca13b6fabee6c6b210338153b830001f2286e184c8582413c9e"},
+      {"name": "tile-z1-x0-y1.png", "size_bytes": 3122, "sha256": "50fd44e3c31f2cd2d934aec1fe76658030fc19d579cffd8aa527e739acf6bd08"},
+      {"name": "tile-z1-x1-y1.png", "size_bytes": 3275, "sha256": "8cf6d66bbaee83ae66b184b66720ea2ae64bd3f40f4c1260d3b0255d9f94f9c5"}
+    ]
+  },
+  "readback": {
+    "reader": "netCDF4 1.7.4",
+    "assertions": "1024x1024 reflectivity, dBZ, uint16 quality, CF-1.8",
+    "cf_checker": {
+      "version": "4.1.0",
+      "standard": "CF-1.8",
+      "errors": 0,
+      "warnings": 0,
+      "information_messages": 0
+    }
+  },
+  "task_complete": true
+}

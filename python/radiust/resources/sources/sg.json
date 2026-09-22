@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "sg",
+  "adapter_version": "2",
+  "historical": true,
+  "page_url": "https://www.weather.gov.sg/weather-rain-area-240km",
+  "reference_api_endpoint": "https://api-open.data.gov.sg/v2/real-time/api/weather-radar-images/240km",
+  "station": "SGCOMP",
+  "product": "composite",
+  "timezone": "Asia/Singapore",
+  "cadence_minutes": 15,
+  "geometry": {
+    "projection": "Azimuthal Equidistant",
+    "center_longitude": 103.972583,
+    "center_latitude": 1.34911,
+    "earth_radius_m": 6371000,
+    "range_m": 240000,
+    "pixel_size_m": 1000,
+    "crs": "+proj=aeqd +lat_0=1.34911 +lon_0=103.972583 +R=6371000 +units=m +no_defs",
+    "boundary_box_epsg4326": [101.810507, -0.809711, 106.130495, 3.506012],
+    "derivation": "Earth radius inferred by inverse-projecting the provider boundary-box edge within one 1 km source pixel."
+  },
+  "palette_resource": "palettes/sg_rain_intensity.json",
+  "time_semantics": "DPSRI filename timestamps are Asia/Singapore local time; checked against matching official API timestamp.",
+  "transparent_semantics": "No visible colored rain return; represented as category 0 with below-detection quality, not as a quantitative zero rainfall rate.",
+  "missing_semantics": "Pixels beyond the nominal 240 km radius are outside coverage; a slideshow with no frame is NoDataError. Internal transparent pixels cannot distinguish below-threshold from unobserved returns.",
+  "geometry_status": "verified_aeqd_240km",
+  "scientific_decode": "verified_ordinal_intensity_categories_no_quantitative_rate"
+}

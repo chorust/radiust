@@ -1,0 +1,58 @@
+name: live-source-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_public:
+        description: Run bounded public-source live smoke tests
+        required: true
+        default: true
+        type: boolean
+      run_provider:
+        description: Run credentialed provider smoke tests
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  public:
+    if: ${{ inputs.run_public }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Use runner temporary storage for the virtual environment
+        run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
+      - name: Install Tesseract for TMD observation-time binding
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr
+      - run: uv sync --no-dev --group ci --locked
+      - name: Public live smoke
+        env:
+          RADIUST_TEST_ALLOW_LIVE: "1"
+        run: uv run --no-sync pytest tests/live/test_representative_sources.py -m 'live and not provider' -vv
+
+  provider:
+    if: ${{ inputs.run_provider }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Use runner temporary storage for the virtual environment
+        run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
+      - run: uv sync --no-dev --group ci --locked
+      - name: Credentialed provider smoke
+        env:
+          RADIUST_TEST_ALLOW_LIVE: "1"
+          RADIUST_TEST_ALLOW_PROVIDER: "1"
+          RADIUST_TEST_ID_SIDARMA_API_KEY: ${{ secrets.RADIUST_TEST_ID_SIDARMA_API_KEY }}
+          RADIUST_TEST_PH_TIMELINE_TOKEN: ${{ secrets.RADIUST_TEST_PH_TIMELINE_TOKEN }}
+          RADIUST_TEST_WUNDERGROUND_API_KEY: ${{ secrets.RADIUST_TEST_WUNDERGROUND_API_KEY }}
+        run: uv run --no-sync pytest tests/live/test_representative_sources.py -m 'live and provider' -vv

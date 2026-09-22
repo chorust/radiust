@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "source": "kr",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/kr_scraper.py",
+  "adapter": "python/radiust/sources/kr.py",
+  "status": "acquisition-verified-science-geometry-blocked",
+  "differences": [
+    "The KMA fileChkAjax POST discovery and station CGI image path were migrated into the shared source contract.",
+    "Provider timestamps are interpreted in Asia/Seoul and normalized to UTC.",
+    "Scientific palette and native grid remain disabled rather than inheriting unverified legacy assumptions."
+  ],
+  "evidence": [
+    "tests/fixtures/sources/kr/fixture.json",
+    "tests/sources/test_kr.py",
+    "live KMA acquisition on 2026-09-18",
+    "2026-09-21 opt-in latest raw smoke: station BRI at 2026-09-21T04:55:00Z, 23,982-byte application/octet-stream, SHA-256 5d22c9d4500e8b67bceed4ea2e5e5bb56d808dd63e63534c78dd5302718250fe; palette and native geometry remain blocked.",
+    "2026-09-21 raw-only CLI smoke passed for BRI at 2026-09-21T05:10:00Z; the raw-complete manifest and artifact hashes verified before temporary-output cleanup (validation-results/live-cli-public.json).",
+    "KMA's official API Hub documents a separate numeric radar-composite product and authenticated grid-coordinate resources; this is not a decoded reference for the retained station CGI image.",
+    "KMA's official radar training material shows a dBZ scale on an example reflectivity CAPPI, but does not identify the exact image palette used by this station CGI endpoint.",
+    "2026-09-21 retained KWK screenshot audit: the image title identifies Gwanaksan HSR rain; the embedded legend is labeled mm/h with classes spanning 0.0 to 150, and the map contains 50/100/150/200 km range rings. This establishes only the rendered legend and overlay, not pixel-to-class thresholds, data mask, or image-to-grid transform.",
+    "validation-results/live-cli-public.json",
+    "tests/sources/test_kr.py::test_legacy_post_transport_error_does_not_echo_sensitive_header verifies the shared POST transport strips sensitive header values from public errors",
+    "2026-09-21 public live raw smoke passed for the current KMA latest station image; artifact digest/size assertions passed and RawFrame was closed without retaining provider bytes (validation-results/live.json).",
+    "tests/sources/test_kr.py::test_kr_rejects_nonempty_invalid_discovery_json maps non-empty invalid UTF-8/JSON to DecodeError while preserving blank-response no-data handling"
+  ],
+  "official_reference_audit": {
+    "api_hub": "https://apihub.kma.go.kr/apiList.do?seqApi=5",
+    "numeric_composite": {
+      "documented_resolution": "500 m",
+      "documented_cadence_minutes": 5,
+      "documented_observation_field": "ECHO in dBZ multiplied by 100",
+      "no_echo_sentinel": -25000,
+      "outside_observation_area_sentinel": -30000,
+      "grid_geometry": "Separate latitude/longitude lookup and NetCDF grid-file resources are documented.",
+      "authorization": "An issued KMA API authKey is required; the current KR station-image adapter has no configuration for that distinct API key.",
+      "relationship_to_adapter": "This authenticated numeric composite is not the same artifact as the legacy station CGI GIF and cannot establish that image's palette or geometry."
+    },
+    "reflectivity_legend_reference": {
+      "document": "https://www.kma.go.kr/down/e-learning/high/high_04.pdf",
+      "shown_product": "An example reflectivity CAPPI with a dBZ legend",
+      "mapping_to_kwk_station_cgi": "not established"
+    },
+    "conclusion": "The retained CGI image itself supplies visible mm/h legend labels and radar-range overlays, but does not establish exact swatch thresholds, which pixels are data versus map/background, or the pixel-to-grid transform. The authenticated numeric KMA composite is a different product. Keep scientific decoding disabled until a source-matched numerical/pixel and geometry reference is available.",
+    "station_cgi_artifact": {
+      "retained_frame": "tests/fixtures/sources/kr/raw/KWK.png",
+      "observed_title": "Gwanaksan HSR precipitation (관악산 HSR 강수)",
+      "observed_legend": "mm/h; visible labels range from 0.0 through 150",
+      "observed_overlay": "Rendered national map and 50/100/150/200 km range rings are part of the same 755x740 image.",
+      "scientific_use": "Display evidence only. Exact swatch thresholds, data mask, pixel registration, and provider-native grid transform are not established."
+    }
+  },
+  "blockers": [
+    "Exact palette class mapping/data mask and native image-grid transform remain unverified."
+  ]
+}

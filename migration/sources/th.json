@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "source": "th",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/th_scraper.py",
+  "adapter": "python/radiust/sources/th.py",
+  "status": "acquisition-verified-science-geometry-blocked",
+  "upstream": {
+    "official_page": "https://weather.tmd.go.th/cmpLoop.php",
+    "products": ["nationwide composite", "Khon Kaen 240 km loop"],
+    "displayed_time_zone": "UTC",
+    "adapter_time_binding": "Tesseract OCR reads every fixed-layout UTC footer; latest animation frame binds valid_time, and unrecognized timestamps fail closed"
+  },
+  "differences": [
+    "The two live GIF endpoints remain distinct stations and explicitly reject historical queries.",
+    "The official TMD page labels displayed time as UTC. The GIF container and HTTP response omit observation-time metadata, so the adapter OCRs the rendered footer on every frame, requires the documented UTC time format and 15-minute sequence, and uses the last frame time as valid_time.",
+    "The retained and current live endpoint images visibly report April 2023 observations despite September 2026 retrieval. latest therefore reports the actual old observation time; max_age can reject it instead of treating retrieval time as freshness.",
+    "Timestamp OCR uses the system Tesseract executable and a pinned 680x680 footer crop. Missing OCR, layout changes, unreadable text, or invalid cadence fail closed; this is separate from radar-value decoding.",
+    "Display colors are preserved as raw data until palette and grid evidence exist."
+  ],
+  "evidence": [
+    "tests/fixtures/sources/th/fixture.json",
+    "tests/fixtures/sources/th/raw/kkn240Loop.gif",
+    "tests/sources/test_th.py",
+    "https://weather.tmd.go.th/cmpLoop.php",
+    "https://weather.tmd.go.th/kkn240_edit2.php",
+    "https://weather.tmd.go.th/disclaimer.html",
+    "https://ubonmet.tmd.go.th/files/KM-base/KM68_1.pdf",
+    "https://khonkaen.tmd.go.th/wp-content/uploads/2025/01/COP-2_RADAR.pdf",
+    "https://ubonmet.tmd.go.th/files/KM-base/KM-2560-3.pdf",
+    "live TMD cmp1 acquisition on 2026-09-18",
+    "2026-09-21 raw-only CLI acquisition of both cmp1 and kkn240Loop; output and artifacts were hash-verified in a temporary directory and deleted",
+    "tests/sources/test_th.py replays both retained GIFs through the registered adapter and verifies exact OCR-derived footer times, stale max_age filtering, exact-byte prefetch reuse, and fail-closed behavior without Tesseract",
+    "2026-09-21 direct kkn240Loop GIF capture: six 680x680 frames, 2,666,961 bytes, SHA-256 98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd; OCR reads UTC frame labels 2023-04-22 14:45:05 through 16:00:05 at 15-minute intervals",
+    "2026-09-21 current cmp1 response: 680x680, 158,551 bytes, SHA-256 55c279de79da7f45acefe2fbff1a03faa1e15b0dadd186d2c2d8b7a93451999e; rendered footer OCR reads 2023-04-22 14:30:00 although the HTTP Date header is 2026-09-21",
+    "validation-results/live-cli-public.json",
+    "T104 acquisition migration completed: retained real cmp1/kkn240Loop GIFs bind valid_time to rendered UTC footer text, preserve exact discovered bytes, reject unsupported historical queries, and fail closed for unverified science"
+  ],
+  "official_reference_audit": {
+    "checked_at": "2026-09-21",
+    "training_document": "https://ubonmet.tmd.go.th/files/KM-base/KM68_1.pdf",
+    "documented_national_composite": "2 km CAPPI, maximum-value composite, updated every 15 minutes",
+    "documented_station_intensity_scale": "Suvarnabhumi reflectivity/intensity illustration with dBZ thresholds",
+    "transfer_to_kkn240Loop": "not established; the document does not prove this station loop uses the same pixel palette or grid",
+    "khon_kaen_station_document": {
+      "url": "https://khonkaen.tmd.go.th/wp-content/uploads/2025/01/COP-2_RADAR.pdf",
+      "station": "Khon Kaen",
+      "volume_schedule": "15 minutes in UTC",
+      "configured_range_km": 240,
+      "gate_width_m": 1000,
+      "rendered_products": "GIF and KML at 0.5-degree elevation",
+      "data_output_path": "/KKN/240",
+      "endpoint_correlation": "station/range and GIF product context align with kkn240Loop naming; adapter OCR independently reads each retained artifact's visible frame time, but operating documentation does not define its pixel transform"
+    },
+    "official_display_scale_reference": {
+      "url": "https://ubonmet.tmd.go.th/files/KM-base/KM-2560-3.pdf",
+      "shown_dbz_labels": [10.0, 11.5, 16.5, 19.0, 21.5, 24.0, 26.5, 29.0, 31.5, 34.0, 36.5, 39.0, 41.5, 44.0, 46.5, 49.0, 51.5, 54.0, 56.5, 59.0, 61.5, 64.0, 66.5],
+      "mapping_to_kkn240Loop_pixel_palette": "not established; a displayed legend and station-operating document do not define the indexed GIF palette"
+    },
+    "service_terms": "official TMD radar is published as a public service; the disclaimer warns images are semi-real-time and not quality-controlled",
+    "conclusion": "Footer frame-time binding is now implemented and verified against retained/live images; no exact raw-matched palette or pixel geometry was established"
+  },
+  "retained_fixture_capture": {
+    "checked_at": "2026-09-21T09:43:54Z",
+    "station": "kkn240Loop",
+    "url": "https://weather.tmd.go.th/kkn/kkn240Loop.gif",
+    "http_status": 200,
+    "content_type": "image/gif",
+    "last_modified": null,
+    "size_bytes": 2666961,
+    "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+    "dimensions": [680, 680],
+    "animation_frames": 6,
+    "frame_durations_ms": [750, 750, 750, 750, 750, 1500],
+    "observation_times_ocr_utc": [
+      "2023-04-22T14:45:05Z",
+      "2023-04-22T15:00:05Z",
+      "2023-04-22T15:15:05Z",
+      "2023-04-22T15:30:05Z",
+      "2023-04-22T15:45:05Z",
+      "2023-04-22T16:00:05Z"
+    ],
+    "observation_time_source": "rendered footer OCR; each animation frame verified in tests/sources/test_th.py"
+  },
+  "latest_cli_time_binding_recheck": {
+    "checked_at": "2026-09-21",
+    "command_template": "RADIUST_RUNTIME__ALLOW_NETWORK=true uv run radiust download th --latest --station <station> --raw-only --no-cache --output <temporary> --json",
+    "results": [
+      {
+        "station": "cmp1",
+        "valid_time": "2023-04-22T14:30:00.000000Z",
+        "raw_size_bytes": 158551,
+        "raw_sha256": "55c279de79da7f45acefe2fbff1a03faa1e15b0dadd186d2c2d8b7a93451999e",
+        "footer_observation_times": ["2023-04-22T14:30:00Z"]
+      },
+      {
+        "station": "kkn240Loop",
+        "valid_time": "2023-04-22T16:00:05.000000Z",
+        "raw_size_bytes": 2666961,
+        "raw_sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+        "footer_observation_times": [
+          "2023-04-22T14:45:05Z",
+          "2023-04-22T15:00:05Z",
+          "2023-04-22T15:15:05Z",
+          "2023-04-22T15:30:05Z",
+          "2023-04-22T15:45:05Z",
+          "2023-04-22T16:00:05Z"
+        ]
+      }
+    ],
+    "raw_retained": false,
+    "scope": "the atomic query-driven CLI path writes the same hash-verified bytes whose footer times establish valid_time; scientific decode and pixel geometry remain unverified"
+  },
+  "blockers": [
+    "Provider frame time, native geometry, and palette semantics remain unverified."
+  ]
+}

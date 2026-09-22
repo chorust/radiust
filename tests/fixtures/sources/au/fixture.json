@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "source": "au",
+  "origin": "ftp://ftp.bom.gov.au/anon/gen/radar/",
+  "source_commit": "official-live-ftp",
+  "collected_at": "2026-09-18T05:11:00Z",
+  "license_basis": "official BoM public FTP radar artifact retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [
+    {
+      "product": "composite",
+      "station": "AU02",
+      "valid_time": "2026-09-18T05:11:00Z",
+      "uri": "ftp://ftp.bom.gov.au/anon/gen/radar/IDR021.T.202609180511.png",
+      "locator_version": "au-legacy-v1",
+      "revision": "IDR021-202609180511",
+      "metadata": {
+        "reference_shape": [512, 512],
+        "raw_mode": "P",
+        "time_semantics": "filename_utc",
+        "ftp_mode": "passive_plain",
+        "geometry_status": "unverified",
+        "scientific_reference_status": "blocked: palette and native grid not verified"
+      },
+      "artifacts": [
+        {
+          "name": "IDR021.T.202609180511.png",
+          "path": "raw/IDR021.T.202609180511.png",
+          "role": "data",
+          "media_type": "image/png",
+          "sha256": "4ab60f3c01df485d6d5bf24417733425a4900e160c43b4543b51bc124d7a0c8c"
+        }
+      ]
+    }
+  ]
+}

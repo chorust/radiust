@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "task": "T148",
+  "task_status": "partial",
+  "mode": "offline",
+  "measured_at": "2026-09-22T00:01:18.860857+00:00",
+  "environment": {
+    "python": "3.12.7",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "architecture": "arm64",
+    "processor": "arm"
+  },
+  "sources": {
+    "my": {
+      "status": "synthetic_replay_only",
+      "canonical_fixture_status": "unavailable",
+      "synthetic_input_sha256": "ebb8a211dbec412e701b71c29799401d227a8f1172a61b9ca189d355f6c7e9f1",
+      "fixture_origin": "generated deterministic responses; not provider bytes",
+      "scientific_reference_status": "not applicable: synthetic raw payload cannot validate physical values or geometry",
+      "cold": {
+        "scope": "registered_adapter_synthetic_replay_raw_acquisition_no_scientific_decode",
+        "elapsed_seconds": 0.004033625,
+        "frames_per_second": 247.91595649074964,
+        "input_bytes": 77,
+        "input_bytes_per_second": 19089.52864978772,
+        "peak_rss_bytes": 96206848,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 3,
+        "cache_hits_observed": 0,
+        "decoded_shape": null
+      },
+      "warm": {
+        "scope": "registered_adapter_synthetic_replay_raw_acquisition_no_scientific_decode",
+        "elapsed_seconds": 0.003488042,
+        "frames_per_second": 286.6937955448931,
+        "input_bytes": 77,
+        "input_bytes_per_second": 22075.42225695677,
+        "peak_rss_bytes": 96403456,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 2,
+        "cache_hits_observed": 1,
+        "decoded_shape": null
+      }
+    },
+    "id_sidarma": {
+      "status": "synthetic_replay_only",
+      "canonical_fixture_status": "unavailable",
+      "synthetic_input_sha256": "8b86f7e88b03debb64a4ab216044e628e3386e219e4018f5410fa4021c0dee72",
+      "fixture_origin": "generated deterministic responses; not provider bytes",
+      "scientific_reference_status": "not applicable: synthetic raw payload cannot validate physical values or geometry",
+      "cold": {
+        "scope": "registered_adapter_synthetic_replay_raw_acquisition_no_scientific_decode",
+        "elapsed_seconds": 0.00514125,
+        "frames_per_second": 194.50522732798444,
+        "input_bytes": 77,
+        "input_bytes_per_second": 14976.902504254802,
+        "peak_rss_bytes": 96337920,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 2,
+        "cache_hits_observed": 0,
+        "decoded_shape": null
+      },
+      "warm": {
+        "scope": "registered_adapter_synthetic_replay_raw_acquisition_no_scientific_decode",
+        "elapsed_seconds": 0.003684583,
+        "frames_per_second": 271.401132774048,
+        "input_bytes": 77,
+        "input_bytes_per_second": 20897.887223601694,
+        "peak_rss_bytes": 96419840,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 1,
+        "cache_hits_observed": 1,
+        "decoded_shape": null
+      }
+    },
+    "rainviewer": {
+      "status": "measured",
+      "fixture_sha256": "e8b977f1511a77d9260f9a35628b682074ea19b839672f8d8682e3e87fe615c5",
+      "fixture_origin": "https://api.rainviewer.com/public/weather-maps.json and tilecache.rainviewer.com",
+      "scientific_reference_status": "verified: official Universal Blue RGBA table mapped to dBZ",
+      "cold": {
+        "scope": "registered_adapter_discover_acquire_decode_official_replay",
+        "elapsed_seconds": 0.028829209,
+        "frames_per_second": 34.68704257546574,
+        "input_bytes": 44576,
+        "input_bytes_per_second": 1546209.6098439607,
+        "peak_rss_bytes": 146145280,
+        "peak_temporary_bytes_sampled": 44576,
+        "request_count": 5,
+        "cache_hits_observed": 0,
+        "decoded_shape": [
+          1024,
+          1024
+        ]
+      },
+      "warm": {
+        "scope": "registered_adapter_discover_acquire_decode_official_replay",
+        "elapsed_seconds": 0.035537834,
+        "frames_per_second": 28.13902501767553,
+        "input_bytes": 44576,
+        "input_bytes_per_second": 1254325.1791879043,
+        "peak_rss_bytes": 146063360,
+        "peak_temporary_bytes_sampled": 44576,
+        "request_count": 5,
+        "cache_hits_observed": 0,
+        "decoded_shape": [
+          1024,
+          1024
+        ]
+      }
+    },
+    "au": {
+      "status": "measured",
+      "fixture_sha256": "a18bd286f7fdfe806e5e6bcafb6c2c60d74ad7cce6b56830aadbed53632de732",
+      "fixture_origin": "ftp://ftp.bom.gov.au/anon/gen/radar/",
+      "scientific_reference_status": "blocked: palette and native grid not verified",
+      "cold": {
+        "scope": "registered_adapter_discover_acquire_official_ftp_raw_replay_no_scientific_decode",
+        "elapsed_seconds": 0.009169208,
+        "frames_per_second": 109.06067350637045,
+        "input_bytes": 1921,
+        "input_bytes_per_second": 209505.55380573764,
+        "peak_rss_bytes": 96141312,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 2,
+        "cache_hits_observed": 0,
+        "decoded_shape": null
+      },
+      "warm": {
+        "scope": "registered_adapter_discover_acquire_official_ftp_raw_replay_no_scientific_decode",
+        "elapsed_seconds": 0.003959416,
+        "frames_per_second": 252.56249911603126,
+        "input_bytes": 1921,
+        "input_bytes_per_second": 485172.56080189603,
+        "peak_rss_bytes": 95059968,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 1,
+        "cache_hits_observed": 1,
+        "decoded_shape": null
+      }
+    },
+    "ph": {
+      "status": "synthetic_replay_only",
+      "canonical_fixture_status": "unavailable",
+      "synthetic_input_sha256": "1aaf682ddbb77671e084eb3ef433a889a0246ceb39a43f50ce56fb7a3c337266",
+      "fixture_origin": "generated deterministic responses; not provider bytes",
+      "scientific_reference_status": "not applicable: synthetic raw payload cannot validate physical values or geometry",
+      "cold": {
+        "scope": "registered_adapter_synthetic_replay_raw_acquisition_no_scientific_decode",
+        "elapsed_seconds": 0.006232583,
+        "frames_per_second": 160.4471212015949,
+        "input_bytes": 77,
+        "input_bytes_per_second": 12354.428332522808,
+        "peak_rss_bytes": 96206848,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 3,
+        "cache_hits_observed": 0,
+        "decoded_shape": null
+      },
+      "warm": {
+        "scope": "registered_adapter_synthetic_replay_raw_acquisition_no_scientific_decode",
+        "elapsed_seconds": 0.005233541,
+        "frames_per_second": 191.07522039093607,
+        "input_bytes": 77,
+        "input_bytes_per_second": 14712.791970102078,
+        "peak_rss_bytes": 96747520,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 2,
+        "cache_hits_observed": 1,
+        "decoded_shape": null
+      }
+    },
+    "fr": {
+      "status": "measured",
+      "fixture_sha256": "ba885525de1e6e19658e5d2e834e8d84ca4ff41048706541783189b5139495ea",
+      "fixture_origin": "https://meteofrance.com/images-radar and Radar-mapcache-WMS BASE_REFLECTIVITY",
+      "scientific_reference_status": "blocked: provider color-to-dBZ mapping not yet verified",
+      "cold": {
+        "scope": "registered_adapter_discover_acquire_historical_wms_raw_replay_no_scientific_decode",
+        "elapsed_seconds": 0.015986666,
+        "frames_per_second": 62.55212938082274,
+        "input_bytes": 68614,
+        "input_bytes_per_second": 4291951.805335771,
+        "peak_rss_bytes": 96763904,
+        "peak_temporary_bytes_sampled": 68614,
+        "request_count": 2,
+        "cache_hits_observed": 0,
+        "decoded_shape": null
+      },
+      "warm": {
+        "scope": "registered_adapter_discover_acquire_historical_wms_raw_replay_no_scientific_decode",
+        "elapsed_seconds": 0.006307083,
+        "frames_per_second": 158.55190109278726,
+        "input_bytes": 68614,
+        "input_bytes_per_second": 10878880.141580505,
+        "peak_rss_bytes": 95371264,
+        "peak_temporary_bytes_sampled": 0,
+        "request_count": 0,
+        "cache_hits_observed": 1,
+        "decoded_shape": null
+      }
+    }
+  },
+  "measurement_notes": [
+    "Trials run in separate processes with a shared private cache per source; RSS is the process peak including imports.",
+    "Temporary bytes are sampled at 10 ms intervals and may miss shorter peaks; cache contents are excluded.",
+    "MY, SIDARMA, and PAGASA use deterministic synthetic request/response replays through their registered adapters because no canonical permitted raw fixture is available; these measurements do not use provider bytes or credentials and do not verify scientific values or geometry.",
+    "Historical FR replay pins the discovery clock to its recorded frame time; live latest behavior is excluded.",
+    "RainViewer replays official tiles through the registered adapter; its tile cache may intentionally have no warm cache hit.",
+    "No comparable old-chain benchmark under identical inputs and environment has been run; acceleration is unverified.",
+    "T148 remains partial because canonical raw evidence is unavailable for my, id_sidarma, and ph, and no matched old-chain baseline exists; synthetic replay timings are not source-performance substitutes."
+  ],
+  "old_chain_comparison": {
+    "status": "unavailable",
+    "reason": "no matched source/fixture/environment baseline"
+  }
+}

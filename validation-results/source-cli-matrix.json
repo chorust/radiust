@@ -1,0 +1,411 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-21T15:28:53Z",
+  "task": "T147",
+  "status": "non_exception_local_matrix_passed_with_documented_exceptions",
+  "execution": {
+    "command": "uv run pytest -q tests/integration/test_source_cli_matrix.py",
+    "result": "35 passed; one pre-existing NumPy binary-compatibility warning",
+    "source_catalog_ids": 24,
+    "raw_backed_fixture_sources": 16,
+    "FixtureSource_shared_plumbing_cases": 15,
+    "registered_adapter_replay_cases": 18,
+    "blocked_fixture_sources": 8
+  },
+  "coverage": {
+    "list_sources": "The catalog lists all 24 HEAD inventory IDs.",
+    "shared_sdk_cli": "For 15 raw-backed manifests, SDK fetch, CLI raw-only download, and CLI cat text pass through FixtureSource; these cases validate common SDK/CLI plumbing and do not execute each source adapter.",
+    "rainviewer": "The registered RainViewer adapter replays the retained API response and four official tiles through SDK fetch, CLI raw-only download, and CLI cat text; the decoded shape, dBZ unit, and corrected manifest pixel reference are asserted.",
+    "tw_grid": "The registered Taiwan CWA adapter replays retained O-A0059-001.json through SDK fetch, CLI NetCDF download and readback, and CLI cat text; native TWD67 grid shape, dBZ unit, finite count and reference pixel are asserted.",
+    "tw_observation": "The registered Taiwan CWA adapter replays O-A0058-005 PNG and its companion JSON through CLI raw-only download, with time, product identity, declared extent, PNG dimensions and retained artifact bytes checked; scientific PNG decoding remains blocked.",
+    "au_fr_raw": "The registered AU FTP and FR WMS adapters replay historical raw bytes through SDK discover/acquire and CLI raw-only download; CLI cat text explicitly rejects unverified science. FR raw PNG validation rejects HTTP 200 XML service exceptions. This is source acquisition coverage, not provider-native geometry or palette acceptance.",
+    "tw_http_raw": "The registered CWA tw-http adapter replays the retained Observe_radar.js timeline and its official PNG through SDK discover/acquire and CLI raw-only download, with UTC time and raw bytes checked. Scientific cat remains explicitly blocked without provider-backed palette and grid evidence.",
+    "kr_raw": "The registered KMA adapter replays five CGI station POST lookbacks and its retained PNG using SDK discover/acquire and CLI raw-only download. It preserves the source's KST-to-UTC time and explicitly rejects unverified scientific cat.",
+    "es_vn_ca_raw": "The registered AEMET, Hymetnet and ECCC adapters replay their timeline/inline-JS/directory discovery with retained original PNG/GIF bytes through SDK discover/acquire and CLI raw-only download; valid time is checked against official fixture metadata. Scientific cat stays blocked until source palettes and grid control points are verified.",
+    "sg_pt_nz_raw": "The registered MSS Singapore, IPMA Madeira and MetService NZ adapters replay the official timeline/page and raw bytes through SDK discover/acquire and CLI raw-only download. SG and PT decode through CLI text cat: SG emits five documented ordinal categories on AEQD; PT emits IPMA rainfall-intensity legend intervals on its official EPSG:4326 overlay. NZ remains fail-closed without source-backed science/geometry.",
+    "th_th_royalrain_windy_raw": "The registered Thailand TMD mutable live GIF, Royal Rainmaking HTML CAPPI and Windy four-tile adapters replay retained original bytes via SDK discover/acquire and CLI raw-only download. TMD coverage includes both cmp1 and the retained six-frame kkn240Loop GIF; footer OCR binds UTC observation times, query-driven CLI download reuses the inspected bytes, and separate ref acquisition fails on a changed SHA-256. TMD cat remains fail-closed without a verified decoder. Windy's four original tile byte arrays are compared individually. Scientific decode remains blocked where provider-backed palette and native-grid evidence is absent.",
+    "registered_source_count": "All 16 raw-backed source IDs have source-specific registered-adapter replay. MY has a synthetic controlled HEAD/GET transcript and a separate live two-station raw-only CLI run; its legacy display PNG remains only FixtureSource shared-plumbing coverage. The live run verifies acquisition bytes but does not supply reuse permission, accepted time binding, or science evidence.",
+    "network": "All matrix cases are offline; live source behavior is recorded separately in validation-results/live.json.",
+    "science": "RainViewer, Taiwan grid, Singapore ordinal categories, and Portugal ordinal rainfall-intensity intervals are checked through their registered adapters. FixtureSource-produced arrays for other sources are synthetic and are not treated as scientific validation.",
+    "my_registered_adapter": "The fixture-backed SDK/CLI shared-plumbing case remains explicitly injected; a separate registered MySource test drives both station HEAD/GET responses through the CLI --raw-only path. A live CLI run also wrote both stations with TLS verification enabled, recorded image/gif response metadata and verified PNG payload hashes, then deleted temporary outputs. See validation-results/live-cli-my.json.",
+    "sg_science": "The registered Singapore adapter replays the official 33-color mapping, emits ordinal rain_intensity categories on the documented 240 km AEQD image grid, masks outside-range pixels, and passes CLI text cat; transparent in-range pixels are not interpreted as quantitative zero rain.",
+    "pt_science": "The registered IPMA adapter maps its 1500x1526 retained PTST2 frame to the official Madeira ImageOverlay bounds and derives ordinal rainfall-intensity categories from the linked mm/h legend. Four exact reference colors, pixel-center controls, transparent/missing quality, and unknown-color rejection pass; no continuous mm/h estimate is claimed."
+  },
+  "blocked_sources": [
+    "ph",
+    "id_sidarma",
+    "id",
+    "cam",
+    "wunderground",
+    "opensnow",
+    "bmkg"
+  ],
+  "dependencies": {
+    "T085": "deferred_by_user; remote providers are outside this local-only matrix",
+    "T116": "complete",
+    "T129": "complete_via_user-selected_runnable_GitHub_Actions_path",
+    "T146": "complete"
+  },
+  "limitations": [
+    "Seven upstream sources have blocked fixture manifests; UK has a separate accepted retired-service exception. Their unavailable provider behavior is not counted as a pass.",
+    "The matrix verifies local outputs and replayable non-exception fixtures only. AWS S3, S3-compatible, and Aliyun OSS are deferred by user instruction and remain open under T084/T085.",
+    "Passing this scoped local matrix does not establish full v1 integration or release readiness."
+  ],
+  "task_complete": true,
+  "sources": [
+    {
+      "source": "kr",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/kr/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_KMA_CGI_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "tw",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/tw/fixture.json",
+      "path": "FixtureSource_shared_plumbing_and_registered_tw_grid_and_png_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "grid: native TWD67, dBZ, finite count, reference pixel and NetCDF readback checked; observation PNG raw-only time, metadata and image dimensions checked, scientific mapping still blocked"
+    },
+    {
+      "source": "tw-http",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/tw-http/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_adapter_timeline_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "ph",
+      "inventory_status": "credential-and-scientific-evidence-blocked",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/ph/fixture.json",
+      "path": "blocked_fixture_not_exercised",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "blocked_fixture_not_exercised",
+        "cli_download_raw_only": "blocked_fixture_not_exercised",
+        "cli_cat_text": "blocked_fixture_not_exercised"
+      },
+      "science": "not_assessed"
+    },
+    {
+      "source": "vn",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/vn/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_adapter_inline_JS_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "my",
+      "inventory_status": "live-acquisition-passed-science-and-license-blocked",
+      "fixture_status": "legacy_display_artifacts_not_canonical",
+      "fixture": "tests/fixtures/sources/my/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_MySource_synthetic_and_live_HEAD_GET_CLI_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed_fixture_shared_plumbing",
+        "cli_download_raw_only": "passed_fixture_synthetic_transcript_and_live_two_station_run",
+        "cli_cat_text": "passed_fixture_shared_plumbing; registered adapter science remains blocked"
+      },
+      "science": "not_accepted_no_authorized_canonical_raw_palette_or_native_geometry",
+      "live_cli_raw_only": "passed_two_stations_tls_verified_png_payloads_hashed_then_deleted; see validation-results/live-cli-my.json"
+    },
+    {
+      "source": "id_sidarma",
+      "inventory_status": "acquisition-implemented-evidence-blocked",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/id_sidarma/fixture.json",
+      "path": "blocked_fixture_not_exercised",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "blocked_fixture_not_exercised",
+        "cli_download_raw_only": "blocked_fixture_not_exercised",
+        "cli_cat_text": "blocked_fixture_not_exercised"
+      },
+      "science": "not_assessed"
+    },
+    {
+      "source": "es",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/es/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_AEMET_timeline_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "ca",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/ca/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_ECCC_directory_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "th_royalrain",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/th_royalrain/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_RoyalRain_HTML_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "sg",
+      "inventory_status": "contract_passed",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/sg/fixture.json",
+      "path": "registered_MSS_adapter_ordinal_science_and_raw_replay_plus_fixture_shared_plumbing",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "five official ordinal rainfall-intensity categories, 480x480 AEQD grid, quality semantics, and reference pixels are checked; no quantitative mm/h mapping is claimed"
+    },
+    {
+      "source": "nz",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/nz/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_MetService_mobile_JSON_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "id",
+      "inventory_status": "credential-blocked",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/id/fixture.json",
+      "path": "blocked_fixture_not_exercised",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "blocked_fixture_not_exercised",
+        "cli_download_raw_only": "blocked_fixture_not_exercised",
+        "cli_cat_text": "blocked_fixture_not_exercised"
+      },
+      "science": "not_assessed"
+    },
+    {
+      "source": "cam",
+      "inventory_status": "upstream-error-blocked",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/cam/fixture.json",
+      "path": "blocked_fixture_not_exercised",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "blocked_fixture_not_exercised",
+        "cli_download_raw_only": "blocked_fixture_not_exercised",
+        "cli_cat_text": "blocked_fixture_not_exercised"
+      },
+      "science": "not_assessed"
+    },
+    {
+      "source": "au",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/au/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_adapter_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "th",
+      "inventory_status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/th/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_TMD_live_GIF_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "fr",
+      "inventory_status": "acquisition-verified-science-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/fr/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_adapter_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "pt",
+      "inventory_status": "contract_passed",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/pt/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_IPMA_timeline_and_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed; rain_intensity, shape (1526, 1500), unit 1"
+      },
+      "science": "registered_adapter_decodes_ordinal_ipma_rainfall_intensity_categories_and_verified_overlay_grid"
+    },
+    {
+      "source": "uk",
+      "inventory_status": "retired_exception",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/uk/fixture.json",
+      "path": "retired_adapter_fails_before_network; no key sent",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "rejected_before_network",
+        "cli_download_raw_only": "rejected_before_network",
+        "cli_cat_text": "not_applicable_no_artifact"
+      },
+      "science": "not_assessed_retired_service"
+    },
+    {
+      "source": "windy",
+      "inventory_status": "acquisition-verified-science-time-binding-blocked",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/windy/fixture.json",
+      "path": "FixtureSource_shared_plumbing_plus_registered_Windy_four_tile_raw_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "registered_adapter_explicitly_rejects_unverified_scientific_decode"
+    },
+    {
+      "source": "rainviewer",
+      "inventory_status": "contract_passed",
+      "fixture_status": "raw_backed",
+      "fixture": "tests/fixtures/sources/rainviewer/fixture.json",
+      "path": "registered_adapter_with_recorded_api_and_tile_replay",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "passed",
+        "cli_download_raw_only": "passed",
+        "cli_cat_text": "passed"
+      },
+      "science": "shape_units_and_manifest_reference_pixel_verified"
+    },
+    {
+      "source": "wunderground",
+      "inventory_status": "credential-science-time-binding-blocked",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/wunderground/fixture.json",
+      "path": "blocked_fixture_not_exercised",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "blocked_fixture_not_exercised",
+        "cli_download_raw_only": "blocked_fixture_not_exercised",
+        "cli_cat_text": "blocked_fixture_not_exercised"
+      },
+      "science": "not_assessed"
+    },
+    {
+      "source": "opensnow",
+      "inventory_status": "upstream-error-blocked",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/opensnow/fixture.json",
+      "path": "blocked_fixture_not_exercised",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "blocked_fixture_not_exercised",
+        "cli_download_raw_only": "blocked_fixture_not_exercised",
+        "cli_cat_text": "blocked_fixture_not_exercised"
+      },
+      "science": "not_assessed"
+    },
+    {
+      "source": "bmkg",
+      "inventory_status": "upstream-error-blocked",
+      "fixture_status": "blocked",
+      "fixture": "tests/fixtures/sources/bmkg/fixture.json",
+      "path": "blocked_fixture_not_exercised",
+      "list_sources": "passed",
+      "pipeline": {
+        "sdk_fetch": "blocked_fixture_not_exercised",
+        "cli_download_raw_only": "blocked_fixture_not_exercised",
+        "cli_cat_text": "blocked_fixture_not_exercised"
+      },
+      "science": "not_assessed"
+    }
+  ],
+  "retired_exception_sources": [
+    "uk"
+  ],
+  "latest_local_recheck": {
+    "checked_at": "2026-09-21T15:28:53Z",
+    "command": "uv run pytest -q tests/integration/test_source_cli_matrix.py",
+    "result": "35 passed; one pre-existing NumPy binary-compatibility warning",
+    "pt_cli_cat": "offline adapter replay passes; rain_intensity, shape (1526, 1500), units 1",
+    "sg_cli_cat": "text output reports rain_intensity, shape (480, 480), and unit 1",
+    "th_endpoint_contract": "offline station mapping/latest-only contracts include cmp1 and kkn240Loop",
+    "th_atomic_multistation_cli": "passed; one latest query wrote both stations with observation-time metadata and raw hashes matching the retained GIFs"
+  },
+  "release_gate_complete": false,
+  "release_gate_blockers": [
+    "blocked source fixtures and credential/upstream exceptions",
+    "user-deferred real storage-provider matrix"
+  ]
+}

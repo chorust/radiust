@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "old_repository": "旧项目",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "sources": [
+    {"id":"kr","old_path":"core/scrapers/kr_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/kr/fixture.json","migration":"migration/sources/kr.json"},
+    {"id":"tw","old_path":"core/scrapers/tw_s3_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/tw/fixture.json","migration":"migration/sources/tw.json"},
+    {"id":"tw-http","old_path":"core/scrapers/tw_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/tw-http/fixture.json","migration":"migration/sources/tw-http.json"},
+    {"id":"ph","old_path":"core/scrapers/ph_scraper.py","status":"credential-and-scientific-evidence-blocked","fixture":"tests/fixtures/sources/ph/fixture.json","migration":"migration/sources/ph.json"},
+    {"id":"vn","old_path":"core/scrapers/vn_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/vn/fixture.json","migration":"migration/sources/vn.json"},
+    {"id":"my","old_path":"core/scrapers/my_scraper.py","status":"acquisition-implemented-evidence-blocked","fixture":"tests/fixtures/sources/my/fixture.json","migration":"migration/sources/my.json"},
+    {"id":"id_sidarma","old_path":"core/scrapers/id_sidarma_scraper.py","status":"acquisition-implemented-evidence-blocked","fixture":"tests/fixtures/sources/id_sidarma/fixture.json","migration":"migration/sources/id_sidarma.json"},
+    {"id":"es","old_path":"core/scrapers/es_aemet_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/es/fixture.json","migration":"migration/sources/es.json"},
+    {"id":"ca","old_path":"core/scrapers/ca_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/ca/fixture.json","migration":"migration/sources/ca.json"},
+    {"id":"th_royalrain","old_path":"core/scrapers/th_royalrain_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/th_royalrain/fixture.json","migration":"migration/sources/th_royalrain.json"},
+    {"id":"sg","old_path":"core/scrapers/sg_scraper.py","status":"contract_passed","fixture":"tests/fixtures/sources/sg/fixture.json","migration":"migration/sources/sg.json"},
+    {"id":"nz","old_path":"core/scrapers/nz_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/nz/fixture.json","migration":"migration/sources/nz.json"},
+    {"id":"id","old_path":"core/scrapers/id_scraper.py","status":"credential-blocked","fixture":"tests/fixtures/sources/id/fixture.json","migration":"migration/sources/id.json"},
+    {"id":"cam","old_path":"core/scrapers/cam_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/cam/fixture.json","migration":"migration/sources/cam.json"},
+    {"id":"au","old_path":"core/scrapers/au_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/au/fixture.json","migration":"migration/sources/au.json"},
+    {"id":"th","old_path":"core/scrapers/th_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/th/fixture.json","migration":"migration/sources/th.json"},
+    {"id":"fr","old_path":"core/scrapers/fr_meteofrance_scraper.py","status":"acquisition-verified-science-blocked","fixture":"tests/fixtures/sources/fr/fixture.json","migration":"migration/sources/fr.json"},
+    {"id":"pt","old_path":"core/scrapers/pt_ipma_scraper.py","status":"contract_passed","fixture":"tests/fixtures/sources/pt/fixture.json","migration":"migration/sources/pt.json"},
+    {"id":"uk","old_path":"core/scrapers/uk_scraper.py","status":"retired_exception","fixture":"tests/fixtures/sources/uk/fixture.json","migration":"migration/sources/uk.json"},
+    {"id":"windy","old_path":"core/tiles/radar.py","status":"acquisition-verified-science-time-binding-blocked","fixture":"tests/fixtures/sources/windy/fixture.json","migration":"migration/sources/windy.json"},
+    {"id":"rainviewer","old_path":"core/tiles/radar.py","status":"contract_passed","fixture":"tests/fixtures/sources/rainviewer/fixture.json","migration":"migration/sources/rainviewer.json"},
+    {"id":"wunderground","old_path":"core/tiles/radar.py","status":"credential-science-time-binding-blocked","fixture":"tests/fixtures/sources/wunderground/fixture.json","migration":"migration/sources/wunderground.json"},
+    {"id":"opensnow","old_path":"core/tiles/radar.py","status":"upstream-error-blocked","fixture":"tests/fixtures/sources/opensnow/fixture.json","migration":"migration/sources/opensnow.json"},
+    {"id":"bmkg","old_path":"core/tiles/radar.py","status":"upstream-error-blocked","fixture":"tests/fixtures/sources/bmkg/fixture.json","migration":"migration/sources/bmkg.json"}
+  ],
+  "historical": [
+    {"id":"br_cptec","commit":"887cbdc3160adc087ff366bddeaf409fc432b907","status":"adapter-acquisition-verified-science-geometry-blocked","evidence":"migration/history/br_cptec.json","fixture":"tests/fixtures/sources/br_cptec/fixture.json","adapter":"python/radiust/sources/br_cptec.py","resource":"python/radiust/resources/sources/br_cptec.json","migration":"migration/sources/br_cptec.json"},
+    {"id":"br_sipam","commit":"39f07beff4528f2334803c1ee2aedc9b87c9c38e","status":"adapter-acquisition-verified-science-geometry-blocked","evidence":"migration/history/br_sipam.json","fixture":"tests/fixtures/sources/br_sipam/fixture.json","adapter":"python/radiust/sources/br_sipam.py","resource":"python/radiust/resources/sources/br_sipam.json","migration":"migration/sources/br_sipam.json"}
+  ]
+}

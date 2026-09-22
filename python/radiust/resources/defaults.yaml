@@ -1,0 +1,23 @@
+runtime:
+  frame_concurrency: 2
+  request_concurrency: 16
+  host_concurrency: 4
+  decode_workers: 2
+  request_timeout: 30
+  frame_deadline: 300
+  max_artifact_bytes: 536870912
+  max_frame_bytes: 2147483648
+  max_pixels: 100000000
+  max_temp_bytes: 10737418240
+  allow_network: false
+cache:
+  dir: ~/.cache/radiust
+  max_bytes: 20000000000
+  max_age_days: 30
+  gc_interval_hours: 24
+  enabled: true
+storage:
+  output: ./data
+output:
+  format: netcdf
+  grid: native

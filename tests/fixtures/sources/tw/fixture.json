@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "source": "tw",
+  "origin": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0058-005.json",
+  "source_commit": "official-live-object",
+  "collected_at": "2026-09-18T03:40:00Z",
+  "license_basis": "official CWA public observation artifacts retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [{
+    "product": "observation",
+    "station": "CV1_3600",
+    "valid_time": "2026-09-18T03:40:00Z",
+    "uri": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0058-005.png",
+    "locator_version": "tw-legacy-v1",
+    "revision": "O-A0058-005-1789702800",
+    "metadata": {"reference_shape": [3600, 3600], "raw_mode": "RGBA", "provider_declared_extent": [115.0, 17.75, 126.5, 29.25], "provider_image_shape": [3600, 3600], "geometry_status": "unverified", "scientific_reference_status": "blocked: pixel registration and physical palette not verified"},
+    "artifacts": [
+      {"name": "O-A0058-005.png", "path": "raw/O-A0058-005.png", "role": "data", "media_type": "image/png", "sha256": "abfb1f72fa191d154e942b8be3bdab61610ae70f07cc137d41f557b4597be293"},
+      {"name": "O-A0058-005.json", "path": "raw/O-A0058-005.json", "role": "metadata", "media_type": "application/json", "sha256": "9e1d6622d31e4b4614f3aeb90b253344472bdc775490f3e1f51cfe0ba4fa5226"}
+    ]
+  }, {
+    "product": "grid",
+    "station": "CV1_3600",
+    "valid_time": "2026-09-20T04:30:00Z",
+    "uri": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0059-001.json",
+    "locator_version": "tw-legacy-v1",
+    "revision": "O-A0059-001-1789878600",
+    "metadata": {
+      "scientific_reference_status": "verified: CWA provider native numeric reflectivity grid",
+      "reference_shape": [881, 921],
+      "reference_dtype": "float32",
+      "reference_units": "dBZ",
+      "reference_grid": {"crs": "EPSG:3821", "west": 115.0, "south": 18.0, "east": 126.5, "north": 29.0, "resolution": 0.0125, "row_order": "south_to_north"},
+      "reference_quality": {"missing_minus_99": 610042, "outside_or_removed_minus_999": 200303, "finite": 1056},
+      "reference_pixels": [{"row": 262, "column": 580, "value": 18.0, "quality": 0}]
+    },
+    "artifacts": [
+      {"name": "O-A0059-001.json", "path": "raw/O-A0059-001.json", "role": "data", "media_type": "application/json", "size_bytes": 8926796, "sha256": "96f97544d0e2f3795b69cb2cbfe3f906a03bb4232d1eb62f15d5740445c56c90"}
+    ]
+  }]
+}

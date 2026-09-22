@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "exceptions": [
+    {
+      "id": "my",
+      "type": "missing_canonical_raw_and_native_geometry",
+      "status": "blocking",
+      "accepted": false,
+      "evidence": ["migration/blockers/my.md", "migration/sources/my.json"]
+    },
+    {
+      "id": "scientific-geometry-pending",
+      "type": "raw-acquired-but-palette-or-native-geometry-unverified",
+      "status": "blocking",
+      "accepted": false,
+      "sources": ["au", "ca", "es", "fr", "kr", "nz", "pt", "sg", "th", "th_royalrain", "tw", "tw-http", "vn", "windy"],
+      "evidence": ["migration/geometry-audit.json", "migration/inventory.json", "migration/sources"]
+    },
+    {
+      "id": "credential-and-upstream-blocked",
+      "type": "provider-credential-or-upstream-error-prevents-canonical-raw-capture",
+      "status": "blocking",
+      "accepted": false,
+      "sources": ["bmkg", "cam", "id", "id_sidarma", "opensnow", "ph", "wunderground"],
+      "evidence": ["migration/inventory.json", "migration/sources", "tests/sources/test_external_credentials.py"]
+    },
+    {
+      "id": "uk-datapoint-retired",
+      "type": "upstream-service-retired-with-no-like-for-like-replacement",
+      "status": "accepted",
+      "accepted": true,
+      "sources": ["uk"],
+      "evidence": ["https://www.metoffice.gov.uk/services/data/datapoint/datapoint-retirement-faqs", "migration/sources/uk.json", "tests/sources/test_uk.py"]
+    },
+    {
+      "id": "br_cptec",
+      "type": "acquisition-verified-science-geometry-blocked-with-current-latest-error",
+      "status": "blocking",
+      "accepted": false,
+      "evidence": ["migration/history/br_cptec.json", "migration/sources/br_cptec.json", "tests/fixtures/sources/br_cptec/fixture.json", "python/radiust/sources/br_cptec.py"]
+    },
+    {
+      "id": "br_sipam",
+      "type": "adapter-acquisition-verified-science-geometry-blocked",
+      "status": "blocking",
+      "accepted": false,
+      "evidence": ["migration/history/br_sipam.json", "migration/sources/br_sipam.json", "tests/fixtures/sources/br_sipam/fixture.json", "migration/geometry-audit.json"]
+    }
+  ]
+}

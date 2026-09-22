@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "source": "br_sipam",
+  "old_commit": "39f07beff4528f2334803c1ee2aedc9b87c9c38e",
+  "old_path": "core/scrapers/br_sipam_scraper.py",
+  "adapter": "python/radiust/sources/br_sipam.py",
+  "resource": "python/radiust/resources/sources/br_sipam.json",
+  "fixture": "tests/fixtures/sources/br_sipam/fixture.json",
+  "status": "acquisition-verified-science-geometry-blocked",
+  "differences": [
+    "The adapter preserves the provider's timestamped dbz PNG as raw data and binds each scan's ISO UTC timestamp and station bbox to its FrameRef.",
+    "The legacy post-process encoding is reversible as dBZ (`gray / 16 * 5`) only for an artifact explicitly identified as its grayscale output; the current provider PNG is not verified as that artifact, so decode remains closed until the provider palette and geometry are verified.",
+    "The provider bbox is recorded in west,south,east,north order, while pixel control points and native grid semantics remain unverified."
+  ],
+  "evidence": [
+    "migration/history/br_sipam.json",
+    "python/radiust/sources/br_sipam.py",
+    "python/radiust/resources/sources/br_sipam.json",
+    "tests/sources/test_br_sipam.py",
+    "tests/fixtures/sources/br_sipam/fixture.json",
+    "tests/fixtures/sources/br_sipam/raw/BRBE_20260918T062005Z.png",
+    "tests/live/test_representative_sources.py: historical BRBE live smoke acquired 2026-09-21T04:20:06Z, 7458 bytes, SHA-256 95fae3ec1eb58160d541c047232a1edae3d7ef8f65078e0d967c7e50323d850b"
+  ],
+  "blockers": [
+    "The provider's dbz color palette and physical value mapping are not verified; the available raw PNG cannot be assumed to be the legacy grayscale output.",
+    "The declared station bbox has no verified pixel-center control points or native-grid transform."
+  ]
+}

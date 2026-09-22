@@ -1,0 +1,660 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-21T21:49:04Z",
+  "task": "T149",
+  "status": "partial",
+  "dependency_status": {
+    "T147": "not_complete"
+  },
+  "default_execution": {
+    "command": "env -u RADIUST_TEST_ALLOW_LIVE -u RADIUST_TEST_ALLOW_PROVIDER -u RADIUST_TEST_REAL_BROWSER uv run pytest -q tests/live/test_representative_sources.py tests/live/test_ph_browser_replay.py",
+    "status": "passed_with_expected_opt_in_skips",
+    "selected": 20,
+    "skipped": 20,
+    "reason": "all 20 live cases in the two selected test files were skipped at collection because the live opt-in variables were unset; no network request was issued"
+  },
+  "public_smoke": {
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q -m 'live and not provider' tests/live/test_representative_sources.py",
+    "checked_at": "2026-09-21T06:39:10Z",
+    "status": "passed",
+    "passed": 17,
+    "failed": 0,
+    "deselected": 2,
+    "duration_seconds": 196.75,
+    "sources": [
+      {
+        "source": "cam",
+        "status": "passed"
+      },
+      {
+        "source": "ca",
+        "status": "passed"
+      },
+      {
+        "source": "au",
+        "status": "passed"
+      },
+      {
+        "source": "rainviewer",
+        "status": "passed"
+      },
+      {
+        "source": "fr",
+        "status": "passed"
+      },
+      {
+        "source": "kr",
+        "status": "passed"
+      },
+      {
+        "source": "tw-http",
+        "status": "passed"
+      },
+      {
+        "source": "es",
+        "status": "passed"
+      },
+      {
+        "source": "pt",
+        "status": "passed"
+      },
+      {
+        "source": "sg",
+        "status": "passed"
+      },
+      {
+        "source": "th",
+        "status": "passed"
+      },
+      {
+        "source": "th_royalrain",
+        "status": "passed"
+      },
+      {
+        "source": "nz",
+        "status": "passed"
+      },
+      {
+        "source": "vn",
+        "status": "passed"
+      },
+      {
+        "source": "windy",
+        "status": "passed"
+      },
+      {
+        "source": "tw",
+        "status": "passed"
+      },
+      {
+        "source": "br_sipam",
+        "status": "passed"
+      }
+    ]
+  },
+  "provider_smoke": {
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 RADIUST_TEST_ALLOW_PROVIDER=1 uv run pytest -q tests/live/test_representative_sources.py -m 'live and provider'",
+    "status": "not_verified",
+    "source": "id_sidarma",
+    "skipped": 1,
+    "reason": "RADIUST_TEST_ID_SIDARMA_API_KEY is not configured; a separate read-only probe using the legacy source literal returned HTTP 403"
+  },
+  "pagasa_provider_smoke": {
+    "command": "bounded existing live test, with the legacy token supplied only through the subprocess environment; output suppressed",
+    "checked_at": "2026-09-21T02:35:34Z",
+    "status": "inconclusive_browser_acquisition_failed",
+    "source": "ph",
+    "legacy_token_literal_present": true,
+    "secret_values_recorded": false,
+    "raw_artifacts_accepted": 0,
+    "reason": "The single-frame provider smoke did not return a verified RawFrame; the browser acquisition stage failed. Provider response and token validity remain unverified.",
+    "offline_local_browser_replay": "passed separately against localhost only"
+  },
+  "pagasa_local_chromium_replay": {
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 RADIUST_TEST_REAL_BROWSER=1 uv run --extra playwright pytest -q tests/live/test_ph_browser_replay.py",
+    "checked_at": "2026-09-21",
+    "status": "passed",
+    "browser_install": "playwright chromium-headless-shell v1243 downloaded successfully",
+    "observed_result": "Fresh recheck: 1 passed in 2.01s. A default sandbox launch was denied at Chromium Mach bootstrap before any local HTTP request; the same loopback-only replay passed when run through managed review. Browser context and browser close before the Playwright manager stops.",
+    "browser_lifecycle_regression": "tests/integration/test_browser_acquisition.py: 15 passed, including fetch_page/acquire close-order checks",
+    "test_scope": "localhost HTTP server with CSRF/cookie-protected timeline and PNG, not a provider scientific sample",
+    "provider_status": "not_verified; actual token smoke failed before a verified RawFrame"
+  },
+  "additional_live_probes": [
+    {
+      "source": "public-representative-matrix",
+      "checked_at": "2026-09-20T07:56:43Z",
+      "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -m 'live and not provider' tests/live/test_representative_sources.py -vv",
+      "status": "passed",
+      "passed": 9,
+      "deselected": 2,
+      "duration_seconds": 53.21,
+      "cases": [
+        "au",
+        "rainviewer",
+        "fr",
+        "tw-http",
+        "es",
+        "pt",
+        "sg",
+        "th",
+        "tw-native-numeric-grid"
+      ],
+      "scope": "current latest raw acquisition for eight public adapters plus official CWA numeric-grid decode; source palettes/native geometry not established by raw-only passes"
+    },
+    {
+      "source": "fr",
+      "checked_at": "2026-09-20",
+      "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q tests/live/test_representative_sources.py -m 'live and not provider' -k fr -vv",
+      "status": "raw_acquisition_passed",
+      "test_result": "1 passed, 10 deselected in 14.60s",
+      "scope": "real WMS discovery and verified PNG raw acquisition after timestamped .png naming; physical palette and projected native geometry remain unverified"
+    },
+    {
+      "source": "br_cptec",
+      "checked_at": "2026-09-20T01:05:15Z",
+      "status": "partial_acquisition_latest_blocked",
+      "discovered_wms_layers": 26,
+      "retained_frame": {
+        "station": "R12475984",
+        "valid_time": "2018-05-10T11:50:00Z",
+        "shape": [
+          512,
+          512
+        ],
+        "size_bytes": 9782,
+        "sha256": "76b791f43b15516d891aa6c2ebb75542326cd099030161b66d64999358dcca3f"
+      },
+      "latest_frame": {
+        "station": "R12122250",
+        "valid_time": "2026-09-20T00:43:00Z",
+        "download": "provider ServiceException XML instead of PNG"
+      },
+      "science_geometry_status": "blocked_unverified_palette_and_pixel_control_points"
+    },
+    {
+      "source": "public-representative-matrix",
+      "checked_at": "2026-09-21T00:58:39Z",
+      "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -m 'live and not provider' tests/live/test_representative_sources.py -vv",
+      "status": "passed",
+      "passed": 9,
+      "deselected": 2,
+      "duration_seconds": 34.12,
+      "cases": [
+        "au",
+        "rainviewer",
+        "fr",
+        "tw-http",
+        "es",
+        "pt",
+        "sg",
+        "th",
+        "tw-native-numeric-grid"
+      ],
+      "scope": "current latest raw acquisition for eight public adapters plus official CWA numeric-grid decode; this run does not establish image-source palettes or native geometry"
+    },
+    {
+      "source": "default-suite-public-live-cases",
+      "checked_at": "2026-09-21T02:21:53Z",
+      "command": "uv run pytest -q",
+      "status": "passed",
+      "suite_summary": "302 passed, 7 skipped in 80.60 seconds; one existing NumPy binary-compatibility warning",
+      "live_cases": [
+        "au",
+        "rainviewer",
+        "fr",
+        "tw-http",
+        "es",
+        "pt",
+        "sg",
+        "th",
+        "tw-native-numeric-grid"
+      ],
+      "scope": "This 302-passed/7-skipped run occurred before the collection-time opt-in guard and did execute nine public live cases. It is retained as online evidence; the current default suite is offline and its post-guard result is recorded separately."
+    },
+    {
+      "source": "adapter-probe-round-2026-09-21",
+      "checked_at": "2026-09-21T04:57:30Z",
+      "command": "bounded direct latest discover/download using the registered adapters; runtime.allow_network=true; payloads closed without retention",
+      "status": "three_raw_acquisitions_passed_one_transport_error",
+      "sources": {
+        "vn": {
+          "status": "raw_acquisition_passed",
+          "station": "DHA",
+          "valid_time": "2026-09-21T04:40:00Z",
+          "artifacts": [
+            {
+              "name": "DHA_202609210440_CMAX00.png",
+              "media_type": "image/png",
+              "size_bytes": 53373,
+              "sha256": "f4b3d8f2bac8124ec38a50504e041f0ebb98f3d34a25af1dff2e74225813792e"
+            }
+          ],
+          "science_geometry": "blocked"
+        },
+        "nz": {
+          "status": "raw_acquisition_passed",
+          "station": "NZAU2",
+          "valid_time": "2026-09-21T04:50:00Z",
+          "artifacts": [
+            {
+              "name": "radarImage",
+              "media_type": "application/octet-stream",
+              "size_bytes": 200462,
+              "sha256": "56fc694b93e9c845e73dfc5b5f2dab5c950f8a422299ad1bfb3c25cae04c1487"
+            }
+          ],
+          "science_geometry": "blocked"
+        },
+        "windy": {
+          "status": "raw_acquisition_passed",
+          "station": "global",
+          "valid_time": "2026-09-21T04:50:00Z",
+          "artifacts": [
+            {
+              "name": "tile-z1-x0-y0.png",
+              "media_type": "image/png",
+              "size_bytes": 6758,
+              "sha256": "b792a25659d7f203bbdb515ef9a955713c3d747bae7fdc57e6b2d6edfaba1ad6"
+            },
+            {
+              "name": "tile-z1-x1-y0.png",
+              "media_type": "image/png",
+              "size_bytes": 6172,
+              "sha256": "7b02169ae49b065b28737215b0ba42b3b904a7785e030b388b9d15878e3ca37b"
+            },
+            {
+              "name": "tile-z1-x0-y1.png",
+              "media_type": "image/png",
+              "size_bytes": 2334,
+              "sha256": "ef4104e4dc3eeb90170046295303c6f0430db36e23ac540c1d209737036a4416"
+            },
+            {
+              "name": "tile-z1-x1-y1.png",
+              "media_type": "image/png",
+              "size_bytes": 2455,
+              "sha256": "0bb8d8548138edede8a119d6b4b7f5140728ddbe056dfee5e1dc302683dd51fb"
+            }
+          ],
+          "science_time_binding": "blocked"
+        },
+        "th_royalrain": {
+          "status": "discovery_transport_error",
+          "raw_artifacts": 0,
+          "interpretation": "single bounded probe only; not evidence of retirement or invalid adapter semantics"
+        }
+      },
+      "payloads_retained": false,
+      "secret_values_recorded": false
+    },
+    {
+      "source": "kr-and-ca-probe-2026-09-21",
+      "checked_at": "2026-09-21T05:02:54Z",
+      "command": "bounded direct latest discover/download using registered adapters; runtime.allow_network=true; raw payloads closed without retention",
+      "sources": {
+        "kr": {
+          "status": "raw_acquisition_passed",
+          "station": "BRI",
+          "valid_time": "2026-09-21T04:55:00Z",
+          "artifacts": [
+            {
+              "name": "nph-rdr_stn1_img",
+              "media_type": "application/octet-stream",
+              "size_bytes": 23982,
+              "sha256": "5d22c9d4500e8b67bceed4ea2e5e5bb56d808dd63e63534c78dd5302718250fe"
+            }
+          ],
+          "science_geometry": "blocked"
+        },
+        "ca": {
+          "status": "bounded_discovery_timeout",
+          "timeout_seconds": 20,
+          "raw_artifacts": 0,
+          "interpretation": "no retirement inference; live directory discovery is slower than this probe budget"
+        }
+      },
+      "payloads_retained": false,
+      "secret_values_recorded": false
+    },
+    {
+      "source": "th-public-raw-smoke",
+      "checked_at": "2026-09-21",
+      "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q tests/live/test_representative_sources.py -m 'live and not provider' -k 'public_latest_raw_smoke and th'",
+      "status": "passed",
+      "passed": 3,
+      "deselected": 17,
+      "duration_seconds": 49.43,
+      "confirmed_stations": [
+        "cmp1",
+        "kkn240Loop"
+      ],
+      "scope": "Both TMD live GIF stations passed; the substring filter also selected the Royal Rain source case. Raw acquisition only; frame-time binding, palette and geometry remain unverified."
+    },
+    {
+      "source": "public-representative-filter-attempt",
+      "checked_at": "2026-09-21T21:49:04Z",
+      "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run --no-sync pytest -q -p no:cacheprovider -m 'live and not provider' tests/live/test_representative_sources.py -k 'cam or kr or es or windy'",
+      "status": "interrupted_after_overbroad_selection",
+      "passed_before_interrupt": 8,
+      "duration_seconds": 43.88,
+      "reason": "The substring expression selected more test nodes than intended; the run was interrupted before the slow numeric-grid case. Quiet output did not identify the eight passing node IDs. These results are not used for source-specific acceptance; four exact node IDs passed in the subsequent run."
+    },
+    {
+      "source": "public-representative-filtered-smoke",
+      "checked_at": "2026-09-21T21:49:04Z",
+      "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run --no-sync pytest -vv -p no:cacheprovider 'tests/live/test_representative_sources.py::test_public_latest_raw_smoke[cam-stations0]' 'tests/live/test_representative_sources.py::test_public_latest_raw_smoke[kr-stations5]' 'tests/live/test_representative_sources.py::test_public_latest_raw_smoke[es-stations7]' 'tests/live/test_representative_sources.py::test_public_latest_raw_smoke[windy-stations15]'",
+      "status": "passed",
+      "passed": 4,
+      "duration_seconds": 21.05,
+      "cases": {
+        "cam": "passed",
+        "kr": "passed",
+        "es": "passed",
+        "windy": "passed"
+      },
+      "scope": "Unauthenticated latest discovery and raw acquisition; the test verified non-empty artifact hashes and sizes, then closed RawFrame. No payloads were retained. This does not establish palette, time binding, or native geometry."
+    }
+  ],
+  "my_cli_smoke": {
+    "checked_at": "2026-09-21T01:47:47Z",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run radiust --conf <temporary allow_network config> download my --latest --raw-only --no-cache --output <temporary directory> --json",
+    "status": "blocked_tls_verification",
+    "exit_code": 2,
+    "cli_error": "request failed after the retry budget was exhausted",
+    "transport_diagnostic": "certificate verification failed: self-signed certificate in certificate chain",
+    "raw_artifacts_written": 0,
+    "tls_verification_disabled": false,
+    "status_note": "Historical first attempt, superseded by the successful Certifi-augmented run below; TLS verification remained enabled.",
+    "superseded_by": "validation-results/live-cli-my.json"
+  },
+  "legacy_credential_audit": {
+    "checked_at": "2026-09-21T01:47:47Z",
+    "repository": "旧项目@8d251601ca551fbd5c05451f1fb337fc4b75362c",
+    "secret_values_recorded": false,
+    "sources": {
+      "id_sidarma": "legacy key literal present; read-only probe returned HTTP 403; not migrated",
+      "ph": "legacy timeline token literal present; one bounded smoke attempted without exposing the value, but browser acquisition did not return a verified raw frame; validity unverified",
+      "uk": "legacy key literal present; not sent because DataPoint is retired",
+      "wunderground": "no key literal found; live test skipped per user instruction"
+    }
+  },
+  "claims": {
+    "public_acquisition_smoke": "verified only for the listed explicit or historical live-opt-in runs",
+    "provider_acquisition_smoke": "not verified",
+    "retirement_inference_from_failure": false,
+    "task_complete": false
+  },
+  "default_suite_after_gate": {
+    "command": "env -u RADIUST_TEST_ALLOW_LIVE -u RADIUST_TEST_ALLOW_PROVIDER -u RADIUST_TEST_REAL_BROWSER uv run pytest -q",
+    "checked_at": "2026-09-21T05:06:38Z",
+    "status": "passed_offline_by_default",
+    "passed": 304,
+    "skipped": 22,
+    "warnings": 1,
+    "warning": "existing NumPy binary-compatibility RuntimeWarning",
+    "scope": "18 live cases, three provider storage cases, and the clean-wheel artifact case were explicitly skipped; no live/provider opt-in variables were set"
+  },
+  "explicit_opt_in_probe": {
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q tests/live/test_representative_sources.py -m 'live and not provider' -k rainviewer",
+    "checked_at": "2026-09-21T02:29:24Z",
+    "status": "passed",
+    "passed": 1,
+    "deselected": 10,
+    "source": "rainviewer",
+    "scope": "confirms the collection gate permits a bounded public smoke when the explicit live opt-in is set"
+  },
+  "latest_public_smoke": {
+    "checked_on": "2026-09-21",
+    "checked_at": "2026-09-21T05:02:54Z",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q -m 'live and not provider' tests/live/test_representative_sources.py",
+    "status": "passed",
+    "passed": 15,
+    "deselected": 2,
+    "duration_seconds": 84.08,
+    "sources": [
+      "cam",
+      "au",
+      "rainviewer",
+      "fr",
+      "kr",
+      "tw-http",
+      "es",
+      "pt",
+      "sg",
+      "th",
+      "nz",
+      "vn",
+      "windy",
+      "tw-native-numeric-grid",
+      "br_sipam (historical-only)"
+    ],
+    "scope": "Thirteen public-catalog raw acquisitions passed, including CAM after restoring required slideshow headers, plus the Taiwan numeric-grid decode and direct historical BR SIPAM acquisition. Raw smoke does not establish the image adapters' palette or native geometry. Provider tests were deselected.",
+    "secret_values_recorded": false,
+    "storage_provider_tests": "deferred per user instruction"
+  },
+  "cam_live_smoke": {
+    "checked_at": "2026-09-21T04:26:50Z",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q tests/live/test_representative_sources.py -k 'public_latest_raw_smoke and cam'",
+    "status": "passed",
+    "passed": 1,
+    "deselected": 11,
+    "source": "cam",
+    "observed_http_status": 200,
+    "scope": "Latest slideshow discovery and verified raw image acquisition pass after restoring the required legacy page headers; source science and geometry remain unverified.",
+    "secret_values_recorded": false
+  },
+  "cam_cli_smoke": {
+    "checked_at": "2026-09-21T04:23:26Z",
+    "command": "uv run radiust download cam --conf <temporary allow_network config> --latest --raw-only --no-cache --output <temporary directory> --json",
+    "status": "written",
+    "exit_code": 0,
+    "written": 1,
+    "station": "ZIWR03",
+    "valid_time": "2026-09-21T04:15:04Z",
+    "artifact": {
+      "media_type": "image/jpeg",
+      "size_bytes": 78539,
+      "sha256": "62175868f54eb2a70a327fe35b2ae543ec7974808b69ed7bfcd049307a190c9e",
+      "raw_files_and_manifest_verified": true
+    },
+    "raw_fixture_retained": false,
+    "scope": "Real latest raw-only CLI acquisition; the payload stayed in temporary local output because a fixture reuse basis is not documented. Palette and native geometry remain unverified."
+  },
+  "br_sipam_historical_live_smoke": {
+    "checked_at": "2026-09-21T04:44:39Z",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q tests/live/test_representative_sources.py -k br_sipam_historical_latest_raw_smoke",
+    "status": "passed",
+    "passed": 1,
+    "deselected": 12,
+    "source": "br_sipam",
+    "scope": "Direct single-station BRBE acquisition through the historical adapter; this source remains outside the 24-source public catalog. Palette and pixel geometry remain blocked.",
+    "secret_values_recorded": false
+  },
+  "blocked_public_endpoint_smokes": {
+    "checked_on": "2026-09-21",
+    "opt_in": "temporary runtime.allow_network=true config; no credentials supplied",
+    "sources": {
+      "opensnow": {
+        "cli": "failed with HTTP authentication error before writing artifacts",
+        "direct_correct_epoch_tile_probe": "HTTP 403, Cloudflare server"
+      },
+      "bmkg": {
+        "cli": "failed with HTTP authentication error before writing artifacts",
+        "direct_current_tms_tile_probe": "HTTP 403, Cloudflare server"
+      }
+    },
+    "raw_artifacts_written": 0,
+    "secret_values_recorded": false
+  },
+  "station_filtered_cli_recheck": {
+    "checked_at": "2026-09-21T06:26:55Z",
+    "command_template": "uv run radiust --conf <temporary>/online.json download <source> --latest --station <station> --raw-only --no-cache --output <temporary>/<source> --json",
+    "temporary_config": {
+      "runtime.allow_network": true,
+      "runtime.request_timeout": 20,
+      "runtime.frame_deadline": 90
+    },
+    "sources": {
+      "ca": {
+        "station": "CASFT",
+        "previous_full_directory_scan_seconds": 39.59,
+        "query_filtered_seconds": 3.57,
+        "status": "written_and_verified",
+        "valid_time": "2026-09-21T06:24:00Z"
+      },
+      "th_royalrain": {
+        "station": "takhli",
+        "previous_cli_status": "outer_timeout_at_130.01_seconds",
+        "query_filtered_seconds": 43.66,
+        "status": "written_and_verified",
+        "valid_time": "2026-09-21T06:18:00Z"
+      }
+    },
+    "scope": "The actual CLI was given one station for each source. A new query-aware discovery hook avoids requesting other station pages. Both raw-only outputs had complete manifests and matching artifact path, size and SHA-256, then were removed with their temporary directories. This proves acquisition/commit only; source science and geometry remain unverified.",
+    "outputs_retained": false
+  },
+  "public_smoke_after_tls_bundle_update": {
+    "reported_at": "2026-09-21T07:30:59Z",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q -m 'live and not provider' tests/live/test_representative_sources.py",
+    "status": "passed",
+    "passed": 17,
+    "provider_cases_deselected": 2,
+    "duration_seconds": 157.61,
+    "public_catalog_raw_sources": [
+      "cam",
+      "ca",
+      "au",
+      "rainviewer",
+      "fr",
+      "kr",
+      "tw-http",
+      "es",
+      "pt",
+      "sg",
+      "th",
+      "th_royalrain",
+      "nz",
+      "vn",
+      "windy"
+    ],
+    "additional_cases": [
+      "tw-native-numeric-grid",
+      "br_sipam (historical-only)"
+    ],
+    "tls_verification": "platform roots plus Certifi roots; chain and hostname verification enabled",
+    "raw_frames_closed": true,
+    "outputs_retained": false,
+    "scope": "Confirms public live acquisition still passes after the TLS trust-bundle update. The two credentialed SIDARMA/PAGASA provider cases were deselected; no result is inferred for them. This run does not establish unverified image palettes or native geometry."
+  },
+  "public_smoke_followup": {
+    "checked_on": "2026-09-21",
+    "initial_command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q -m live tests/live/test_representative_sources.py -k 'public_latest_raw_smoke and es'",
+    "filter_note": "The -k substring 'es' also matches the word 'test', so this command selected the full public_latest_raw_smoke parameter set rather than only Spain. No provider case matched public_latest_raw_smoke; credentialed SIDARMA/PAGASA cases were not run.",
+    "status": "partial_with_transient_failure",
+    "public_cases_passed": 15,
+    "public_cases_failed": 1,
+    "public_cases_deselected": 4,
+    "failure": {
+      "source": "au",
+      "stage": "FTP NLST discovery",
+      "error": "transport failed: FTP request timed out",
+      "interpretation": "Transient latest-run failure; an earlier same-day AU smoke passed and no retirement is inferred."
+    },
+    "es_precise_rerun": {
+      "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q -m 'live and not provider' 'tests/live/test_representative_sources.py::test_public_latest_raw_smoke[es-stations7]'",
+      "status": "passed",
+      "passed": 1,
+      "outputs_retained": false
+    },
+    "provider_credentials_used": false,
+    "source_science_or_geometry_verified": false
+  },
+  "pt_latest_live_smoke": {
+    "checked_at": "2026-09-21T13:30:14Z",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run pytest -q 'tests/live/test_representative_sources.py::test_public_latest_raw_smoke[pt-stations8]'",
+    "status": "passed",
+    "passed": 1,
+    "source": "pt",
+    "station": "PTST2",
+    "credentials_used": false,
+    "output_retained": false
+  },
+  "tmd_time_binding_correction": {
+    "checked_at": "2026-09-21",
+    "current_cli_evidence": "validation-results/live-cli-public.json#/tmd_footer_time_binding_recheck",
+    "correction": "Earlier TMD raw-only smoke entries recorded retrieval timestamps as valid_time before footer OCR was implemented. The current adapter reports the 2023 UTC footer time and rejects stale frames when max_age is supplied.",
+    "science_and_geometry": "still blocked; raw-only acquisition does not validate palette values or native pixel geometry",
+    "secret_values_recorded": false
+  },
+  "public_smoke_recheck_2026-09-22": {
+    "checked_on": "2026-09-22",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run --no-sync pytest -q -m 'live and not provider' tests/live/test_representative_sources.py",
+    "status": "interrupted_after_public_raw_acquisition_cases",
+    "passed": 16,
+    "failed": 0,
+    "deselected": 2,
+    "duration_seconds": 518.48,
+    "public_latest_raw_cases_passed": [
+      "cam",
+      "ca",
+      "au",
+      "rainviewer",
+      "fr",
+      "kr",
+      "tw-http",
+      "es",
+      "pt",
+      "sg",
+      "th/cmp1",
+      "th/kkn240Loop",
+      "th_royalrain",
+      "nz",
+      "vn",
+      "windy"
+    ],
+    "last_observed_case": "tw-native-numeric-grid latest scientific smoke did not return a result before KeyboardInterrupt; exact stalled stage is unknown",
+    "not_completed": [
+      "tw-native-numeric-grid latest scientific smoke",
+      "br_sipam historical latest raw smoke"
+    ],
+    "provider_credentials_used": false,
+    "outputs_retained": false,
+    "interpretation": "Sixteen public raw acquisition cases passed in this run. The live-suite interruption is not counted as a pass for the two remaining cases and does not replace the prior dated passing numeric-grid and BR SIPAM records. Raw acquisition does not verify other image adapters’ palette or geometry."
+  },
+  "public_smoke_recheck_2026-09-22_public_only": {
+    "checked_on": "2026-09-22",
+    "command": "RADIUST_TEST_ALLOW_LIVE=1 uv run --no-sync pytest -q tests/live/test_representative_sources.py -m 'live and not provider' -k public_latest_raw_smoke",
+    "status": "passed",
+    "passed": 16,
+    "failed": 0,
+    "deselected": 4,
+    "duration_seconds": 89.89,
+    "public_latest_raw_cases_passed": [
+      "cam",
+      "ca/CASFT",
+      "au/AU02",
+      "rainviewer",
+      "fr",
+      "kr",
+      "tw-http/CV1_3600",
+      "es/ESCOMP",
+      "pt/PTST2",
+      "sg/SGCOMP",
+      "th/cmp1",
+      "th/kkn240Loop",
+      "th_royalrain/takhli",
+      "nz",
+      "vn",
+      "windy"
+    ],
+    "deselected_cases": [
+      "id_sidarma provider smoke",
+      "ph provider smoke",
+      "tw native numeric-grid scientific smoke",
+      "br_sipam historical raw smoke"
+    ],
+    "provider_credentials_used": false,
+    "outputs_retained": false,
+    "interpretation": "All public raw-only cases selected by public_latest_raw_smoke passed and closed their RawFrames. This verifies current discover/acquire/hash/close behavior only; it does not verify source palettes, physical values, native geometry, or the deselected credentialed/scientific cases."
+  }
+}

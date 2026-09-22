@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "source": "fr",
+  "origin": "https://meteofrance.com/images-radar and Radar-mapcache-WMS BASE_REFLECTIVITY",
+  "source_commit": "official-live-wms",
+  "collected_at": "2026-09-18T02:53:34Z",
+  "license_basis": "official Météo-France public radar page/WMS artifact retained for migration validation; production usage remains subject to upstream terms",
+  "discovery": {
+    "page_url": "https://meteofrance.com/images-radar",
+    "layer": "BASE_REFLECTIVITY",
+    "style": "synopsis_reflectivity_oppidum_transparence",
+    "crs": "EPSG:3857",
+    "bbox_wsen": [-5.5, 41.0, 10.0, 51.5],
+    "size": [700, 600],
+    "requested_time": "2026-09-18T02:45:00Z",
+    "time_semantics": "wms_time_dimension",
+    "session_cookie_persisted": false
+  },
+  "frames": [
+    {
+      "product": "composite",
+      "station": "FRCOMP",
+      "valid_time": "2026-09-18T02:45:00Z",
+      "uri": "https://rwg.meteofrance.com/geoservices/Radar-mapcache-WMS",
+      "locator": {
+        "layer": "BASE_REFLECTIVITY",
+        "style": "synopsis_reflectivity_oppidum_transparence",
+        "crs": "EPSG:3857",
+        "bbox": [-5.5, 41.0, 10.0, 51.5],
+        "width": 700,
+        "height": 600,
+        "time": "2026-09-18T02:45:00Z"
+      },
+      "locator_version": "fr-wms-v1",
+      "revision": "20260918T024500Z",
+      "metadata": {
+        "time_semantics": "wms_time_dimension",
+        "reference_shape": [600, 700],
+        "raw_dtype": "uint8 RGBA",
+        "alpha_min": 0,
+        "alpha_max": 255,
+        "transparent_fraction": 0.1168952380952381,
+        "reference_rgba": {
+          "100,100": [255, 255, 255, 30],
+          "300,350": [90, 21, 160, 156],
+          "500,600": [255, 255, 255, 30]
+        },
+        "scientific_reference_status": "blocked: provider color-to-dBZ mapping not yet verified"
+      },
+      "artifacts": [
+        {
+          "name": "FRCOMP.png",
+          "path": "raw/FRCOMP.png",
+          "role": "data",
+          "media_type": "image/png",
+          "sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248"
+        }
+      ]
+    }
+  ]
+}

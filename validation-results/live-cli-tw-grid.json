@@ -1,0 +1,25 @@
+{
+  "source": "tw",
+  "product": "grid",
+  "validated_at": "2026-09-20T04:30:00Z",
+  "upstream": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0059-001.json",
+  "raw_sha256": "96f97544d0e2f3795b69cb2cbfe3f906a03bb4232d1eb62f15d5740445c56c90",
+  "upstream_time": "2026-09-20T04:30:00Z",
+  "command": "RADIUST_RUNTIME__ALLOW_NETWORK=true uv run radiust download tw --product grid --latest --output /private/tmp/radiust-cwa-grid-smoke --no-cache --json",
+  "result": {
+    "written": 1,
+    "failed": 0,
+    "format": "netcdf",
+    "shape": [881, 921],
+    "native_crs": "EPSG:3821",
+    "native_extent": [115.0, 18.0, 126.5, 29.0],
+    "native_resolution_degrees": 0.0125,
+    "units": "dBZ",
+    "finite_cells": 1056,
+    "invalid_minus_99": 610042,
+    "outside_or_removed_minus_999": 200303,
+    "control_point": {"row": 262, "column": 580, "reflectivity_dbz": 18.0, "quality": 0},
+    "verified_by": "readback with xarray from the actual CLI NetCDF output and comparison with the official JSON"
+  },
+  "scope": "The numeric product is verified in native TWD67 coordinates. No pixel-to-geography or RGB-to-dBZ claim is made for O-A0058-005.png or tw-http."
+}

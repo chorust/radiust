@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "status": "partial",
+  "inventory_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "methodology": [
+    "Review the source resource, adapter locator construction, fixture metadata, and raw artifact dimensions for every HEAD source.",
+    "Call geometry verified only when the adapter preserves a provider-backed coordinate transform and the fixture or contract contains control-point evidence.",
+    "An official image-overlay transform with explicit bounds applied to the exact timeline paths is provider-backed geometry; retain the source bounds and derive pixel-center controls from the actual raw dimensions.",
+    "A declared bounding box, projection name, or tile URL is locator evidence; it is not evidence that the provider pixel grid is scientifically native.",
+    "Do not infer a curvilinear grid from a rendered image. Require retained two-dimensional longitude/latitude arrays or equivalent provider geometry metadata."
+  ],
+  "curvilinear_found": false,
+  "curvilinear_evidence": [
+    "The 24 HEAD fixtures contain image/tile artifacts or blocked manifests; none contains two-dimensional longitude/latitude coordinate arrays.",
+    "The adapter implementations expose regular geographic, tile-locator, or unverified image geometry only.",
+    "tests/contract/test_grids.py covers the existing CurvilinearGrid model, but no source currently supplies a real curvilinear payload."
+  ],
+  "verified_sources": ["pt", "rainviewer", "tw:grid"],
+  "pending_sources": 22,
+  "audited_sources": [
+    {
+      "id": "au",
+      "status": "unverified",
+      "locator_geometry": "regular image; filename identifies the frame but supplies no provider pixel coordinates",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/au.py", "tests/fixtures/sources/au/fixture.json", "migration/sources/au.json"],
+      "blockers": ["BoM native extent/control points and palette semantics are not retained."]
+    },
+    {
+      "id": "bmkg",
+      "status": "tile-locator-only",
+      "locator_geometry": "TMS/XYZ Web Mercator tile address with y inversion",
+      "native_crs": "Web Mercator locator only",
+      "evidence": ["python/radiust/sources/bmkg.py", "python/radiust/resources/sources/bmkg.json", "migration/sources/bmkg.json"],
+      "blockers": ["No canonical live tile was retained; native extent and IDCOMP semantics are unverified."]
+    },
+    {
+      "id": "ca",
+      "status": "unverified-with-site-coordinate-and-display-scale",
+      "locator_geometry": "directory image; station and filename time are parsed; official CASFT site coordinate (-76.11638, 45.04115) and fixture display scale (1 km/pixel) are available, but pixel origin/orientation/projection control points are not",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/ca.py", "tests/fixtures/sources/ca/fixture.json", "migration/sources/ca.json", "https://collaboration.cmc.ec.gc.ca/cmc/cmos/public_doc/msc-data/obs_radar/radars_list.pdf"],
+      "blockers": ["CASFT site coordinate and image scale do not determine projection, pixel origin, orientation, or a native transform.", "CAPPI GIF palette/value mapping is not verified."]
+    },
+    {
+      "id": "cam",
+      "status": "unknown",
+      "locator_geometry": "slideshow image URL when the upstream page exposes one",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/cam.py", "tests/fixtures/sources/cam/fixture.json", "migration/sources/cam.json"],
+      "blockers": ["The current probe did not return a canonical image."]
+    },
+    {
+      "id": "es",
+      "status": "declared-projection-pending-control-points",
+      "locator_geometry": "legacy national image claims EPSG:3857",
+      "native_crs": "EPSG:3857 (provider claim; control points pending)",
+      "evidence": ["python/radiust/sources/es.py", "python/radiust/resources/sources/es.json", "tests/fixtures/sources/es/fixture.json", "migration/sources/es.json", "https://www.aemet.es/es/datos_abiertos/AEMET_OpenData", "https://datos.gob.es/es/catalogo/e05068001-datos-de-radares"],
+      "blockers": ["The legacy PNG EPSG:3857 claim has not been checked against provider control points.", "AEMET documents a separate EPSG:4326 georeferenced GeoTIFF with ESCALA color intervals, but no retained matched frame or official mapping establishes pixel/time equivalence to the legacy PNG."]
+    },
+    {
+      "id": "fr",
+      "status": "request-projection-known-native-transform-pending",
+      "locator_geometry": "WMS request uses an EPSG:3857 projected bbox, explicit 700x600 requested pixel grid and pixel-center control point in FrameRef metadata; the provider's underlying radar-native measurement grid is not exposed",
+      "native_crs": "EPSG:3857 WMS portrayal request grid checked; underlying radar-native grid still unknown",
+      "evidence": ["python/radiust/sources/fr.py", "tests/fixtures/sources/fr/fixture.json", "migration/sources/fr.json"],
+      "blockers": ["The requested WMS portrayal grid is now retained and independently checked against EPSG:3857, but is not evidence of underlying radar-native geometry. Scientific color-to-dBZ mapping remains unverified."]
+    },
+    {
+      "id": "id",
+      "status": "unknown-credential-blocked",
+      "locator_geometry": "provider image URL when an authorized token is supplied",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/id.py", "tests/fixtures/sources/id/fixture.json", "migration/sources/id.json"],
+      "blockers": ["No authorized raw frame is retained; native geometry is unknown."]
+    },
+    {
+      "id": "id_sidarma",
+      "status": "declared-bbox-only",
+      "locator_geometry": "station-specific overlay bbox from the versioned radar resource",
+      "native_crs": "EPSG:4326 overlay bbox; provider pixel transform pending",
+      "evidence": ["python/radiust/sources/id_sidarma.py", "python/radiust/resources/sources/id_sidarma.json", "tests/fixtures/sources/id_sidarma/fixture.json", "migration/sources/id_sidarma.json"],
+      "blockers": ["No authorized current raw image and no pixel control points are retained."]
+    },
+    {
+      "id": "kr",
+      "status": "unverified",
+      "locator_geometry": "CGI image URL with station and provider timestamp",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/kr.py", "tests/fixtures/sources/kr/fixture.json", "migration/sources/kr.json"],
+      "blockers": ["Korea provider native image extent and palette are not verified."]
+    },
+    {
+      "id": "my",
+      "status": "legacy-artifact-no-native-geometry",
+      "locator_geometry": "historical display PNG only",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/my.py", "tests/fixtures/sources/my/fixture.json", "migration/blockers/my.md"],
+      "blockers": ["The retained files are legacy output and do not retain upstream GIF metadata or control points."]
+    },
+    {
+      "id": "nz",
+      "status": "unverified",
+      "locator_geometry": "provider GIF/mobile-radar image",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/nz.py", "tests/fixtures/sources/nz/fixture.json", "migration/sources/nz.json"],
+      "blockers": ["MetService native extent and value geometry are not verified."]
+    },
+    {
+      "id": "opensnow",
+      "status": "tile-locator-only",
+      "locator_geometry": "RainViewer-like Web Mercator tile address",
+      "native_crs": "Web Mercator locator only",
+      "evidence": ["python/radiust/sources/opensnow.py", "python/radiust/resources/sources/opensnow.json", "migration/sources/opensnow.json"],
+      "blockers": ["No canonical live tile was retained; frame identity and provider extent are unverified."]
+    },
+    {
+      "id": "ph",
+      "status": "unknown-credential-blocked",
+      "locator_geometry": "timeline image URL when an authorized token or browser fallback is available",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/ph.py", "tests/fixtures/sources/ph/fixture.json", "migration/sources/ph.json"],
+      "blockers": ["No authorized raw frame and no native geometry control points are retained."]
+    },
+    {
+      "id": "pt",
+      "status": "verified-overlay-bounds",
+      "locator_geometry": "Every Madeira timeline PNG is passed to Leaflet ImageOverlay with the provider's published west/south/east/north bounds; fixture pixel centers are checked against the image dimensions.",
+      "native_crs": "EPSG:4326",
+      "evidence": ["python/radiust/sources/pt.py", "tests/fixtures/sources/pt/fixture.json", "migration/sources/pt.json"],
+      "notes": ["Official mapbuilder-md.js applies bounds [-19.87034, 30.01467, -12.89697, 35.96053] to every Madeira timeline path; the retained raw has its first and last pixel centers recorded in the fixture manifest."]
+    },
+    {
+      "id": "rainviewer",
+      "status": "verified-regular-web-mercator",
+      "locator_geometry": "z=1 global tiles converted to EPSG:4326 pixel-center coordinates",
+      "native_crs": "EPSG:4326 output derived from Web Mercator pixel centers",
+      "evidence": ["python/radiust/sources/rainviewer.py", "tests/sources/test_rainviewer.py", "tests/fixtures/sources/rainviewer/fixture.json", "migration/sources/rainviewer.json"],
+      "notes": ["The global x/y Web Mercator transform is implemented and the source fixture includes a decoded reference pixel."]
+    },
+    {
+      "id": "sg",
+      "status": "verified_inferred_aeqd",
+      "locator_geometry": "480x480 pixel centers on a 1 km spherical AEQD grid centered at 103.972583 E, 1.34911 N; pixels beyond the 240 km radius are outside coverage",
+      "native_crs": "+proj=aeqd +lat_0=1.34911 +lon_0=103.972583 +R=6371000 +units=m +no_defs",
+      "evidence": ["python/radiust/sources/sg.py", "tests/sources/test_sg.py", "tests/fixtures/sources/sg/fixture.json", "python/radiust/resources/palettes/sg_rain_intensity.json", "migration/sources/sg.json"],
+      "notes": ["The official API declares the AEQD projection center and EPSG:4326 boundary box. A 6,371,000 m spherical radius maps the advertised bounds to the raster edge within 20 m, below the 1 km pixel size; this radius is explicitly inferred.", "The palette is categorical, not a quantitative rain-rate or reflectivity scale. Transparent pixels inside range remain below-detection/no-visible-return because the provider does not distinguish unobserved from dry pixels."]
+    },
+    {
+      "id": "th",
+      "status": "unverified",
+      "locator_geometry": "live GIF locator with cadence-limited frame time",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/th.py", "tests/fixtures/sources/th/fixture.json", "migration/sources/th.json"],
+      "blockers": ["Provider frame time, native extent, and palette are not verified."]
+    },
+    {
+      "id": "th_royalrain",
+      "status": "unverified",
+      "locator_geometry": "CAPPI/mobile-station image locator",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/th_royalrain.py", "tests/fixtures/sources/th_royalrain/fixture.json", "migration/sources/th_royalrain.json"],
+      "blockers": ["Native extent and palette are not verified."]
+    },
+    {
+      "id": "tw",
+      "status": "verified-numeric-grid-png-unverified",
+      "locator_geometry": "O-A0059-001 native grid: southwest-first, increasing longitude then latitude, 921x881 and 0.0125 degree; O-A0058-005 companion JSON declares longitude 115.00-126.50, latitude 17.75-29.25, image 3600x3600; these PNG bounds are not verified pixel registration",
+      "native_crs": "EPSG:3821 (TWD67) for grid product; PNG datum/pixel control points pending",
+      "evidence": ["python/radiust/sources/tw.py", "tests/sources/test_tw.py", "tests/integration/test_source_cli_matrix.py", "tests/live/test_representative_sources.py", "tests/fixtures/sources/tw/fixture.json", "docs/cwa-radar-products.md", "migration/sources/tw.json", "CWA O-A0059-001.json live 2026-09-20"],
+      "blockers": ["The independent 3600x3600 PNG pixel mapping and RGB-to-dBZ palette remain unverified."]
+    },
+    {
+      "id": "tw-http",
+      "status": "unverified",
+      "locator_geometry": "HTTP Observe_radar.js/CV product image locator",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/tw_http.py", "tests/fixtures/sources/tw-http/fixture.json", "migration/sources/tw-http.json"],
+      "blockers": ["Native grid control points and palette semantics are not verified."]
+    },
+    {
+      "id": "uk",
+      "status": "unknown-credential-blocked",
+      "locator_geometry": "DataPoint capabilities image URL when an API key is supplied",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/uk.py", "tests/fixtures/sources/uk/fixture.json", "migration/sources/uk.json"],
+      "blockers": ["No authorized raw frame and no native geometry control points are retained."]
+    },
+    {
+      "id": "vn",
+      "status": "unverified",
+      "locator_geometry": "Hymetnet CMAX image locator",
+      "native_crs": null,
+      "evidence": ["python/radiust/sources/vn.py", "tests/fixtures/sources/vn/fixture.json", "migration/sources/vn.json"],
+      "blockers": ["Native extent and palette are not verified."]
+    },
+    {
+      "id": "windy",
+      "status": "tile-locator-known-frame-binding-pending",
+      "locator_geometry": "global XYZ Web Mercator tile layout",
+      "native_crs": "Web Mercator tile locator; provider frame-time binding pending",
+      "evidence": ["python/radiust/sources/windy.py", "python/radiust/sources/_legacy_tiles.py", "tests/fixtures/sources/windy/fixture.json", "migration/sources/windy.json"],
+      "blockers": ["The provider's requested timestamp and green-channel semantics are not verified."]
+    },
+    {
+      "id": "wunderground",
+      "status": "unknown-credential-blocked",
+      "locator_geometry": "global XYZ-like mosaic tile URL when an API key is supplied",
+      "native_crs": "tile locator only",
+      "evidence": ["python/radiust/sources/wunderground.py", "tests/fixtures/sources/wunderground/fixture.json", "migration/sources/wunderground.json"],
+      "blockers": ["No authorized raw tile and no provider tile semantics are retained."]
+    }
+  ],
+  "historical_sources": [
+    {
+      "id": "br_cptec",
+      "status": "wms-raw-acquired-declared-crs84-geometry-pending",
+      "native_crs": "CRS:84 WMS request with provider bbox; native pixel transform is unverified",
+      "evidence": ["python/radiust/sources/br_cptec.py", "python/radiust/resources/sources/br_cptec.json", "tests/fixtures/sources/br_cptec/fixture.json", "migration/sources/br_cptec.json", "migration/history/br_cptec.json"],
+      "blockers": ["One archived WMS image was retained, but its latest advertised frame returns a provider mosaic/CRS error and the rendered image has no pixel control points or verified physical palette."]
+    },
+    {
+      "id": "br_sipam",
+      "status": "declared-bbox-pixel-control-points-pending",
+      "native_crs": "EPSG:4326 declared station bbox",
+      "evidence": ["python/radiust/sources/br_sipam.py", "python/radiust/resources/sources/br_sipam.json", "tests/fixtures/sources/br_sipam/fixture.json", "migration/history/br_sipam.json", "migration/sources/br_sipam.json"],
+      "blockers": ["The official image and bbox are retained, but pixel control points and a physical dbz palette are not verified."]
+    }
+  ],
+  "conclusion": "RainViewer and the numeric tw:grid product now have source-backed regular-grid transform evidence among the 24 HEAD sources. tw:observation PNG and tw-http remain blocked independently. No real two-dimensional curvilinear source was found, so the existing CurvilinearGrid contract is retained without adding a source-specific curvilinear adapter. The remaining unverified products and historical CPTEC/SIPAM lines require verified native pixel geometry and physical value semantics; rows without canonical raw data also require an attributable payload before scientific acceptance."
+}

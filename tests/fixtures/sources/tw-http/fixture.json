@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "tw-http",
+  "origin": "https://www.cwa.gov.tw/Data/js/obs_img/Observe_radar.js and /Data/radar/",
+  "source_commit": "official-live-http",
+  "collected_at": "2026-09-18T03:05:26Z",
+  "license_basis": "official CWA public observation artifact retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [{
+    "product": "observation",
+    "station": "CV1_3600",
+    "valid_time": "2026-09-18T02:50:00Z",
+    "uri": "https://www.cwa.gov.tw/Data/radar/CV1_3600_202609181050.png",
+    "locator_version": "cwa-observe-radar-v1",
+    "revision": "CV1_3600_202609181050",
+    "metadata": {"reference_shape": [3600, 3600], "raw_mode": "RGB", "geometry_status": "unverified", "scientific_reference_status": "blocked: palette not verified"},
+    "artifacts": [{"name": "CV1_3600.png", "path": "raw/CV1_3600.png", "role": "data", "media_type": "image/png", "sha256": "dd314e2cc79fbe9272162ef94972714310be31eb5eaf584ae2a80d4b839e95f7"}]
+  }]
+}

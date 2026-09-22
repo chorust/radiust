@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "old_commit", "sources", "historical"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "old_commit": {"type": "string", "minLength": 40},
+    "sources": {"type": "array", "minItems": 24},
+    "historical": {"type": "array", "minItems": 2}
+  }
+}

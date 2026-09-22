@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "windy",
+  "origin": "https://rdr.windy.com/radar2/composite/",
+  "source_commit": "official-live-endpoint",
+  "collected_at": "2026-09-18T04:10:00Z",
+  "license_basis": "live public Windy radar tiles retained only for migration validation; production usage remains subject to upstream terms",
+  "frames": [{
+    "product": "reflectivity",
+    "station": "global",
+    "valid_time": "2026-09-18T04:10:00Z",
+    "uri": "https://rdr.windy.com/radar2/composite/2026/09/18/0410/1/0/0/reflectivity.png?multichannel=true&maxt=20260918041000",
+    "locator_version": "windy-legacy-v1",
+    "revision": "windy-1789704600",
+    "metadata": {
+      "tile_zoom": 1,
+      "tile_layout": "xyz-2x2-global",
+      "reference_shape": [512, 512],
+      "time_semantics": "cadence_floor_assumption",
+      "geometry_status": "tile geometry known; provider frame-time binding unverified",
+      "scientific_reference_status": "blocked: green-channel physical semantics unverified"
+    },
+    "artifacts": [
+      {"name": "tile-z1-x0-y0.png", "path": "raw/tile-z1-x0-y0.png", "role": "data", "media_type": "image/png", "sha256": "a3367ba4fa0aa5130690232fe91ec74dd42bda20e2818dee402bf1a80173a915"},
+      {"name": "tile-z1-x1-y0.png", "path": "raw/tile-z1-x1-y0.png", "role": "tile", "media_type": "image/png", "sha256": "b7b7a6193388a6d00835cff7d274406c34b2f638d1f19a11cb0c1f5d45f4506c"},
+      {"name": "tile-z1-x0-y1.png", "path": "raw/tile-z1-x0-y1.png", "role": "tile", "media_type": "image/png", "sha256": "717363470ca028030e1fbde003527145097367bd26ce75f959ea67f09d7edb7c"},
+      {"name": "tile-z1-x1-y1.png", "path": "raw/tile-z1-x1-y1.png", "role": "tile", "media_type": "image/png", "sha256": "9052bae7ccf8af41e8046c0c2f1abe69f30803861bded455424ce9c9d3acef09"}
+    ]
+  }]
+}

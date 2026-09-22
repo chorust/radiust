@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "source": "br_cptec",
+  "adapter_version": "1",
+  "historical_page_url": "https://nowcasting.cptec.inpe.br/",
+  "historical_api_template": "https://nowcasting.cptec.inpe.br/api/camadas/radar/{radar_id}/imagens",
+  "current_wms_capabilities_url": "https://data.inpe.br/big/geoserver/dissm/wms?service=WMS&request=GetCapabilities&version=1.3.0",
+  "current_wms_getmap_url": "https://data.inpe.br/big/geoserver/dissm/wms",
+  "product": "CAPPI",
+  "time_semantics": "legacy fileDate + fileTime UTC; WMS time dimension ISO-8601 UTC",
+  "legacy_contract_status": "replayable",
+  "current_acquisition_status": "one-archived-frame-acquired-latest-wms-getmap-error",
+  "geometry_status": "declared-crs84-bbox-pixel-control-points-pending",
+  "scientific_value_status": "rendered-wms-palette-unverified"
+}

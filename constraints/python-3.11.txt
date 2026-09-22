@@ -1,0 +1,9 @@
+# Candidate constraints for the CPython 3.11 support job.
+numpy==2.2.6
+xarray==2025.6.1
+pyproj==3.7.1
+Pillow==12.3.0
+h5netcdf==1.8.1
+h5py==3.16.0
+click==8.5.0
+PyYAML==6.0.3

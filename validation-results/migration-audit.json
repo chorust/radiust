@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "source_count": 24,
+  "sources": [
+    {
+      "id": "kr",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "tw",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "numeric-grid-verified-png-science-geometry-blocked"
+    },
+    {
+      "id": "tw-http",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "ph",
+      "status": "credential-and-scientific-evidence-blocked",
+      "fixture_status": "blocked",
+      "migration_status": "credential-and-scientific-evidence-blocked"
+    },
+    {
+      "id": "vn",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "my",
+      "status": "acquisition-implemented-evidence-blocked",
+      "fixture_status": "available",
+      "migration_status": "live-acquisition-passed-science-and-license-blocked"
+    },
+    {
+      "id": "id_sidarma",
+      "status": "acquisition-implemented-evidence-blocked",
+      "fixture_status": "blocked",
+      "migration_status": "acquisition-implemented-evidence-blocked"
+    },
+    {
+      "id": "es",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "ca",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "th_royalrain",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "sg",
+      "status": "contract_passed",
+      "fixture_status": "available",
+      "migration_status": "implemented-contract-passed-ordinal-only"
+    },
+    {
+      "id": "nz",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "id",
+      "status": "credential-blocked",
+      "fixture_status": "blocked",
+      "migration_status": "credential-blocked"
+    },
+    {
+      "id": "cam",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "blocked",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "au",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "th",
+      "status": "acquisition-verified-science-geometry-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-geometry-blocked"
+    },
+    {
+      "id": "fr",
+      "status": "acquisition-verified-science-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-blocked"
+    },
+    {
+      "id": "pt",
+      "status": "contract_passed",
+      "fixture_status": "available",
+      "migration_status": "implemented-contract-passed-ordinal-only"
+    },
+    {
+      "id": "uk",
+      "status": "retired_exception",
+      "fixture_status": "blocked",
+      "migration_status": "retired_exception"
+    },
+    {
+      "id": "windy",
+      "status": "acquisition-verified-science-time-binding-blocked",
+      "fixture_status": "available",
+      "migration_status": "acquisition-verified-science-time-binding-blocked"
+    },
+    {
+      "id": "rainviewer",
+      "status": "contract_passed",
+      "fixture_status": "available",
+      "migration_status": "implemented-contract-passed"
+    },
+    {
+      "id": "wunderground",
+      "status": "credential-science-time-binding-blocked",
+      "fixture_status": "blocked",
+      "migration_status": "credential-science-time-binding-blocked"
+    },
+    {
+      "id": "opensnow",
+      "status": "upstream-error-blocked",
+      "fixture_status": "blocked",
+      "migration_status": "upstream-error-blocked"
+    },
+    {
+      "id": "bmkg",
+      "status": "upstream-error-blocked",
+      "fixture_status": "blocked",
+      "migration_status": "upstream-error-blocked"
+    }
+  ],
+  "missing": [],
+  "task_counts": {
+    "total": 154,
+    "checked": 148,
+    "open": 6
+  },
+  "open_tasks": [
+    "T011",
+    "T038",
+    "T053",
+    "T065",
+    "T084",
+    "T085"
+  ],
+  "open_task_details": [
+    {
+      "id": "T011",
+      "description": "从旧库或可合法取得的原始资料固定 my 的 raw 与发现响应到 `tests/fixtures/sources/my/fixture.json`、`tests/fixtures/sources/my/raw/`，核实实际有效时间与原生几何；缺 raw 时记录 `migration/blockers/my.md` 并保留任务未完成。（依赖：T010；门槛：M0）"
+    },
+    {
+      "id": "T038",
+      "description": "[US1] 迁移 `python/radiust/sources/my.py`、`python/radiust/resources/sources/my.json`、`tests/sources/test_my.py`、`migration/sources/my.json`，使用已固定真实GIF与发现响应验证两区域产品、时次绑定/几何；先补来源断言再实现，不把响应获取时间当有效时间。（依赖：T033、T034、T035、T036、T037、T011；门槛：M1）"
+    },
+    {
+      "id": "T053",
+      "description": "[US2] 固定 `tests/fixtures/sources/id_sidarma/fixture.json`、`tests/fixtures/sources/rainviewer/fixture.json`、`tests/fixtures/sources/fr/fixture.json` 及各自raw；补参考像素/范围/质量/几何/时间证据，缺真实raw保持相关任务未完成。（依赖：T010；门槛：M2）"
+    },
+    {
+      "id": "T065",
+      "description": "[US2] 运行科学/解码/tile/空间转换测试并校准代表源像素与内存阈值，在 `validation-results/us2.md` 记录实际输入摘要、geometry控制点、quality精确比较和不支持场景；所有代表真实契约通过才关闭。（依赖：T064、T051、T052、T050；门槛：M2）"
+    },
+    {
+      "id": "T084",
+      "description": "[US3] 在隔离测试目标运行AWS S3、至少一个S3-compatible与Aliyun OSS真实矩阵，保存 `validation-results/storage-providers.json`；逐项记录成功/失败/未运行及provider版本，不接触生产prefix。（依赖：T082、T069；门槛：M3）"
+    },
+    {
+      "id": "T085",
+      "description": "[US3] 运行四格式round-trip、raw重放、local/remote故障与清理验收，在 `validation-results/us3.md` 核对FR-016～022和SC-005；缺provider证据不能标全存储验收完成。（依赖：T084、T083、T066、T067、T068；门槛：M3）"
+    }
+  ],
+  "ready_for_v1": false
+}

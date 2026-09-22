@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source": "kr",
+  "adapter_version": "1",
+  "historical": true,
+  "discovery_url": "https://radar.kma.go.kr/radar/fileChkAjax.do",
+  "image_url": "https://radar.kma.go.kr/cgi-bin/center/nph-rdr_stn1_img",
+  "timezone": "Asia/Seoul",
+  "product": "composite",
+  "geometry_status": "unverified",
+  "scientific_decode": "blocked_pending_verified_palette"
+}

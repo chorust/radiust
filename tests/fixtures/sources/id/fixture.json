@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "source": "id",
+  "origin": "https://radar.bmkg.go.id:8090/sidarmaimage",
+  "collected_at": "2026-09-18T00:00:00Z",
+  "license_basis": "A legacy raw source artifact was recovered from the local 旧项目 ignored output tree for private offline migration evidence. Upstream redistribution and usage terms were not independently verified.",
+  "status": "blocked",
+  "evidence": ["migration/sources/id.json", "tests/sources/test_id.py", "tests/sources/test_external_credentials.py"],
+  "blockers": [
+    "The retained legacy image has no preserved discovery response or payload URL, and the legacy client disabled TLS verification; its filename time is not independently bound to provider metadata.",
+    "A current authorized provider token is required to verify live discovery and raw acquisition.",
+    "Palette and native geometry remain unverified."
+  ],
+  "frames": [],
+  "legacy_raw_evidence": {
+    "station": "MAJ",
+    "legacy_filename_time": "2025-12-30T07:59:00Z",
+    "source_archive_path": "output/id/ID-ICUSRC-MAJ_20251230075900_merca_r_source.png",
+    "payload_url_retained": false,
+    "discovery_response_retained": false,
+    "tls_verification": "disabled_by_legacy_client",
+    "time_binding": "not_independently_verified",
+    "artifact": {
+      "name": "ID-ICUSRC-MAJ_20251230075900_merca_r_source.png",
+      "path": "raw/ID-ICUSRC-MAJ_20251230075900_merca_r_source.png",
+      "media_type": "image/png",
+      "sha256": "2c82b22aee6fb8891169cbc32f4d821b27c9dbc311fecfe71a5446ff0f558df3",
+      "size_bytes": 84756,
+      "width": 4084,
+      "height": 4084,
+      "mode": "RGBA"
+    }
+  }
+}

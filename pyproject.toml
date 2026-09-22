@@ -1,0 +1,96 @@
+[build-system]
+requires = ["maturin>=1.15,<2"]
+build-backend = "maturin"
+
+[project]
+name = "radiust"
+version = "0.1.0"
+description = "Independent radar data acquisition and processing toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+keywords = ["radar", "weather", "meteorology"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+dependencies = [
+  "certifi>=2024.2.2",
+  "numpy>=1.24,<3",
+  "xarray>=2025.6,<2026",
+  "pyproj>=3.6,<4",
+  "Pillow>=10,<13",
+  "h5netcdf>=1.3,<2",
+  "h5py>=3.10,<4",
+  "click>=8.1,<9",
+  "PyYAML>=6,<7",
+]
+
+[project.optional-dependencies]
+geotiff = ["rasterio>=1.4,<1.5"]
+zarr = ["zarr>=2.18,<3", "numcodecs>=0.13,<0.16"]
+playwright = ["playwright>=1.45,<2"]
+recovery = ["scipy>=1.11,<2", "opencv-python-headless>=4.9,<5"]
+scraping = [
+  "beautifulsoup4>=4.12,<5",
+  "brotli>=1.1,<2",
+  "python-dateutil>=2.9,<3",
+]
+storage = []
+all = [
+  "rasterio>=1.4,<1.5",
+  "zarr>=2.18,<3",
+  "numcodecs>=0.13,<0.16",
+  "playwright>=1.45,<2",
+  "scipy>=1.11,<2",
+  "opencv-python-headless>=4.9,<5",
+  "beautifulsoup4>=4.12,<5",
+  "brotli>=1.1,<2",
+  "python-dateutil>=2.9,<3",
+]
+
+[dependency-groups]
+ci = [
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.23,<2",
+  "maturin>=1.15,<2",
+  "ruff>=0.8,<1",
+]
+dev = [
+  "pytest>=8,<9",
+  "pytest-asyncio>=0.23,<2",
+  "maturin>=1.15,<2",
+  "ruff>=0.8,<1",
+  "netCDF4>=1.6,<2",
+  "cfchecker>=4.1,<5",
+]
+
+[project.scripts]
+radiust = "radiust.cli.main:main"
+
+[project.entry-points."radiust.sources"]
+# Third-party sources may register here. Built-in sources are loaded lazily.
+
+[tool.maturin]
+manifest-path = "crates/radiust-core/Cargo.toml"
+python-source = "python"
+module-name = "radiust._core"
+bindings = "pyo3"
+features = ["extension-module"]
+strip = true
+include = [
+  { path = "python/radiust/resources/**/*.json", format = "wheel" },
+  { path = "python/radiust/resources/**/*.yaml", format = "wheel" },
+  { path = "tests/fixtures/sources/my/**/*", format = "wheel" },
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+asyncio_mode = "auto"
+testpaths = ["tests"]

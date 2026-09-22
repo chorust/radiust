@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "uk",
+  "origin": "http://datapoint.metoffice.gov.uk/public/data/layer/wxobs/all/xml/capabilities",
+  "collected_at": "2026-09-18T00:00:00Z",
+  "license_basis": "No raw artifact retained: Met Office DataPoint is retired and the official FAQ identifies no like-for-like Radar Composite replacement.",
+  "status": "blocked",
+  "evidence": ["migration/sources/uk.json", "tests/sources/test_uk.py", "https://www.metoffice.gov.uk/services/data/datapoint/datapoint-retirement-faqs"],
+  "blockers": ["The provider retired DataPoint on 2025-12-01 and documents no like-for-like Radar Composite replacement; no live acquisition is attempted."],
+  "frames": []
+}

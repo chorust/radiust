@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source": "my",
+  "historical": false,
+  "id": "my",
+  "adapter_version": "1",
+  "acquisition": "HTTPS HEAD metadata followed by station image GET; preserve Last-Modified and advertised Content-Type while validating the downloaded image signature",
+  "stations": {
+    "peninsular": {
+      "url": "https://www.met.gov.my/data/radar_peninsular.gif",
+      "time_binding": "Last-Modified minus 9 minutes (legacy rule; unverified)"
+    },
+    "east": {
+      "url": "https://www.met.gov.my/data/radar_east.gif",
+      "time_binding": "Last-Modified minus 9 minutes (legacy rule; unverified)"
+    }
+  },
+  "raw_policy": "preserve provider bytes; record advertised Content-Type and Last-Modified separately; require the downloaded payload to verify as PNG because the live .gif endpoints currently return PNG signatures; do not decode without a verified palette",
+  "geometry_status": "unverified",
+  "scientific_decode": "blocked_pending_permission_palette_and_native_control_points",
+  "fixture_note": "Offline test PNGs are historical display artifacts, not canonical upstream raw."
+}

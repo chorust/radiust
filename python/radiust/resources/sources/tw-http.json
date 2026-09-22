@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source": "tw-http",
+  "adapter_version": "1",
+  "historical": true,
+  "index_url": "https://www.cwa.gov.tw/Data/js/obs_img/Observe_radar.js",
+  "image_base": "https://www.cwa.gov.tw/Data/radar/",
+  "product": "observation",
+  "station": "CV1_3600",
+  "timezone": "Asia/Taipei",
+  "cadence_minutes": 10,
+  "geometry_status": "unverified",
+  "scientific_decode": "blocked_pending_verified_palette"
+}

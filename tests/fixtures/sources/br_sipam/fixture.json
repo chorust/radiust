@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "source": "br_sipam",
+  "origin": "https://apihidro.sipam.gov.br/radares/ and https://siger.sipam.gov.br/radar/sbbe/dbz/2026_09_18_06_20_05.png",
+  "source_commit": "official-live-api-and-image",
+  "collected_at": "2026-09-18T06:20:05Z",
+  "license_basis": "official SIPAM public radar metadata and image retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [
+    {
+      "product": "dbz",
+      "station": "BRBE",
+      "valid_time": "2026-09-18T06:20:05Z",
+      "uri": "https://siger.sipam.gov.br/radar/sbbe/dbz/2026_09_18_06_20_05.png",
+      "locator_version": "br-sipam-v1",
+      "revision": "BRBE-2026_09_18_06_20_05",
+      "locator": {
+        "radar": "sbbe",
+        "product": "dbz",
+        "bbox": [-50.70789, -3.67153, -46.21039, 0.85202],
+        "discovery_url": "https://apihidro.sipam.gov.br/radares/"
+      },
+      "metadata": {
+        "reference_shape": [1000, 1000],
+        "raw_dtype": "uint8 RGBA",
+        "time_semantics": "varreduras_iso_utc",
+        "geometry_status": "declared_bbox_pending_pixel_control_points",
+        "scientific_reference_status": "blocked: old luminance conversion is not a verified dbz palette"
+      },
+      "artifacts": [
+        {
+          "name": "BRBE_20260918T062005Z.png",
+          "path": "raw/BRBE_20260918T062005Z.png",
+          "role": "data",
+          "media_type": "image/png",
+          "size_bytes": 7065,
+          "sha256": "65c989f153c8ae4636beb1b5be78577d32574baef64dead9de853a7ec9e7c9bb"
+        }
+      ]
+    }
+  ]
+}

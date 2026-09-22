@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "source": "tw",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/tw_s3_scraper.py",
+  "adapter": "python/radiust/sources/tw.py",
+  "status": "numeric-grid-verified-png-science-geometry-blocked",
+  "differences": [
+    "Anonymous S3 access is performed through the shared HTTPS transport; no s3fs-specific network path is introduced.",
+    "O-A0058-005 PNG is bound to its official companion JSON DateTime; product ID, ProductURL, time, coverage and downloaded image dimensions are verified against discovery metadata before RawFrame is returned.",
+    "The companion JSON states longitude 115.00-126.50, latitude 17.75-29.25 and image size 3600x3600, but does not independently establish pixel registration, native datum or physical palette.",
+    "The separate grid product reads O-A0059-001 JSON and decodes native TWD67 (EPSG:3821) 921x881 dBZ values, southwest-first then east/north, with -99 invalid and -999 outside/removed flags.",
+    "The PNG product retains its own metadata and remains blocked for scientific decoding until its pixel geometry and RGB-to-dBZ mapping are independently established; O-A0059-001 has a different shape and datum."
+  ],
+  "evidence": ["tests/fixtures/sources/tw/fixture.json", "tests/fixtures/sources/tw/raw/O-A0059-001.json", "tests/sources/test_tw.py", "tests/live/test_representative_sources.py", "validation-results/live-cli-tw-grid.json", "live CWA PNG acquisition on 2026-09-18", "O-A0059-001.json anonymous S3 live 2026-09-20 12:30 Asia/Taipei (sha256 96f97544d0e2f3795b69cb2cbfe3f906a03bb4232d1eb62f15d5740445c56c90)", "2026-09-20 grid CLI NetCDF readback: 811401 cells, 1056 finite; control point row 262 col 580 = 18 dBZ, native extent (115,18,126.5,29)", "2026-09-20 retained upstream JSON replay: pixel, grid, 610042 missing and 200303 outside flags verified offline", "https://opendata.cwa.gov.tw/dataset/observation/O-A0059-001", "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-005", "https://www.cwa.gov.tw/Data/data_catalog/3-6-5.pdf"],
+  "official_image_metadata_audit": {
+    "checked_at": "2026-09-21",
+    "dataset_url": "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-005",
+    "product": "wide-area transparent integrated radar echo image",
+    "provider_declared_cadence_minutes": 10,
+    "provider_declared_extent_lonlat": [115.0, 17.75, 126.5, 29.25],
+    "provider_declared_image_shape": [3600, 3600],
+    "separate_numeric_product": "O-A0059-001",
+    "conclusion": "Official metadata confirms product identity, update interval, nominal extent and image dimensions. The published material does not establish pixel registration or an RGB-to-dBZ mapping; the image stays raw-only, and the numeric grid georeference must not be applied to it."
+  },
+  "blockers": ["PNG O-A0058-005 geometry and physical palette are still unverified; numerical O-A0059-001 coordinates must not be applied directly to the 3600x3600 PNG."]
+}

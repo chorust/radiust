@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "source": "sg",
+  "origin": "https://www.weather.gov.sg/weather-rain-area-240km",
+  "source_commit": "official-live-page",
+  "collected_at": "2026-09-18T03:05:26Z",
+  "license_basis": "Legacy raw retained for migration validation. Equivalent NEA data.gov.sg API imagery is published under the Singapore Open Data Licence; the original-page raw remains subject to its upstream reuse terms.",
+  "provider_api_validation": {
+    "endpoint": "https://api-open.data.gov.sg/v2/real-time/api/weather-radar-images/240km",
+    "timestamp": "2026-09-18T10:45:00+08:00",
+    "api_image_sha256": "a6b134a39bb9070f616091e3a5bbc32d05de4e6e659929c8e6fa4044966c4380",
+    "legacy_visible_pixels_equal_api": true,
+    "same_alpha_mask": true,
+    "visible_pixel_difference": 0,
+    "note": "The only decoded RGBA difference is hidden RGB under fully transparent pixels. The presigned API URL is deliberately not retained."
+  },
+  "frames": [{
+    "product": "composite",
+    "station": "SGCOMP",
+    "valid_time": "2026-09-18T02:45:00Z",
+    "uri": "https://www.weather.gov.sg/files/rainarea/240km/dpsri_240km_2026091810450000dBR.dpsri.png",
+    "locator_version": "mss-slideshow-v1",
+    "revision": "2026091810450000",
+    "metadata": {
+      "reference_shape": [480, 480],
+      "reference_dtype": "float32",
+      "reference_variable": "rain_intensity",
+      "reference_units": "1",
+      "reference_grid": {
+        "kind": "cartesian",
+        "crs": "+proj=aeqd +lat_0=1.34911 +lon_0=103.972583 +R=6371000 +units=m +no_defs",
+        "range_m": 240000,
+        "pixel_size_m": 1000,
+        "first_pixel_center_xy_m": [-239500, 239500],
+        "last_pixel_center_xy_m": [239500, -239500]
+      },
+      "reference_quality": {
+        "0": "colored intensity category",
+        "2": "outside nominal radar range",
+        "32": "no displayed rain; below-detection or unobserved cannot be distinguished"
+      },
+      "reference_pixels": [
+        {"row": 77, "column": 135, "x_m": -104500, "y_m": 162500, "rgb": [0, 255, 255], "category": 1},
+        {"row": 76, "column": 364, "x_m": 124500, "y_m": 163500, "rgb": [0, 218, 13], "category": 2},
+        {"row": 118, "column": 357, "x_m": 117500, "y_m": 121500, "rgb": [255, 255, 59], "category": 3},
+        {"row": 57, "column": 365, "x_m": 125500, "y_m": 182500, "rgb": [255, 198, 0], "category": 4},
+        {"row": 233, "column": 118, "x_m": -121500, "y_m": 6500, "rgb": [255, 73, 0], "category": 5}
+      ],
+      "raw_mode": "RGBA",
+      "geometry_status": "verified_aeqd_240km",
+      "value_semantics": "ordinal provider rainfall-intensity categories",
+      "scientific_reference_status": "verified: official five-category palette; transparent pixels are no visible return, not quantitative zero rainfall"
+    },
+    "artifacts": [{"name": "SGCOMP.png", "path": "raw/SGCOMP.png", "role": "data", "media_type": "image/png", "sha256": "154722ed6221d6d634de24006eaab0e5a48fcee75ef6147569186a56bf731b2c"}]
+  }]
+}

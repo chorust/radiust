@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-21T00:58:39Z",
+  "production_prefix_touched": false,
+  "test_harness": {
+    "status": "implemented",
+    "opt_in_environment": "RADIUST_TEST_ALLOW_PROVIDER=1",
+    "credential_storage": "process environment only; values are not written to reports",
+    "prefix_policy": "provider URI path must include a dedicated test component; each run adds a unique radiust-validation child",
+    "local_matrix": "offline manifest round-trip passed",
+    "remote_matrix": "deferred_per_user_instruction; local storage only",
+    "provider_environment": "RADIUST_TEST_ALLOW_PROVIDER=1",
+    "unique_run_path": "radiust-validation-<run-id>",
+    "uri_rule": "s3://<bucket>/<dedicated-test-prefix> or oss://<bucket>/<dedicated-test-prefix>; at least one path component must contain test; production prefixes are rejected by policy"
+  },
+  "providers": [
+    {
+      "name": "aws-s3",
+      "status": "deferred",
+      "reason": "User explicitly deferred AWS S3 testing; local storage is the current acceptance target",
+      "required_environment": [
+        "RADIUST_PROVIDER_AWS_S3_URI",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_REGION (optional; standard AWS credential chain is also supported)"
+      ]
+    },
+    {
+      "name": "s3-compatible",
+      "status": "deferred",
+      "reason": "User explicitly deferred S3-compatible testing; local storage is the current acceptance target",
+      "required_environment": [
+        "RADIUST_PROVIDER_S3_URI",
+        "RADIUST_PROVIDER_S3_ACCESS_KEY (optional pair)",
+        "RADIUST_PROVIDER_S3_SECRET_KEY (optional pair)",
+        "RADIUST_PROVIDER_S3_ENDPOINT",
+        "RADIUST_PROVIDER_S3_REGION (optional)"
+      ]
+    },
+    {
+      "name": "aliyun-oss",
+      "status": "deferred",
+      "reason": "User explicitly deferred OSS testing; local storage is the current acceptance target",
+      "required_environment": [
+        "RADIUST_PROVIDER_OSS_URI",
+        "RADIUST_PROVIDER_OSS_ACCESS_KEY (optional pair)",
+        "RADIUST_PROVIDER_OSS_SECRET_KEY (optional pair)",
+        "RADIUST_PROVIDER_OSS_ENDPOINT",
+        "RADIUST_PROVIDER_OSS_REGION (optional)"
+      ]
+    }
+  ]
+}

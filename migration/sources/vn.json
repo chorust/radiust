@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source": "vn",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/vn_scraper.py",
+  "adapter": "python/radiust/sources/vn.py",
+  "status": "acquisition-verified-science-geometry-blocked",
+  "differences": [
+    "Hymetnet inline tentimesett timestamps and CMAX00 paths are preserved.",
+    "The rolling endpoint may expose retired stale station timestamps; frames more than 24 hours behind the freshest advertised frame are excluded from rolling discovery.",
+    "On 2026-09-18 ten active stations downloaded successfully while HUE advertised a 2023 frame whose image returned 404; the stale rule is covered by replay tests."
+  ],
+  "evidence": [
+    "tests/fixtures/sources/vn/fixture.json",
+    "tests/sources/test_vn.py",
+    "live Hymetnet acquisition on 2026-09-18",
+    "2026-09-21 opt-in latest raw smoke: DHA at 2026-09-21T04:40:00Z, 53,373-byte PNG, SHA-256 f4b3d8f2bac8124ec38a50504e041f0ebb98f3d34a25af1dff2e74225813792e; science and geometry remain blocked.",
+    "2026-09-21 raw-only CLI smoke passed for DHA at 2026-09-21T05:10:00Z; the raw-complete manifest and artifact hashes verified before temporary-output cleanup (validation-results/live-cli-public.json).",
+    "validation-results/live-cli-public.json"
+  ],
+  "blockers": [
+    "Palette semantics and native geometry remain unverified."
+  ]
+}

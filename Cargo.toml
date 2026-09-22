@@ -2,3 +2,31 @@
 members = ["crates/radiust-core"]
 resolver = "2"
 
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.85"
+
+[workspace.dependencies]
+bytes = "1.10"
+futures-util = "0.3"
+hex = "0.4"
+image = { version = "0.25", default-features = false, features = ["png", "webp"] }
+opendal = { version = "0.59", default-features = false, features = ["executors-tokio", "http-transport-reqwest", "services-fs", "services-oss", "services-s3"] }
+parking_lot = "0.12"
+pyo3 = "0.29"
+pyo3-async-runtimes = { version = "0.29", features = ["attributes", "tokio-runtime"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+suppaftp = { version = "=7.0.4", default-features = false, features = ["tokio", "tokio-rustls"] }
+tempfile = "3.23"
+thiserror = "2.0"
+tokio = { version = "1.48", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+url = "2.5"
+uuid = { version = "1.18", features = ["v4"] }
+webpki-roots = "0.26"

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "ca",
+  "origin": "https://dd.meteo.gc.ca/20260918/WXO-DD/radar/CAPPI/GIF/",
+  "source_commit": "official-live-directory",
+  "collected_at": "2026-09-18T03:54:00Z",
+  "license_basis": "official ECCC public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [{
+    "product": "rain",
+    "station": "CASFT",
+    "valid_time": "2026-09-18T03:54:00Z",
+    "uri": "https://dd.meteo.gc.ca/20260918/WXO-DD/radar/CAPPI/GIF/CASFT/1.5/202609180354_CASFT_CAPPI_1.5_RAIN.gif",
+    "locator_version": "ca-legacy-v1",
+    "revision": "202609180354_CASFT_CAPPI_1.5_RAIN.gif",
+    "metadata": {"reference_shape": [480, 580], "geometry_status": "unverified", "scientific_reference_status": "blocked: palette/units not verified"},
+    "artifacts": [{"name": "CASFT.gif", "path": "raw/CASFT.gif", "role": "data", "media_type": "image/gif", "sha256": "90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0"}]
+  }]
+}

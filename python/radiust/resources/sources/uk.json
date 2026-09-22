@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source": "uk",
+  "adapter_version": "1",
+  "historical": false,
+  "status": "retired",
+  "former_endpoint": "http://datapoint.metoffice.gov.uk/public/data/layer/wxobs/all/xml/capabilities",
+  "retired_at": "2025-12-01",
+  "credential_policy": "legacy_key_not_migrated_or_used",
+  "availability_evidence": "Met Office DataPoint retirement FAQ; Radar Composite has no like-for-like replacement.",
+  "evidence_url": "https://www.metoffice.gov.uk/services/data/datapoint/datapoint-retirement-faqs",
+  "geometry_status": "unverified",
+  "scientific_decode": "unavailable_retired_service"
+}

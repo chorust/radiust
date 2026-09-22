@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "source": "th",
+  "origin": "https://weather.tmd.go.th/",
+  "source_commit": "official-live-gif",
+  "collected_at": "2026-09-21T09:43:54Z",
+  "license_basis": "official TMD public live radar artifact retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [
+    {
+      "product": "composite",
+      "station": "cmp1",
+      "valid_time": "2023-04-22T14:45:00Z",
+      "uri": "https://weather.tmd.go.th/cmp/cmp1.gif",
+      "locator_version": "tmd-live-v1",
+      "revision": "95f482870e0d6cf2ed2d360dbf12101f39d456b810891bc0fe03c81a1c2a3e13",
+      "metadata": {
+        "reference_shape": [680, 680],
+        "raw_mode": "P",
+        "time_semantics": "rendered_footer_ocr_utc",
+        "footer_observation_times": ["2023-04-22T14:45:00Z"],
+        "geometry_status": "unverified",
+        "scientific_reference_status": "blocked: palette not verified"
+      },
+      "artifacts": [
+        {"name": "cmp1.gif", "path": "raw/cmp1.gif", "role": "data", "media_type": "image/gif", "sha256": "95f482870e0d6cf2ed2d360dbf12101f39d456b810891bc0fe03c81a1c2a3e13", "size_bytes": 158619}
+      ]
+    },
+    {
+      "product": "composite",
+      "station": "kkn240Loop",
+      "valid_time": "2023-04-22T16:00:05Z",
+      "uri": "https://weather.tmd.go.th/kkn/kkn240Loop.gif",
+      "locator_version": "tmd-live-v1",
+      "revision": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+      "metadata": {
+        "reference_shape": [680, 680],
+        "raw_mode": "P",
+        "animation_frames": 6,
+        "animation_durations_ms": [750, 750, 750, 750, 750, 1500],
+        "time_semantics": "rendered_footer_ocr_utc",
+        "footer_observation_times": [
+          "2023-04-22T14:45:05Z",
+          "2023-04-22T15:00:05Z",
+          "2023-04-22T15:15:05Z",
+          "2023-04-22T15:30:05Z",
+          "2023-04-22T15:45:05Z",
+          "2023-04-22T16:00:05Z"
+        ],
+        "response_last_modified": null,
+        "geometry_status": "unverified; 240 km endpoint label does not supply pixel control points",
+        "scientific_reference_status": "blocked: exact source-matched palette and native geometry are unverified"
+      },
+      "artifacts": [
+        {"name": "kkn240Loop.gif", "path": "raw/kkn240Loop.gif", "role": "data", "media_type": "image/gif", "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd", "size_bytes": 2666961}
+      ]
+    }
+  ]
+}

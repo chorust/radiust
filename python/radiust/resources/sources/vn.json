@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "vn",
+  "adapter_version": "1",
+  "historical": true,
+  "base_url": "http://hymetnet.gov.vn",
+  "product": "cmax",
+  "rolling_stale_cutoff_hours": 24,
+  "geometry_status": "unverified",
+  "scientific_decode": "blocked_pending_verified_palette"
+}

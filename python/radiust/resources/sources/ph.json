@@ -1,0 +1,1 @@
+{"schema_version":1,"source":"ph","adapter_version":"1","historical":true,"timeline_url":"https://www.panahon.gov.ph/api/v1/radar/timeline","product":"composite","credential":"sources.ph.timeline_token","credential_policy":"external-only","geometry_status":"unverified","scientific_decode":"blocked_pending_verified_palette_and_grid"}

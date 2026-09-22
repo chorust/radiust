@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "source": "br_cptec",
+  "historical_commit": "887cbdc3160adc087ff366bddeaf409fc432b907",
+  "old_path": "core/scrapers/br_cptec_scraper.py",
+  "status": "adapter-acquisition-verified-science-geometry-blocked",
+  "adapter": "python/radiust/sources/br_cptec.py",
+  "resource": "python/radiust/resources/sources/br_cptec.json",
+  "migration": "migration/sources/br_cptec.json",
+  "fixture": "tests/fixtures/sources/br_cptec/fixture.json",
+  "test": "tests/sources/test_br_cptec.py",
+  "old_behavior": {
+    "page": "https://nowcasting.cptec.inpe.br/",
+    "api_template": "https://nowcasting.cptec.inpe.br/api/camadas/radar/{radar_id}/imagens",
+    "product": "CAPPI",
+    "time_semantics": "fileDate + fileTime UTC",
+    "post_process": "disabled"
+  },
+  "evidence": [
+    "git show 887cbdc3160adc087ff366bddeaf409fc432b907:core/scrapers/br_cptec_scraper.py",
+    "Live GET https://nowcasting.cptec.inpe.br/ returned the current bundled frontend on 2026-09-20; it does not expose the historical app.radares assignment or legacy per-radar JSON route.",
+    "Live WMS GetCapabilities on 2026-09-20 exposed 26 CAPPI station layers with time dimensions, including current layer DISSM_Nowcasting_R12122250 at 2026-09-20T00:43:00Z.",
+    "The adapter acquired the archived official WMS frame for DISSM_Nowcasting_R12475984 at 2018-05-10T11:50:00Z as a 512x512 RGBA PNG (9,782 bytes; SHA-256 76b791f43b15516d891aa6c2ebb75542326cd099030161b66d64999358dcca3f).",
+    "GetMap for the newest advertised frame returned HTTP 200 with a 1,112-byte text/xml ServiceException reporting a provider-side mosaic/CRS error; the 2026-09-19T21:05:00Z frame failed the same way.",
+    "The fixture retains the WMS response unchanged plus an exact raw RGBA pixel reference; this is not a physical reflectivity reference.",
+    "Offline replay tests verify both the recovered legacy page/API and current WMS parsing, frame-time selection, URL construction, raw retention, and ServiceException rejection."
+  ],
+  "blockers": [
+    "The newest advertised WMS frame currently fails upstream, so live latest acquisition is not reliable despite one archived WMS frame being retained.",
+    "The WMS PNG is a rendered portrayal; its physical CAPPI reflectivity palette and native pixel geometry/control points remain unverified.",
+    "The old page/API contract is still supported for historical replay, but is no longer present in the current frontend."
+  ]
+}

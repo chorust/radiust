@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "source": "rainviewer",
+  "origin": "https://api.rainviewer.com/public/weather-maps.json and tilecache.rainviewer.com",
+  "source_commit": "official-public-api",
+  "collected_at": "2026-09-18T02:05:23Z",
+  "license_basis": "official RainViewer public API response and tile artifacts retained for migration validation; production usage remains subject to upstream terms",
+  "discovery": {
+    "api_url": "https://api.rainviewer.com/public/weather-maps.json",
+    "version": "2.0",
+    "generated": 1789697123,
+    "host": "https://tilecache.rainviewer.com",
+    "frame_path": "/v2/radar/7cc4a10f8d53",
+    "frame_time": 1789696800,
+    "time_semantics": "frame_generation_time"
+  },
+  "frames": [
+    {
+      "product": "composite",
+      "station": null,
+      "valid_time": "2026-09-18T02:00:00Z",
+      "uri": "https://tilecache.rainviewer.com/v2/radar/7cc4a10f8d53",
+      "locator": {
+        "api_url": "https://api.rainviewer.com/public/weather-maps.json",
+        "host": "https://tilecache.rainviewer.com",
+        "path": "/v2/radar/7cc4a10f8d53",
+        "tile_size": 512,
+        "zoom": 1,
+        "color": 2,
+        "options": "0_0"
+      },
+      "locator_version": "rainviewer-v2",
+      "revision": "7cc4a10f8d53",
+      "metadata": {
+        "time_semantics": "frame_generation_time",
+        "api_generated": 1789697123,
+        "scientific_reference_status": "verified: official Universal Blue RGBA table mapped to dBZ",
+        "reference_shape": [1024, 1024],
+        "raw_dtype": "uint8 RGBA",
+        "reference_dtype": "float32",
+        "reference_units": "dBZ",
+        "reference_grid": {
+          "kind": "geographic",
+          "crs": "EPSG:4326",
+          "coordinate_model": "Web Mercator pixel centers",
+          "zoom": 1,
+          "tile_size": 512
+        },
+        "reference_quality": {
+          "dtype": "uint16",
+          "valid_code": 0,
+          "transparent_missing_code": 1,
+          "unknown_color_code": 4
+        },
+        "reference_missing_fraction_tolerance": 0.02,
+        "reference_pixels": {"215,576": 10.0}
+      },
+      "artifacts": [
+        {"name": "tile-z1-x0-y0.png", "path": "raw/tile-z1-x0-y0.png", "role": "tile", "media_type": "image/png", "sha256": "29025cadd9a2cbfef81ce8fe9d3f58ed47bd6aa3877496c791002be0c023d340"},
+        {"name": "tile-z1-x1-y0.png", "path": "raw/tile-z1-x1-y0.png", "role": "tile", "media_type": "image/png", "sha256": "1eca7e75aadc665aea9c256095f6ea6e5236049840394aece05400bef1638320"},
+        {"name": "tile-z1-x0-y1.png", "path": "raw/tile-z1-x0-y1.png", "role": "tile", "media_type": "image/png", "sha256": "06309c726b1436418452576b9e037df6f2919e529ed226c47dfef4da93b9f665"},
+        {"name": "tile-z1-x1-y1.png", "path": "raw/tile-z1-x1-y1.png", "role": "tile", "media_type": "image/png", "sha256": "d2c25c8fe2260621e88572196a48163807e20069f428dfd48e43f329c803075f"}
+      ]
+    }
+  ]
+}

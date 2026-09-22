@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source": "br_sipam",
+  "adapter_version": "1",
+  "radar_list_url": "https://apihidro.sipam.gov.br/radares/",
+  "image_url": "https://siger.sipam.gov.br/radar/{radar}/dbz/{YYYY_MM_DD_HH_MM_SS}.png",
+  "product": "dbz",
+  "time_semantics": "varreduras ISO UTC",
+  "bbox_order": "west,south,east,north",
+  "geometry_status": "declared_bbox_pending_pixel_control_points",
+  "scientific_decode": "blocked_pending_verified_dbz_palette"
+}

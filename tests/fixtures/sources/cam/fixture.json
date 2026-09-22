@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "cam",
+  "origin": "http://www.cambodiameteo.com/slideshow?menu=117&lang=en&domain=CAMBODIA",
+  "collected_at": "2026-09-21T04:23:26Z",
+  "license_basis": "An opt-in live CLI smoke acquired one JPEG into temporary local output; no canonical raw fixture was retained because a reuse basis has not been documented.",
+  "status": "blocked",
+  "evidence": ["migration/sources/cam.json"],
+  "blockers": ["A documented reuse basis is required before retaining a canonical raw fixture.", "Palette semantics and native geometry remain unverified."],
+  "frames": []
+}

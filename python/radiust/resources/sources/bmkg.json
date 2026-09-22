@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "source": "bmkg",
+  "adapter_version": "1",
+  "historical": false,
+  "endpoint": "https://inasiam.bmkg.go.id/api23/mpl_req/radar/radar/0/{stamp}/{stamp}/{z}/{x}/{tms_y}.png?overlays=contourf",
+  "product": "composite",
+  "tile_size": 256,
+  "zoom": 1,
+  "cadence_seconds": 600,
+  "time_semantics": "cadence_floor_assumption",
+  "y_axis": "tms",
+  "geometry_status": "web_mercator_locator_only",
+  "scientific_decode": "blocked_pending_idcomp_palette_and_native_geometry"
+}

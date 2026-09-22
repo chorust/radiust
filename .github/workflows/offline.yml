@@ -1,0 +1,69 @@
+name: offline
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Use runner temporary storage for the virtual environment
+        run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
+      - name: Audit source migration inventory
+        run: uv run --no-sync python scripts/validation/audit_migration.py --output validation-results/migration-audit.json
+      - name: Install Tesseract for TMD observation-time binding
+        run: |
+          if command -v sudo >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y tesseract-ocr
+          else
+            apt-get update
+            apt-get install -y tesseract-ocr
+          fi
+      - run: uv sync --no-dev --group ci --locked
+      - run: uv run --no-sync ruff check python tests
+      - run: cargo test --workspace --locked
+      - run: uv run --no-sync pytest -q
+
+  terminal-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Use runner temporary storage for the virtual environment
+        run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
+      - run: uv sync --no-dev --group ci --locked
+      - name: POSIX PTY, terminal and CLI contracts
+        run: uv run --no-sync pytest -q tests/terminal tests/contract/test_rendering.py tests/contract/test_cli_acquisition.py tests/contract/test_cli_output.py tests/contract/test_cli_cat.py
+
+  browser-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Use runner temporary storage for the virtual environment
+        run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
+      - run: uv sync --no-dev --group ci --extra playwright --locked
+      - name: Install Chromium and its system dependencies
+        run: uv run --no-sync playwright install --with-deps chromium
+      - name: PAGASA loopback browser and session replay
+        env:
+          RADIUST_TEST_ALLOW_LIVE: "1"
+          RADIUST_TEST_REAL_BROWSER: "1"
+        run: uv run --no-sync pytest -q tests/live/test_ph_browser_replay.py

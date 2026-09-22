@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source": "pt",
+  "adapter_version": "2",
+  "historical": true,
+  "index_url": "https://www.ipma.pt/resources.www/transf/radar/imgs-radar-md.json",
+  "image_base": "https://www.ipma.pt/resources.www/transf/radar/mad/",
+  "station": "PTST2",
+  "cadence_minutes": 5,
+  "time_semantics": "timeline date is UTC; the official dynamic Madeira radar page specifies UTC",
+  "official_image_page": "https://www.ipma.pt/pt/otempo/obs.remote/index-md.jsp",
+  "map_script_url": "https://www.ipma.pt/pt/otempo/obs.remote/mapbuilder-md.js",
+  "geometry_status": "verified_ipma_image_overlay",
+  "image_bounds_wsen": [-19.87034, 30.01467, -12.89697, 35.96053],
+  "native_grid": "EPSG:4326 pixel centers derived from the bounds passed to Leaflet ImageOverlay",
+  "legend_url": "https://www.ipma.pt/resources.www/transf/radar/png-geo/legenda-radar.png",
+  "palette": "ipma-rain-intensity-ordinal-category",
+  "scientific_decode": "ordinal categories from the official mm/h legend; no point-rate interpolation",
+  "transparent_pixel_semantics": "no displayed colored return; below-detection quality, not numeric zero rainfall",
+  "opaque_black_semantics": "not present in the official legend; decoded as missing"
+}

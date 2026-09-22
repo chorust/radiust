@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source": "nz",
+  "adapter_version": "1",
+  "historical": true,
+  "base_url": "https://mobile-apps.metservice.com",
+  "endpoint": "/publicData/mobileRainRadar_rural_{rural_id}",
+  "product": "rain",
+  "tls_verification": true,
+  "geometry_status": "unverified",
+  "scientific_decode": "blocked_pending_verified_palette_and_units"
+}

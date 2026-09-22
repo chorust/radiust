@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "wunderground",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/tiles/radar.py",
+  "adapter": "python/radiust/sources/wunderground.py",
+  "status": "credential-science-time-binding-blocked",
+  "credential_audit": {
+    "legacy_api_key_literal_present": false,
+    "value_migrated": false,
+    "live_test": "skipped_per_user_instruction"
+  },
+  "differences": [
+    "Weather.com API keys are external configuration only.",
+    "The cadence-derived tile locator is latest-only until historical tile retention and frame identity are verified.",
+    "Generated cadence-floor timestamps are not claimed as provider frame identity.",
+    "The configured API key is appended only at the transport boundary; discovered FrameRef URIs and identities remain credential-free."
+  ],
+  "evidence": [
+    "python/radiust/sources/wunderground.py",
+    "tests/sources/test_external_credentials.py",
+    "tests/live/test_representative_sources.py::test_wunderground_latest_raw_provider_smoke",
+    "tests/sources/test_wunderground.py",
+    "tests/sources/test_tile_adapter_replay.py uses a fixture-only key and synthetic PNG tiles to verify transport-boundary use and redaction; scientific decode remains fail-closed",
+    "tests/sources/test_wunderground.py::test_wunderground_download_error_does_not_echo_api_key verifies custom transport errors cannot disclose the configured Weather.com key"
+  ],
+  "blockers": [
+    "No WU API key literal was found in the legacy source; live acquisition is skipped until an authorized credential is configured.",
+    "Tile frame identity and scientific semantics remain unverified."
+  ]
+}

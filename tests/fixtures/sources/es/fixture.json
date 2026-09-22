@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "es",
+  "origin": "https://www.aemet.es/es/api-eltiempo/radar/timeline/compo/PB",
+  "source_commit": "official-live-api",
+  "collected_at": "2026-09-18T03:05:26Z",
+  "license_basis": "AEMET's official radar page authorizes reuse and reproduction when AEMET is cited as author; preserve attribution and follow current upstream conditions",
+  "frames": [{
+    "product": "composite",
+    "station": "ESCOMP",
+    "valid_time": "2026-09-17T14:40:00Z",
+    "uri": "https://www.aemet.es/es/api-eltiempo/radar/imagen-radar/compo/radw202609171440_3857.png",
+    "locator_version": "aemet-compo-v1",
+    "revision": "radw202609171440_3857",
+    "metadata": {"reference_shape": [1079, 962], "raw_mode": "P", "projection_claim": "EPSG:3857", "geometry_status": "control_points_pending", "scientific_reference_status": "blocked: palette not verified"},
+    "artifacts": [{"name": "ESCOMP.png", "path": "raw/ESCOMP.png", "role": "data", "media_type": "image/png", "sha256": "baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f"}]
+  }]
+}

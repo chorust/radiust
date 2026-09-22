@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-21T07:12:39Z",
+  "task": "MY registered adapter live raw-only CLI smoke",
+  "command_template": "uv run radiust --conf <temporary>/online.yml download my --latest --raw-only --no-cache --output <temporary>/out --json",
+  "temporary_config": {
+    "runtime.allow_network": true
+  },
+  "exit_code": 0,
+  "counts": {
+    "written": 2,
+    "failed": 0,
+    "skipped": 0
+  },
+  "outputs_retained": false,
+  "secret_values_recorded": false,
+  "frames": [
+    {
+      "station": "east",
+      "status": "written",
+      "logical_id": "e6c23afbec1f7c20bc19ee03dd797aef370330d37c1a03e1cdaa255b2ffedc8e",
+      "valid_time": "2026-09-21T07:02:04.000000Z",
+      "provider_last_modified": "Mon, 21 Sep 2026 07:11:04 GMT",
+      "time_binding": "Last-Modified minus 9 minutes; preserved as unverified legacy rule",
+      "provider_content_type": "image/gif",
+      "payload_media_type": "image/png",
+      "content_type_mismatch": true,
+      "raw_artifact": {
+        "name": "my_east.png",
+        "format": "PNG",
+        "dimensions": [1113, 650],
+        "mode": "RGB",
+        "size_bytes": 162817,
+        "sha256": "886db571a9d2ec348ffcf6b7b67a9b9e1297e42c61fc2bde467a782ad5edaadc"
+      }
+    },
+    {
+      "station": "peninsular",
+      "status": "written",
+      "logical_id": "5b23e144768df0c3f0f76bc98c0161a807917d8a7b5bb62c8ff3ac688e798feb",
+      "valid_time": "2026-09-21T07:02:04.000000Z",
+      "provider_last_modified": "Mon, 21 Sep 2026 07:11:04 GMT",
+      "time_binding": "Last-Modified minus 9 minutes; preserved as unverified legacy rule",
+      "provider_content_type": "image/gif",
+      "payload_media_type": "image/png",
+      "content_type_mismatch": true,
+      "raw_artifact": {
+        "name": "my_peninsular.png",
+        "format": "PNG",
+        "dimensions": [826, 640],
+        "mode": "RGB",
+        "size_bytes": 144513,
+        "sha256": "7b6d646beaf419a97f3d4683ca4c70b47a198dde3acb8e51a0f1e55b3ee0396e"
+      }
+    }
+  ],
+  "assessment": {
+    "transport_tls_verification": "passed using platform trust plus certifi roots; verification remained enabled",
+    "raw_acquisition": "passed for both live endpoints and verified PNG signatures, sizes, and hashes",
+    "provider_time_binding": "unverified",
+    "scientific_palette": "blocked",
+    "native_geometry": "blocked",
+    "reuse_permission": "not available; transient raw files were deleted after verification"
+  }
+}

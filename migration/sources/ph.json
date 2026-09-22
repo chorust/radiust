@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "source": "ph",
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "old_path": "core/scrapers/ph_scraper.py",
+  "adapter": "python/radiust/sources/ph.py",
+  "status": "credential-and-scientific-evidence-blocked",
+  "credential_audit": {
+    "legacy_timeline_token_literal_present": true,
+    "value_migrated": false,
+    "live_probe_status": "inconclusive_browser_acquisition_failed_no_verified_raw"
+  },
+  "differences": [
+    "Legacy embedded timeline credentials are deliberately not migrated.",
+    "HTTP timeline discovery and image acquisition are implemented. When HTTP discovery or image transport fails, Playwright first opens the provider page, extracts its CSRF meta token, and requests the timeline or exact discovered image URL in the same session. Authentication, malformed image, network-policy and cancellation errors do not trigger fallback.",
+    "The browser rejects HTTP error responses during warmup, discovery and navigation, closes its session on failure and does not save failed responses as raw data.",
+    "A browser download retains the original provider reference and a verified raw image; observation-time-to-payload binding and scientific palette/native geometry still require provider evidence."
+  ],
+  "evidence": [
+    "python/radiust/sources/ph.py",
+    "python/radiust/sources/browser.py",
+    "tests/sources/test_external_credentials.py",
+    "tests/sources/test_ph.py checks Manila UTC conversion, CSRF propagation, URL-encodes reserved characters in the external timeline token, and redacts it from FrameRef/safe projections",
+    "tests/sources/test_ph_fallback.py checks HTTP/browser fallback, cancellation, and URL-free errors for tokenized timeline and signed image URLs",
+    "tests/sources/test_ph_fallback.py::test_ph_http_discovery_error_does_not_echo_token_when_fallback_is_disabled verifies the configured timeline token is removed from HTTP transport errors",
+    "tests/integration/test_browser_acquisition.py verifies that signed navigation URLs are absent from RawFrame metadata, artifact names, and the safe raw manifest",
+    "tests/contract/test_browser_workflow.py verifies the credential-free browser-contract CI job",
+    "tests/live/test_ph_browser_replay.py",
+    "validation-results/live.json"
+  ],
+  "blockers": [
+    "A currently valid authorized timeline token and legally retainable canonical upstream image are required; the legacy literal was found but its current validity was not established.",
+    "Independent scientific reference pixels, palette, provider time binding and native geometry remain unverified.",
+    "An earlier opt-in local Chromium CSRF/cookie and generated PNG replay passed; the latest host retry could not start Chromium and local Act timed out downloading Chromium before replay. The CI job is configured but hosted execution is unverified. A bounded smoke using the legacy token did not produce a verified RawFrame; provider response and token validity remain unverified."
+  ],
+  "credential_configuration": {
+    "runtime_environment": "RADIUST_SOURCES__PH__TIMELINE_TOKEN",
+    "live_test_environment": "RADIUST_TEST_PH_TIMELINE_TOKEN"
+  }
+}

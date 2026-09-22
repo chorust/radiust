@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "source": "br_cptec",
+  "origin": "https://data.inpe.br/big/geoserver/dissm/wms",
+  "source_commit": "live-wms-probe-2026-09-20",
+  "collected_at": "2026-09-20T01:02:11Z",
+  "license_basis": "Official public CPTEC/INPE WMS PNG retained for migration validation; production use remains subject to provider terms.",
+  "status": "acquisition-verified-science-geometry-blocked",
+  "frames": [
+    {
+      "product": "CAPPI",
+      "station": "R12475984",
+      "valid_time": "2018-05-10T11:50:00Z",
+      "uri": "https://data.inpe.br/big/geoserver/dissm/wms?service=WMS&version=1.3.0&request=GetMap&layers=DISSM_Nowcasting_R12475984&styles=raster&format=image%2Fpng&transparent=true&crs=CRS%3A84&bbox=-47.802643562%2C-20.43563066925%2C-43.066081562%2C-15.94054991925&width=512&height=512&time=2018-05-10T11%3A50%3A00Z",
+      "locator_version": "br-cptec-wms-v1",
+      "revision": "DISSM_Nowcasting_R12475984-20180510T115000Z",
+      "locator": {
+        "interface": "wms",
+        "layer": "DISSM_Nowcasting_R12475984",
+        "style": "raster",
+        "crs": "CRS:84",
+        "bbox": [-47.802643562, -20.43563066925, -43.066081562, -15.94054991925],
+        "width": 512,
+        "height": 512,
+        "time": "2018-05-10T11:50:00Z"
+      },
+      "metadata": {
+        "interface": "wms",
+        "time_semantics": "wms_time_dimension_utc",
+        "provider_product": "CAPPI-3-km-(refletividade)",
+        "reference_shape": [512, 512],
+        "raw_mode": "WMS-rendered RGBA PNG",
+        "raw_format": "PNG",
+        "raw_dtype": "uint8 RGBA",
+        "reference_units": "raw channel values are 8-bit digital numbers; physical reflectivity units are unverified",
+        "reference_pixels": [
+          {
+            "row": 88,
+            "column": 276,
+            "rgba": [166, 173, 173, 255],
+            "semantics": "raw WMS pixel only; not a dBZ reference value"
+          }
+        ],
+        "geometry_status": "declared CRS:84 layer bbox; pixel control points pending",
+        "scientific_reference_status": "blocked: rendered WMS palette and physical CAPPI reflectivity mapping are unverified"
+      },
+      "artifacts": [
+        {
+          "name": "R12475984_20180510T115000Z.png",
+          "path": "raw/R12475984_20180510T115000Z.png",
+          "role": "data",
+          "media_type": "image/png",
+          "size_bytes": 9782,
+          "sha256": "76b791f43b15516d891aa6c2ebb75542326cd099030161b66d64999358dcca3f"
+        }
+      ]
+    }
+  ]
+}

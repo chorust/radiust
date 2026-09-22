@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "th_royalrain",
+  "origin": "https://file.royalrain.go.th/opendata/radar_data/cappi/?station=takhli",
+  "source_commit": "official-live-html",
+  "collected_at": "2026-09-18T03:42:00Z",
+  "license_basis": "official Royal Rainmaking public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+  "frames": [{
+    "product": "cappi",
+    "station": "takhli",
+    "valid_time": "2026-09-18T03:42:00Z",
+    "uri": "https://file.royalrain.go.th/opendata/radar_data/cappi/takhli/2026091803420400dBZ.cappi.png",
+    "locator_version": "th_royalrain-legacy-v1",
+    "revision": "2026091803420400dBZ.cappi",
+    "metadata": {"reference_shape": [800, 1020], "raw_mode": "RGB", "geometry_status": "unverified", "scientific_reference_status": "blocked: palette not verified"},
+    "artifacts": [{"name": "takhli.png", "path": "raw/takhli.png", "role": "data", "media_type": "image/png", "sha256": "8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd"}]
+  }]
+}

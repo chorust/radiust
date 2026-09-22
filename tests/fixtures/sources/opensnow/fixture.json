@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "opensnow",
+  "origin": "https://opensnow.com/tiles/rvp/v2/radar/",
+  "collected_at": "2026-09-18T00:00:00Z",
+  "license_basis": "No raw artifact retained because the current tile probe returned a provider error.",
+  "status": "blocked",
+  "evidence": ["migration/sources/opensnow.json"],
+  "blockers": ["No canonical live tile and no verified physical palette/frame identity."],
+  "frames": []
+}

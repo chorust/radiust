@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "source": "au",
+  "old_path": "core/scrapers/au_scraper.py",
+  "adapter": "python/radiust/sources/au.py",
+  "status": "acquisition-verified-science-geometry-blocked",
+  "differences": [
+    "Anonymous BoM FTP NLST discovery and passive PNG download now use the shared Rust suppaftp transport and its common request/frame budgets; NLST is required because the directory has more than ten thousand entries.",
+    "Only the legacy IDRdd1.T.YYYYMMDDHHMM.png product family is admitted; unrelated GIFs, temporary files, and other BoM product codes are ignored.",
+    "The 12-digit filename timestamp is interpreted as UTC, and IDR021 maps to legacy station identity AU02.",
+    "Scientific palette and native grid remain disabled instead of inheriting unverified legacy image assumptions."
+  ],
+  "evidence": [
+    "tests/fixtures/sources/au/fixture.json",
+    "tests/fixtures/sources/au/raw/IDR021.T.202609180511.png",
+    "tests/sources/test_au.py",
+    "crates/radiust-core/tests/ftp.rs",
+    "live BoM FTP acquisition on 2026-09-18",
+    "CLI raw-only smoke: RADIUST_RUNTIME__ALLOW_NETWORK=true uv run radiust download au --latest --raw-only --output /private/tmp/radiust-live-au --json; 61 written, 0 failed, run_id c34b5468632547af988de0e480d210f0",
+    "representative CLI artifact: IDR021.T.202609180606.png sha256 f83f0080f59459f010fc0a62186c88b909b92947553f5fc5a0ac2bff7a3673b0",
+    "2026-09-21 opt-in latest raw smoke: AU02 at 2026-09-21T06:01:00Z, SHA-256 a3e89d41beaaef66c204439f4bcd1ac29968db6b1547e88044bea858ed0cf717; the public raw-only CLI manifest and artifact were also verified before temporary cleanup.",
+    "2026-09-21 later public smoke recheck: FTP NLST timed out before a RawFrame was produced; an earlier same-day smoke passed. Treat this as a transient acquisition failure, not evidence that the source is retired.",
+    "validation-results/live-cli-public.json"
+  ],
+  "blockers": [
+    "Palette semantics and native geometry remain unverified."
+  ]
+}

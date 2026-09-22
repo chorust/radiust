@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "source": "es",
+  "adapter_version": "1",
+  "historical": true,
+  "timeline_url": "https://www.aemet.es/es/api-eltiempo/radar/timeline/compo/PB",
+  "image_base": "https://www.aemet.es/es/api-eltiempo/radar/imagen-radar/compo/",
+  "station": "ESCOMP",
+  "cadence_minutes": 10,
+  "projection_claim": "EPSG:3857",
+  "geometry_status": "control_points_pending",
+  "scientific_decode": "blocked_pending_verified_palette"
+}

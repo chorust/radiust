@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source": "ca",
+  "adapter_version": "1",
+  "historical": true,
+  "base_url": "https://dd.meteo.gc.ca/{date}/WXO-DD/radar/CAPPI/GIF/",
+  "product": "rain",
+  "file_selector": "*RAIN.gif",
+  "geometry_status": "unverified",
+  "scientific_decode": "blocked_pending_verified_palette_and_units"
+}

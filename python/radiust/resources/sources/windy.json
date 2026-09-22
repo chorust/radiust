@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "source": "windy",
+  "adapter_version": "1",
+  "historical": false,
+  "endpoint": "https://rdr.windy.com/radar2/composite/",
+  "product": "reflectivity",
+  "acquisition_modes": ["http", "playwright"],
+  "playwright_mode": "sources.windy.use_playwright=true; requires the playwright extra",
+  "cadence_seconds": 300,
+  "tile_zoom": 1,
+  "time_semantics": "cadence_floor_assumption",
+  "geometry_status": "xyz_tile_geometry_known_provider_frame_binding_unverified",
+  "scientific_decode": "blocked_pending_green_channel_semantics"
+}

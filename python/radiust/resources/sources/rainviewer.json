@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source": "rainviewer",
+  "adapter_version": "1",
+  "historical": true,
+  "api_url": "https://api.rainviewer.com/public/weather-maps.json",
+  "tile_host": "tilecache.rainviewer.com",
+  "tile_size": 512,
+  "zoom": 1,
+  "color_scheme": 2,
+  "options": "0_0",
+  "time_semantics": "frame_generation_time",
+  "palette_basis": "https://www.rainviewer.com/files/rainviewer_api_colors_table.csv"
+}

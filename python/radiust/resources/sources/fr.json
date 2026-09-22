@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "source": "fr",
+  "adapter_version": "1",
+  "historical": false,
+  "page_url": "https://meteofrance.com/images-radar",
+  "wms_url": "https://rwg.meteofrance.com/geoservices/Radar-mapcache-WMS",
+  "layer": "BASE_REFLECTIVITY",
+  "style": "synopsis_reflectivity_oppidum_transparence",
+  "crs": "EPSG:3857",
+  "bbox_wsen": [-5.5, 41.0, 10.0, 51.5],
+  "width": 700,
+  "height": 600,
+  "geometry_note": "WMS EPSG:3857 requested portrayal grid and pixel-center transform are retained in FrameRef.metadata; the radar-native measurement grid is not exposed by this image.",
+  "period_minutes": 15,
+  "publication_guard_minutes": 5,
+  "time_semantics": "wms_time_dimension",
+  "session_token": "ROT13(mfsession cookie from the public radar page); attached only at request time and absent from FrameRef/report data",
+  "scientific_decode": "blocked_pending_verified_color_to_reflectivity_mapping"
+}

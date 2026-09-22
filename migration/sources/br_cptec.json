@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "source": "br_cptec",
+  "old_commit": "887cbdc3160adc087ff366bddeaf409fc432b907",
+  "old_path": "core/scrapers/br_cptec_scraper.py",
+  "adapter": "python/radiust/sources/br_cptec.py",
+  "resource": "python/radiust/resources/sources/br_cptec.json",
+  "fixture": "tests/fixtures/sources/br_cptec/fixture.json",
+  "status": "acquisition-verified-science-geometry-blocked",
+  "differences": [
+    "The recovered legacy page/app.radares and per-radar API remain replayable, while current discovery falls back to public WMS CAPPI layers and their explicit UTC time dimension.",
+    "The adapter retains WMS GetMap PNG bytes without assigning physical reflectivity values or native pixel coordinates.",
+    "WMS ServiceException XML is rejected as an invalid image response instead of being retained as radar data."
+  ],
+  "evidence": [
+    "tests/sources/test_br_cptec.py",
+    "tests/fixtures/sources/br_cptec/fixture.json",
+    "Current WMS archive frame R12475984 2018-05-10T11:50:00Z: 512x512 RGBA PNG, 9782 bytes, SHA-256 76b791f43b15516d891aa6c2ebb75542326cd099030161b66d64999358dcca3f.",
+    "Current latest frame R12122250 2026-09-20T00:43:00Z returned a WMS ServiceException XML response."
+  ],
+  "blockers": [
+    "Latest-frame acquisition currently fails upstream for an advertised time.",
+    "The WMS-rendered palette and physical CAPPI reflectivity units are unverified.",
+    "The CRS:84 layer bbox has no verified pixel-center transform or control points."
+  ]
+}

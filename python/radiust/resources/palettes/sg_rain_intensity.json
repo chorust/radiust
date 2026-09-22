@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "mss-rain-intensity-category",
+  "version": "2026-08-17",
+  "source": "https://data.gov.sg/datasets/d_418e9ac3414fd927b7405631e0a7bc82/view",
+  "provider": "National Environment Agency / Meteorological Service Singapore",
+  "value_kind": "ordinal_category",
+  "unit": "1",
+  "numeric_rainfall_rate_available": false,
+  "categories": [
+    {
+      "value": 1,
+      "meaning": "light",
+      "label": "Light",
+      "colors": ["#00FFFF", "#00EFEF", "#00D1D5", "#00BABF", "#00979A", "#00837D", "#008045", "#008938", "#00A235", "#00B729", "#00CA11"]
+    },
+    {
+      "value": 2,
+      "meaning": "light_to_moderate",
+      "label": "Light to Moderate",
+      "colors": ["#00DA0D", "#00F507", "#00FF00", "#43FF41", "#48FF46"]
+    },
+    {
+      "value": 3,
+      "meaning": "moderate",
+      "label": "Moderate",
+      "colors": ["#FFFF3B", "#FFFF00", "#FFF000", "#FFDC00"]
+    },
+    {
+      "value": 4,
+      "meaning": "moderate_to_heavy",
+      "label": "Moderate to Heavy",
+      "colors": ["#FFC600", "#FFB200", "#FFA500", "#FF8A00", "#FF7200"]
+    },
+    {
+      "value": 5,
+      "meaning": "heavy",
+      "label": "Heavy",
+      "colors": ["#FF4900", "#FF1F00", "#E50000", "#C10000", "#B6006A", "#D200A5", "#D400AA", "#FF00FF"]
+    }
+  ],
+  "transparent_pixels": {
+    "category": 0,
+    "meaning": "no_displayed_rain",
+    "quality": "below_detection",
+    "caveat": "The provider does not distinguish true no-rain from below-threshold or unobserved pixels inside the nominal radar range."
+  },
+  "license": "Singapore Open Data Licence; attribution to NEA/MSS"
+}
