@@ -10,6 +10,37 @@ from typing import Any
 
 from ..errors import RadiustError
 from ..models import DownloadReport
+from .layout import render
+from .safety import safe_text, safe_value
+
+_RECOVERY_ADVICE = {
+    "authentication": "Check the configured credentials for this source.",
+    "missing_credentials": "Configure the credentials required by this source.",
+    "network_restricted": "Network access is disabled; use an offline fixture or explicitly enable access.",
+    "no_data": "Check the selected time, product and station for available frames.",
+    "stale_frame": "Review --max-age or select an explicit observation time.",
+    "ambiguous": "Select a single station, product or observation time.",
+    "ambiguous_frame": "Select a single station, product or observation time.",
+    "missing_dependency": "Install the optional dependency required by this source.",
+    "resource_limit": "Review the configured resource limit and the input size.",
+    "output_conflict": "Choose a different output path or explicitly enable overwrite.",
+}
+
+
+def _human_projection(value: Any) -> Any:
+    """Add documented recovery hints to the display copy only."""
+    if isinstance(value, list):
+        return [_human_projection(item) for item in value]
+    if not isinstance(value, Mapping):
+        return value
+    projected = {key: _human_projection(item) for key, item in value.items()}
+    error = projected.get("error")
+    code = error.get("code") if isinstance(error, Mapping) else None
+    if isinstance(code, str) and code in _RECOVERY_ADVICE:
+        projected["Suggestion"] = _RECOVERY_ADVICE[code]
+    if "items" in projected and isinstance(projected["items"], list):
+        projected["items"] = [_human_projection(item) for item in projected["items"]]
+    return projected
 
 
 def _json_safe(value: Any) -> Any:
@@ -45,26 +76,29 @@ def emit(value: Any, *, as_json: bool = False, quiet: bool = False, command: str
                 "error": None,
                 "interrupted": False,
             }
-        sys.stdout.write(json.dumps(_json_safe(payload), ensure_ascii=False, sort_keys=True) + "\n")
+        sys.stdout.write(json.dumps(safe_value(_json_safe(payload)), ensure_ascii=False, sort_keys=True) + "\n")
         return
     if quiet:
         return
-    if isinstance(value, DownloadReport):
-        counts = value.counts
-        sys.stdout.write("download " + " ".join(f"{key}={counts[key]}" for key in counts if counts[key]) + "\n")
-    elif isinstance(value, list):
-        for item in value:
-            sys.stdout.write(str(item) + "\n")
-    else:
-        sys.stdout.write(str(value) + "\n")
+    projection = value.as_dict() if hasattr(value, "as_dict") else value
+    sys.stdout.write(render(_human_projection(safe_value(_json_safe(projection))), command=command) + "\n")
 
 
 def emit_error(exc: Exception, *, as_json: bool = False) -> None:
-    error = exc.as_dict() if isinstance(exc, RadiustError) else {"code": "error", "message": str(exc), "stage": "validate", "retryable": False}
-    if as_json:
-        sys.stdout.write(json.dumps({"schema_version": 1, "command": None, "run_id": None, "query": None, "counts": {}, "items": [], "error": error, "interrupted": False}, ensure_ascii=False, sort_keys=True) + "\n")
+    if isinstance(exc, RadiustError):
+        error = exc.as_dict()
     else:
-        sys.stderr.write(f"{error['code']}: {error['message']}\n")
+        # Unknown exception text can contain an entire provider response body,
+        # including secrets without recognizable key names. Retain messages for
+        # CLI validation errors only; never publish arbitrary runtime payloads.
+        import click
+
+        message = str(exc) if isinstance(exc, (click.ClickException, ValueError)) else "Unexpected operation failure"
+        error = {"code": "error", "message": message, "stage": "validate", "retryable": False}
+    if as_json:
+        sys.stdout.write(json.dumps(safe_value({"schema_version": 1, "command": None, "run_id": None, "query": None, "counts": {}, "items": [], "error": error, "interrupted": False}), ensure_ascii=False, sort_keys=True) + "\n")
+    else:
+        sys.stderr.write(f"{safe_text(error['code'])}: {safe_text(error['message'])}\n")
 
 
 def exit_code(report: DownloadReport) -> int:

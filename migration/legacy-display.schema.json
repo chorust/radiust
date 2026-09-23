@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://radiust.local/schemas/legacy-display.schema.json",
+  "title": "Legacy display migration inventory and evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "old_commit", "coverage_status", "old_commit_access", "source_aliases", "scope_evidence", "unclosed_scope_evidence", "excluded_display_sources", "paths"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "old_commit": {"type": "string", "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"},
+    "coverage_status": {"type": "string", "minLength": 1},
+    "old_commit_access": {"type": "string", "minLength": 1},
+    "source_aliases": {"type": "object", "additionalProperties": {"$ref": "#/$defs/nonempty"}},
+    "scope_evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nonempty"}},
+    "unclosed_scope_evidence": {"type": "array", "items": {"$ref": "#/$defs/nonempty"}},
+    "excluded_current_sources": {"type": "object", "additionalProperties": {"$ref": "#/$defs/nonempty"}},
+    "excluded_display_sources": {"type": "object", "additionalProperties": {"$ref": "#/$defs/nonempty"}},
+    "paths": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/inventoryPath"}}
+  },
+  "$defs": {
+    "nonempty": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "nullableHash": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "status": {"enum": ["blocked", "difference_pending", "passed"]},
+    "hashes": {"type": "array", "items": {"$ref": "#/$defs/sha256"}, "uniqueItems": true},
+    "blockedReasons": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nonempty"}},
+    "displayDisposition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "kind", "source", "product", "path_id", "status", "old_commit", "legacy_reference", "verified_code_fact", "blocked_reasons", "source_sample_retained", "scientific_status_unchanged"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "kind": {"const": "no_legacy_gray_transform"},
+        "source": {"$ref": "#/$defs/nonempty"},
+        "product": {"$ref": "#/$defs/nonempty"},
+        "path_id": {"$ref": "#/$defs/nonempty"},
+        "status": {"const": "blocked"},
+        "old_commit": {"$ref": "#/$defs/nonempty"},
+        "legacy_reference": {"$ref": "#/$defs/nonempty"},
+        "verified_code_fact": {"$ref": "#/$defs/nonempty"},
+        "blocked_reasons": {"$ref": "#/$defs/blockedReasons"},
+        "source_sample_retained": {"const": false},
+        "scientific_status_unchanged": {"const": true}
+      }
+    },
+    "inventoryPath": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "product", "path_id", "status", "blocked_reasons", "rule_version", "input_hashes", "output_hash", "scientific_status_unchanged", "old_path", "catalog_product_evidence", "source_inventory_evidence", "migration_evidence", "old_config_verified", "source_baseline_verified"],
+      "properties": {
+        "source": {"$ref": "#/$defs/nonempty"},
+        "product": {"$ref": "#/$defs/nonempty"},
+        "path_id": {"$ref": "#/$defs/nonempty"},
+        "status": {"$ref": "#/$defs/status"},
+        "blocked_reasons": {"type": "array", "items": {"$ref": "#/$defs/nonempty"}},
+        "rule_version": {"oneOf": [{"$ref": "#/$defs/nonempty"}, {"type": "null"}]},
+        "input_hashes": {"$ref": "#/$defs/hashes"},
+        "output_hash": {"$ref": "#/$defs/nullableHash"},
+        "scientific_status_unchanged": {"const": true},
+        "old_path": {"$ref": "#/$defs/nonempty"},
+        "catalog_product_evidence": {"$ref": "#/$defs/nonempty"},
+        "source_inventory_evidence": {"$ref": "#/$defs/nonempty"},
+        "migration_evidence": {"$ref": "#/$defs/nonempty"},
+        "old_config_verified": {"type": "boolean"},
+        "source_baseline_verified": {"type": "boolean"}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "blocked"}}, "required": ["status"]},
+         "then": {"properties": {"blocked_reasons": {"$ref": "#/$defs/blockedReasons"}}}}
+      ]
+    },
+    "rule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "product", "path_id", "rule_version", "encoding_version", "legacy_reference", "config_hash", "ordered_steps", "input_constraints", "validation_status"],
+      "properties": {
+        "source": {"$ref": "#/$defs/nonempty"},
+        "product": {"$ref": "#/$defs/nonempty"},
+        "path_id": {"$ref": "#/$defs/nonempty"},
+        "rule_version": {"$ref": "#/$defs/nonempty"},
+        "encoding_version": {"const": "旧项目-gray-dbz-v1"},
+        "legacy_reference": {"$ref": "#/$defs/nonempty"},
+        "config_hash": {"$ref": "#/$defs/sha256"},
+        "ordered_steps": {"type": "array", "minItems": 1, "items": {
+          "type": "object", "required": ["op", "basis"],
+          "properties": {
+            "op": {"enum": ["color_preprocess", "palette", "zero_palette", "threshold", "background_mask", "range_mask", "disk_mask", "crop", "legacy_crop", "legacy_palette", "legacy_luminance_alpha", "legacy_channel_decode", "gap_repair", "resize", "gray_encode"]},
+            "basis": {"$ref": "#/$defs/nonempty"}
+          }
+        }},
+        "input_constraints": {"type": "object", "minProperties": 1},
+        "validation_status": {"$ref": "#/$defs/status"}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path_id", "status", "rule_version", "config_hash", "input_hashes", "output_hash", "baseline_identity", "baseline_hash", "crop", "shape", "pixel_diff_count", "alpha_comparison", "background_comparison", "missing_comparison", "intentional_differences", "review_conclusion", "blocked_reasons", "sample_provenance", "scientific_status_unchanged"],
+      "properties": {
+        "path_id": {"$ref": "#/$defs/nonempty"},
+        "status": {"$ref": "#/$defs/status"},
+        "rule_version": {"oneOf": [{"$ref": "#/$defs/nonempty"}, {"type": "null"}]},
+        "config_hash": {"$ref": "#/$defs/nullableHash"},
+        "input_hashes": {"$ref": "#/$defs/hashes"},
+        "output_hash": {"$ref": "#/$defs/nullableHash"},
+        "baseline_identity": {"oneOf": [{"$ref": "#/$defs/nonempty"}, {"type": "null"}]},
+        "baseline_hash": {"$ref": "#/$defs/nullableHash"},
+        "crop": {"oneOf": [{"type": "array", "prefixItems": [{"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 0}], "items": false}, {"type": "null"}]},
+        "shape": {"oneOf": [{"type": "array", "prefixItems": [{"type": "integer", "minimum": 1}, {"type": "integer", "minimum": 1}], "items": false}, {"type": "null"}]},
+        "pixel_diff_count": {"type": ["integer", "null"], "minimum": 0},
+        "alpha_comparison": {"type": ["string", "null"]},
+        "background_comparison": {"type": ["string", "null"]},
+        "missing_comparison": {"type": ["string", "null"]},
+        "intentional_differences": {"type": "array", "items": {"oneOf": [
+          {"$ref": "#/$defs/nonempty"},
+          {"type": "object", "required": ["reason", "impact", "reviewer", "accepted"],
+           "properties": {"reason": {"$ref": "#/$defs/nonempty"}, "impact": {"$ref": "#/$defs/nonempty"},
+                          "reviewer": {"$ref": "#/$defs/nonempty"}, "accepted": {"type": "boolean"}}}
+        ]}},
+        "review_conclusion": {"type": ["string", "null"]},
+        "blocked_reasons": {"type": "array", "items": {"$ref": "#/$defs/nonempty"}},
+        "sample_provenance": {"type": ["string", "null"]},
+        "scientific_status_unchanged": {"const": true}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "blocked"}}, "required": ["status"]}, "then": {"properties": {"blocked_reasons": {"$ref": "#/$defs/blockedReasons"}}}},
+        {"if": {"properties": {"status": {"const": "passed"}}, "required": ["status"]}, "then": {
+          "properties": {
+            "rule_version": {"$ref": "#/$defs/nonempty"},
+            "config_hash": {"$ref": "#/$defs/sha256"},
+            "input_hashes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/sha256"}},
+            "output_hash": {"$ref": "#/$defs/sha256"},
+            "baseline_identity": {"$ref": "#/$defs/nonempty"},
+            "baseline_hash": {"$ref": "#/$defs/sha256"},
+            "crop": {"type": "array"}, "shape": {"type": "array"},
+            "pixel_diff_count": {"type": "integer", "minimum": 0},
+            "review_conclusion": {"$ref": "#/$defs/nonempty"},
+            "sample_provenance": {"$ref": "#/$defs/nonempty"},
+            "blocked_reasons": {"maxItems": 0}
+          }
+        }}
+      ]
+    },
+    "sourceDisplayMigration": {
+      "type": "object", "required": ["schema_version", "paths"],
+      "properties": {"schema_version": {"const": 1}, "paths": {"type": "array", "items": {"$ref": "#/$defs/evidence"}}}
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "source": "rainviewer",
+  "product": "composite",
+  "path_id": "rainviewer/composite",
+  "status": "blocked",
+  "rule_version": "old-8d251601-rainviewer-red-v1",
+  "config_hash": "eb8fc7a54b6439e1a0f8f90571ca5d554ccc974764a7c702498afb7a6562f9fb",
+  "rule_resource": "python/radiust/resources/legacy_display/rainviewer.json",
+  "old_snapshot": {
+    "repository": "/Users/blizhan/data/code/旧项目/旧项目-旧项目",
+    "branch": "lz/release-260324",
+    "commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c"
+  },
+  "validation_only_attestation": "User authorized supplied local paired samples for migration validation only; no broader redistribution right is asserted.",
+  "missing_evidence": [
+    "Old red-channel arithmetic was applied offline to the current color=2, 512px PNG fixture: output 1024x1024, 22 gray values, 99.10% zero. The pinned old route uses color=255, 256px WebP; no same-frame old gray baseline exists, so compatibility is unverified."
+  ],
+  "source_sample_retained": false,
+  "scientific_status_unchanged": true,
+  "current_input_fixture_retained": true,
+  "compatibility_probe": {
+    "method": "offline old byte-channel transform on current source fixture tiles; no network request",
+    "old_code": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/tiles/radar.py#git-blob=ffe85795e99103ba26e1c021065c1e84e62b5f2b",
+    "old_rule": {
+      "channel": "red",
+      "steps": [
+        "if red >= 128 subtract 128",
+        "set values <= 32 to 0",
+        "if remaining value >= 32 subtract 32",
+        "uint8((value / 5) * 16), clip [0,224]"
+      ],
+      "dtype": "float32"
+    },
+    "current_source_fixture": "tests/fixtures/sources/rainviewer/fixture.json",
+    "frame": {
+      "product": "composite",
+      "station": null,
+      "valid_time": "2026-09-18T02:00:00Z",
+      "revision": "7cc4a10f8d53",
+      "tile_size": 512,
+      "zoom": 1,
+      "color": 2
+    },
+    "layout": {
+      "kind": "xyz-2x2-global",
+      "order": "x=0,1 per row; y=0,1 top to bottom",
+      "zoom": 1
+    },
+    "tiles": [
+      {
+        "path": "tests/fixtures/sources/rainviewer/raw/tile-z1-x0-y0.png",
+        "name": "tile-z1-x0-y0.png",
+        "sha256": "29025cadd9a2cbfef81ce8fe9d3f58ed47bd6aa3877496c791002be0c023d340",
+        "bytes": 18988,
+        "format": "PNG",
+        "mode": "RGBA",
+        "dimensions": [
+          512,
+          512
+        ],
+        "declared_sha256_matches_fixture": true
+      },
+      {
+        "path": "tests/fixtures/sources/rainviewer/raw/tile-z1-x1-y0.png",
+        "name": "tile-z1-x1-y0.png",
+        "sha256": "1eca7e75aadc665aea9c256095f6ea6e5236049840394aece05400bef1638320",
+        "bytes": 19538,
+        "format": "PNG",
+        "mode": "RGBA",
+        "dimensions": [
+          512,
+          512
+        ],
+        "declared_sha256_matches_fixture": true
+      },
+      {
+        "path": "tests/fixtures/sources/rainviewer/raw/tile-z1-x0-y1.png",
+        "name": "tile-z1-x0-y1.png",
+        "sha256": "06309c726b1436418452576b9e037df6f2919e529ed226c47dfef4da93b9f665",
+        "bytes": 2629,
+        "format": "PNG",
+        "mode": "RGBA",
+        "dimensions": [
+          512,
+          512
+        ],
+        "declared_sha256_matches_fixture": true
+      },
+      {
+        "path": "tests/fixtures/sources/rainviewer/raw/tile-z1-x1-y1.png",
+        "name": "tile-z1-x1-y1.png",
+        "sha256": "d2c25c8fe2260621e88572196a48163807e20069f428dfd48e43f329c803075f",
+        "bytes": 3421,
+        "format": "PNG",
+        "mode": "RGBA",
+        "dimensions": [
+          512,
+          512
+        ],
+        "declared_sha256_matches_fixture": true
+      }
+    ],
+    "output": {
+      "format": "in-memory grayscale uint8 raster; no image artifact retained",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "unique_gray_values": 22,
+      "zero_fraction": 0.990997314453125,
+      "min_nonzero": 6,
+      "max": 224,
+      "raster_bytes_sha256": "120eb90556b4d66e54401d90ee70e8d53c89ce5f7e4e85b98b5b178b04cfa58f"
+    },
+    "comparison": {
+      "old_vs_new_tile_format_or_locator_difference": "old route requests 256px WebP with color=255; current fixture is 512px RGBA PNG with color=2 (Universal Blue)",
+      "same_frame_old_gray_baseline_present": false,
+      "pixel_diff_comparison": "not possible: no same-frame old gray baseline",
+      "interpretation": "The old arithmetic runs but produces a sparse 0..224 image (99.10% zero); the new color table and tile encoding differ, so channel output is not evidence of display equivalence."
+    },
+    "validation_scope": "migration validation only; the probe does not validate physical reflectivity, time identity, or automatic display eligibility"
+  }
+}

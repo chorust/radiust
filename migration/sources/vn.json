@@ -20,5 +20,52 @@
   ],
   "blockers": [
     "Palette semantics and native geometry remain unverified."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "source": "vn",
+        "product": "cmax",
+        "path_id": "vn/cmax",
+        "status": "passed",
+        "blocked_reasons": [],
+        "scientific_status_unchanged": true,
+        "rule_version": "old-8d251601-vndha2-v1",
+        "config_hash": "4cc443474779933db0508d9773ba6ab02558ce8c3145e3bea26932908ed5ae1d",
+        "input_hashes": [
+          "d9af0c585255e0e9e710b6e3177d9fb2baf4332f79b06da6bd475011464634b1"
+        ],
+        "output_hash": "95d9e1f5b35ebb6109467f036164db18712e1a04d26f23e9d9dd05e8ef077c61",
+        "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/vn/VN-SRC-VNDHA2_20251229065000_merca_r_map.png",
+        "baseline_hash": "0339b4b4df717bdfca2e733119d7962d572c98d2a6b5956e3a1caa88ff25a8d2",
+        "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+        "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/vn/VN-SRC-VNDHA2_20251229065000_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/vn/VN-SRC-VNDHA2_20251229065000_merca_r_map.png。",
+        "crop": [
+          0,
+          0,
+          2310,
+          2310
+        ],
+        "shape": [
+          461,
+          461
+        ],
+        "baseline_shape": [
+          461,
+          461
+        ],
+        "pixel_diff_count": 0,
+        "alpha_diff_count": 0,
+        "missing_diff_count": 0,
+        "background_diff_count": 0,
+        "alpha_comparison": "identical",
+        "missing_comparison": "identical",
+        "background_comparison": "identical",
+        "intentional_differences": [],
+        "review_conclusion": "exact pixel agreement"
+      }
+    ]
+  }
 }

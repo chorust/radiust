@@ -6,6 +6,52 @@ from radiust.registry import registry, sources
 
 ROOT = Path(__file__).parents[2]
 
+
+def test_display_migration_inventory_keeps_all_current_source_statuses_and_paths_separate():
+    """Structural coverage is necessary but never equivalent to golden acceptance."""
+    display = json.loads((ROOT / "migration/legacy-display-inventory.json").read_text(encoding="utf-8"))
+    acquisition = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
+    catalog = json.loads((ROOT / "python/radiust/resources/catalog.json").read_text(encoding="utf-8"))
+    products = {source["id"]: {product["id"] for product in source["products"]}
+                for source in catalog["sources"]}
+    baseline_status = {item["id"]: item["status"] for item in acquisition["sources"]}
+    assert display["coverage_status"].startswith("partial:")
+    assert sum(item["status"] == "passed" for item in display["paths"]) == 15
+    assert sum(item["status"] == "difference_pending" for item in display["paths"]) == 0
+    assert sum(item["status"] == "blocked" for item in display["paths"]) == 8
+    assert "WU" not in display["source_aliases"]
+    assert set(display["excluded_display_sources"]) == {"opensnow", "wunderground"}
+    assert len(display["paths"]) == 23
+    assert len({entry["path_id"] for entry in display["paths"]}) == 23
+    assert len({entry["source"] for entry in display["paths"]}) == 20
+    for row in display["paths"]:
+        source, product, path_id = row["source"], row["product"], row["path_id"]
+        assert source in baseline_status and product in products[source]
+        assert path_id == f"{source}/{product}" or path_id.startswith(f"{source}/{product}/")
+        assert row["status"] in {"passed", "difference_pending", "blocked"}
+        assert row["scientific_status_unchanged"] is True
+        migration = json.loads((ROOT / "migration/sources" / f"{source}.json").read_text(encoding="utf-8"))
+        # The inventory summary can lag independently updated source records;
+        # do not conflate either acquisition/science status with display status.
+        assert migration["source"] == source
+        assert isinstance(migration["status"], str) and migration["status"]
+        related = {entry["path_id"]: entry for entry in migration["display_migration"]["paths"]}
+        assert related[path_id]["status"] == row["status"]
+        assert related[path_id]["scientific_status_unchanged"] is True
+        if row["status"] == "passed":
+            assert not row["blocked_reasons"]
+            assert row["old_config_verified"] and row["source_baseline_verified"]
+            assert related[path_id]["input_hashes"] and related[path_id]["baseline_hash"]
+        elif row["status"] == "blocked":
+            assert row["blocked_reasons"]
+            assert related[path_id]["input_hashes"] == []
+            assert related[path_id]["baseline_hash"] is None
+        else:
+            assert not row["blocked_reasons"]
+            assert related[path_id]["input_hashes"]
+            assert related[path_id]["baseline_hash"]
+            assert not row["source_baseline_verified"]
+
 HEAD_HISTORICAL_CAPABILITY = {
     "au": True,
     "bmkg": False,

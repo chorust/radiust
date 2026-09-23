@@ -14,7 +14,12 @@
     "grid": {
       "kind": "geographic",
       "crs": "EPSG:4326",
-      "bounds_wsen": [-19.87034, 30.01467, -12.89697, 35.96053],
+      "bounds_wsen": [
+        -19.87034,
+        30.01467,
+        -12.89697,
+        35.96053
+      ],
       "derivation": "The official mapbuilder passes these exact bounds to Leaflet ImageOverlay for each Madeira timeline path; pixel centers are derived from the image dimensions."
     },
     "value_semantics": "ordinal rainfall-intensity legend intervals, stored as categories with unit 1"
@@ -40,5 +45,52 @@
     "Values are ordinal legend intervals, not continuous rainfall-rate estimates; the provider's display legend alone does not establish the numeric value represented by every source RGB value.",
     "Transparent pixels cannot distinguish true no-rain from below-threshold or unobserved regions.",
     "IPMA describes the map as informational; it must not be treated as an official incident/accident record."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "source": "pt",
+        "product": "composite",
+        "path_id": "pt/composite",
+        "status": "passed",
+        "blocked_reasons": [],
+        "scientific_status_unchanged": true,
+        "rule_version": "old-8d251601-pt-ptst2-replay-v1",
+        "config_hash": "b20f74df36764d4891bc7c54dd3bac564d2aae017e6725533ccaae10f252a60d",
+        "input_hashes": [
+          "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa"
+        ],
+        "output_hash": "b5f306f8899d1d2709dcc39a443f02b11c9697da06766bea76088ea87fcb4c84",
+        "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/scrapers/pt_ipma_scraper.py; frozen at pt/old-gray.png (generated, not historical stored output)",
+        "baseline_hash": "11b88c2741d6c5f17368b59685c1d12e02af0fc27a90262a7f784e89a548d654",
+        "license_basis": "official IPMA public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+        "sample_provenance": "Source fixture: tests/fixtures/sources/pt/fixture.json; upstream snapshot=official-live-api, collected_at=2026-09-18T03:05:26Z; raw=tests/fixtures/sources/pt/raw/PTST2.png sha256=fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa; bound frame={\"frame_index\": null, \"product\": \"composite\", \"revision\": \"pcr_pst-2026-09-18T0250\", \"source\": \"pt\", \"station\": \"PTST2\", \"valid_time\": \"2026-09-18T02:50:00Z\"}; upstream URI=https://www.ipma.pt/resources.www/transf/radar/mad/pcr_pst-2026-09-18T0250.png; fixture license basis=official IPMA public radar artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline pt/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/pt_ipma_scraper.py#git-blob=87eb3f9d2108e0e2fdf0724826caa8e6349b4554; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation.",
+        "crop": [
+          0,
+          0,
+          1500,
+          1526
+        ],
+        "shape": [
+          1526,
+          1500
+        ],
+        "baseline_shape": [
+          1526,
+          1500
+        ],
+        "pixel_diff_count": 0,
+        "alpha_diff_count": 0,
+        "missing_diff_count": 0,
+        "background_diff_count": 0,
+        "alpha_comparison": "identical",
+        "missing_comparison": "identical",
+        "background_comparison": "identical",
+        "intentional_differences": [],
+        "review_conclusion": "exact pixel agreement"
+      }
+    ]
+  }
 }

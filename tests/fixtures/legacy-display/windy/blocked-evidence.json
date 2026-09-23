@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "source": "windy",
+  "product": "reflectivity",
+  "path_id": "windy/reflectivity",
+  "status": "blocked",
+  "rule_version": "old-8d251601-windy-green-v1",
+  "config_hash": "b32f512e0345b6c4232b03c94e2305555d39263c06030fa5798ca0f61805e0a1",
+  "rule_resource": "python/radiust/resources/legacy_display/windy.json",
+  "old_snapshot": {
+    "repository": "/Users/blizhan/data/code/旧项目/旧项目-旧项目",
+    "branch": "lz/release-260324",
+    "commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c"
+  },
+  "validation_only_attestation": "User authorized supplied local paired samples for migration validation only; no broader redistribution right is asserted.",
+  "missing_evidence": [
+    "Old green/2 arithmetic was applied offline to the current four 256px PNG tiles: output 512x512, 43 gray values, 98.58% zero. The current timestamp is cadence-derived and green-channel semantics lack provider confirmation; no same-frame old gray baseline exists."
+  ],
+  "source_sample_retained": false,
+  "scientific_status_unchanged": true,
+  "current_input_fixture_retained": true,
+  "compatibility_probe": {
+    "method": "offline old byte-channel transform on current source fixture tiles; no network request",
+    "old_code": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/tiles/radar.py#git-blob=ffe85795e99103ba26e1c021065c1e84e62b5f2b",
+    "old_rule": {
+      "channel": "green",
+      "steps": [
+        "uint8(green / 2)",
+        "uint8((value / 5) * 16), clip [0,224]"
+      ],
+      "dtype": "uint8 then float64"
+    },
+    "current_source_fixture": "tests/fixtures/sources/windy/fixture.json",
+    "frame": {
+      "product": "reflectivity",
+      "station": "global",
+      "valid_time": "2026-09-18T04:10:00Z",
+      "revision": "windy-1789704600",
+      "tile_size": 256,
+      "zoom": 1,
+      "time_semantics": "cadence_floor_assumption"
+    },
+    "layout": {
+      "kind": "xyz-2x2-global",
+      "order": "x=0,1 per row; y=0,1 top to bottom",
+      "zoom": 1
+    },
+    "tiles": [
+      {
+        "path": "tests/fixtures/sources/windy/raw/tile-z1-x0-y0.png",
+        "name": "tile-z1-x0-y0.png",
+        "sha256": "a3367ba4fa0aa5130690232fe91ec74dd42bda20e2818dee402bf1a80173a915",
+        "bytes": 6418,
+        "format": "PNG",
+        "mode": "RGB",
+        "dimensions": [
+          256,
+          256
+        ],
+        "declared_sha256_matches_fixture": true
+      },
+      {
+        "path": "tests/fixtures/sources/windy/raw/tile-z1-x1-y0.png",
+        "name": "tile-z1-x1-y0.png",
+        "sha256": "b7b7a6193388a6d00835cff7d274406c34b2f638d1f19a11cb0c1f5d45f4506c",
+        "bytes": 7016,
+        "format": "PNG",
+        "mode": "RGB",
+        "dimensions": [
+          256,
+          256
+        ],
+        "declared_sha256_matches_fixture": true
+      },
+      {
+        "path": "tests/fixtures/sources/windy/raw/tile-z1-x0-y1.png",
+        "name": "tile-z1-x0-y1.png",
+        "sha256": "717363470ca028030e1fbde003527145097367bd26ce75f959ea67f09d7edb7c",
+        "bytes": 2227,
+        "format": "PNG",
+        "mode": "RGB",
+        "dimensions": [
+          256,
+          256
+        ],
+        "declared_sha256_matches_fixture": true
+      },
+      {
+        "path": "tests/fixtures/sources/windy/raw/tile-z1-x1-y1.png",
+        "name": "tile-z1-x1-y1.png",
+        "sha256": "9052bae7ccf8af41e8046c0c2f1abe69f30803861bded455424ce9c9d3acef09",
+        "bytes": 2609,
+        "format": "PNG",
+        "mode": "RGB",
+        "dimensions": [
+          256,
+          256
+        ],
+        "declared_sha256_matches_fixture": true
+      }
+    ],
+    "output": {
+      "format": "in-memory grayscale uint8 raster; no image artifact retained",
+      "dimensions": [
+        512,
+        512
+      ],
+      "unique_gray_values": 43,
+      "zero_fraction": 0.9858322143554688,
+      "min_nonzero": 3,
+      "max": 140,
+      "raster_bytes_sha256": "dc17c0ded847806a253da541c55ce30219439f1ba01d699c10e65de1b65043ed"
+    },
+    "comparison": {
+      "old_vs_new_tile_format_or_locator_difference": "PNG tile dimensions match the old route shape, but the current frame time is cadence-derived and green-channel semantics are unverified",
+      "same_frame_old_gray_baseline_present": false,
+      "pixel_diff_comparison": "not possible: no same-frame old gray baseline",
+      "interpretation": "The old arithmetic runs and yields gray bytes (98.58% zero); without provider-confirmed frame identity and an old gray baseline, compatibility remains unverified."
+    },
+    "validation_scope": "migration validation only; the probe does not validate physical reflectivity, time identity, or automatic display eligibility"
+  }
+}

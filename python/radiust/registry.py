@@ -77,6 +77,13 @@ class SourceRegistry:
             self._info[info.id] = info
         self._factories: dict[str, Callable[[SourceInfo], Source]] = {}
         self._instances: dict[str, Source] = {}
+        # Entry-point metadata and factory imports can execute arbitrary
+        # third-party code. In particular, discover-all must spawn its bounded
+        # catalog worker before touching any plugin, not while importing the
+        # CLI or constructing the global registry in the unbounded parent.
+        self._plugins_loaded = False
+        self._plugins_loading = False
+        self._plugin_error: Exception | None = None
         if "my" in self._info:
             self._factories["my"] = lambda info: import_module("radiust.sources.my").MySource(
                 info
@@ -113,7 +120,26 @@ class SourceRegistry:
                 self._factories[source_id] = lambda info, module_name=module_name, class_name=class_name: getattr(
                     import_module(f"radiust.sources.{module_name}"), class_name
                 )(info)
-        self._load_entry_points()
+
+    def _ensure_plugins(self) -> None:
+        if self._plugin_error is not None:
+            raise self._plugin_error
+        if self._plugins_loaded:
+            return
+        if self._plugins_loading:
+            raise RuntimeError("recursive source plugin loading")
+        self._plugins_loading = True
+        try:
+            self._load_entry_points()
+        except Exception as exc:
+            # Preserve the failure instead of treating the partially loaded
+            # registry as a complete catalog on the next attempt.
+            self._plugin_error = exc
+            raise
+        else:
+            self._plugins_loaded = True
+        finally:
+            self._plugins_loading = False
 
     @staticmethod
     def _fixture_path(source_id: str) -> Path:
@@ -148,9 +174,11 @@ class SourceRegistry:
             self.register(info, factory)
 
     def infos(self) -> tuple[SourceInfo, ...]:
+        self._ensure_plugins()
         return tuple(self._info[key] for key in sorted(self._info))
 
     def get_info(self, source_id: str) -> SourceInfo:
+        self._ensure_plugins()
         return self._info[source_id]
 
     def register(self, info: SourceInfo, factory: Callable[[SourceInfo], Source]) -> None:
@@ -160,6 +188,7 @@ class SourceRegistry:
         self._factories[info.id] = factory
 
     def get(self, source_id: str) -> Source:
+        self._ensure_plugins()
         if source_id not in self._info:
             raise KeyError(source_id)
         if source_id not in self._instances:

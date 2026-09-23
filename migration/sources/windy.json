@@ -21,10 +21,40 @@
     "2026-09-21 explicit public latest raw matrix passed; no payload retained.",
     "2026-09-21 raw-only CLI smoke passed for the four global z=1 tiles at the adapter's 2026-09-21T05:15:00Z cadence-floor time; the raw-complete manifest and tile hashes verified before temporary-output cleanup (validation-results/live-cli-public.json). The timestamp remains an assumption, not provider-confirmed time.",
     "validation-results/live-cli-public.json",
-    "2026-09-21 public live raw smoke passed for the current four-tile Windy frame; tile digests/sizes were checked and RawFrame was closed without retaining provider bytes (validation-results/live.json)."
+    "2026-09-21 public live raw smoke passed for the current four-tile Windy frame; tile digests/sizes were checked and RawFrame was closed without retaining provider bytes (validation-results/live.json).",
+    "tests/fixtures/legacy-display/windy/blocked-evidence.json"
   ],
   "blockers": [
     "Green-channel physical mapping is unverified.",
     "Provider frame-time binding is unverified."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "windy/reflectivity",
+        "status": "blocked",
+        "rule_version": "old-8d251601-windy-green-v1",
+        "config_hash": "b32f512e0345b6c4232b03c94e2305555d39263c06030fa5798ca0f61805e0a1",
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "Old green/2 arithmetic was applied offline to the current four 256px PNG tiles: output 512x512, 43 gray values, 98.58% zero. The current timestamp is cadence-derived and green-channel semantics lack provider confirmation; no same-frame old gray baseline exists."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      }
+    ]
+  }
 }

@@ -1,0 +1,41 @@
+{
+  "source": "id",
+  "product": "composite",
+  "path_id": "id/composite",
+  "status": "passed",
+  "blocked_reasons": [],
+  "scientific_status_unchanged": true,
+  "rule_version": "old-8d251601-idac3-v1",
+  "config_hash": "8c6360cedbfa943acdc568769d258bb39374c367fd1ba83ea8de9575d20cb4fe",
+  "input_hashes": [
+    "b7788761625d9557ceb12c13a2d92cbcaa034777d21c52cc6e7349ba15913170"
+  ],
+  "output_hash": "705d84039e4312907461b88c874a9139c8238a7c44d7fa7ee8baa92cc41a6bba",
+  "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/id/ID-ICUSRC-IDAC3_20251230074500_merca_r_map.png",
+  "baseline_hash": "d1ac36a242cebce37c018d74f62b42a602cebd672b17aa373d88301ccecaa98e",
+  "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+  "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/id/ID-ICUSRC-IDAC3_20251230074500_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/id/ID-ICUSRC-IDAC3_20251230074500_merca_r_map.png。",
+  "crop": [
+    0,
+    0,
+    4084,
+    4084
+  ],
+  "shape": [
+    461,
+    461
+  ],
+  "baseline_shape": [
+    461,
+    461
+  ],
+  "pixel_diff_count": 0,
+  "alpha_diff_count": 0,
+  "missing_diff_count": 0,
+  "background_diff_count": 0,
+  "alpha_comparison": "identical",
+  "missing_comparison": "identical",
+  "background_comparison": "identical",
+  "intentional_differences": [],
+  "review_conclusion": "exact pixel agreement"
+}

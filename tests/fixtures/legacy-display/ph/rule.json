@@ -1,0 +1,149 @@
+{
+  "source": "ph",
+  "product": "composite",
+  "path_id": "ph/composite",
+  "rule_version": "old-8d251601-ph-base-v1",
+  "encoding_version": "旧项目-gray-dbz-v1",
+  "legacy_reference": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/ph_scraper.py#git-blob=c276e2cb135f1cfe27d17c7b0bd88e894a101ffe;8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075;8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/PH/base.yaml#sha256=0d76092d14d9b6fbb01880a338bb5355028ee6f4f56d5decb48ea2069624e5ba",
+  "ordered_steps": [
+    {
+      "op": "legacy_crop",
+      "bounds": [
+        0,
+        0,
+        999,
+        1408
+      ],
+      "pad_rgb": [
+        0,
+        0,
+        0
+      ],
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/PH/base.yaml#sha256=0d76092d14d9b6fbb01880a338bb5355028ee6f4f56d5decb48ea2069624e5ba"
+    },
+    {
+      "op": "legacy_palette",
+      "colors": [
+        [
+          116,
+          247,
+          222
+        ],
+        [
+          77,
+          148,
+          247
+        ],
+        [
+          0,
+          30,
+          248
+        ],
+        [
+          132,
+          253,
+          51
+        ],
+        [
+          97,
+          190,
+          31
+        ],
+        [
+          77,
+          134,
+          26
+        ],
+        [
+          255,
+          253,
+          49
+        ],
+        [
+          219,
+          173,
+          25
+        ],
+        [
+          230,
+          140,
+          29
+        ],
+        [
+          215,
+          7,
+          9
+        ],
+        [
+          148,
+          5,
+          4
+        ],
+        [
+          220,
+          28,
+          255
+        ],
+        [
+          164,
+          80,
+          212
+        ]
+      ],
+      "zero_colors": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          255,
+          255,
+          255
+        ]
+      ],
+      "value_threshold": 30,
+      "zero_threshold": 2,
+      "cookbook": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65
+      ],
+      "invalid_fraction_limit": 0.3,
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/PH/base.yaml#sha256=0d76092d14d9b6fbb01880a338bb5355028ee6f4f56d5decb48ea2069624e5ba"
+    },
+    {
+      "op": "gap_repair",
+      "method": "opencv_inpaint",
+      "radius": 7,
+      "inpaint_method": "NS",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/PH/base.yaml#sha256=0d76092d14d9b6fbb01880a338bb5355028ee6f4f56d5decb48ea2069624e5ba"
+    },
+    {
+      "op": "gray_encode",
+      "method": "legacy_cookbook",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/ph_scraper.py#git-blob=c276e2cb135f1cfe27d17c7b0bd88e894a101ffe"
+    }
+  ],
+  "input_constraints": {
+    "formats": [
+      "PNG",
+      "GIF",
+      "WEBP"
+    ],
+    "max_pixels": 100000000
+  },
+  "validation_status": "blocked",
+  "config_hash": "ed57039fe8724105a2d17b6947b7d509ab58fb6e1e8df885b05a4d2a84c0d8a4"
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "source": "bmkg",
+  "product": "composite",
+  "path_id": "bmkg/composite",
+  "status": "blocked",
+  "rule_version": "old-8d251601-bmkg-idcomp-v1",
+  "config_hash": "c9cf833c6d228a62bcab4286905eef7b4e983bb6a0e312ea1f86569d798e95a4",
+  "rule_resource": "python/radiust/resources/legacy_display/bmkg.json",
+  "old_snapshot": {
+    "repository": "/Users/blizhan/data/code/旧项目/旧项目-旧项目",
+    "branch": "lz/release-260324",
+    "commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c"
+  },
+  "validation_only_attestation": "User authorized supplied local paired samples for migration validation only; no broader redistribution right is asserted.",
+  "missing_evidence": [
+    "The old IDCOMP palette/parser rule is pinned, but the current public tile request returned HTTP 403 and no current tile artifact or frame exists in tests/fixtures/sources/bmkg/fixture.json; the old transform could not be run and there is no same-frame old gray baseline."
+  ],
+  "source_sample_retained": false,
+  "scientific_status_unchanged": true,
+  "probe_attempt": {
+    "current_source_fixture": "tests/fixtures/sources/bmkg/fixture.json",
+    "fixture_status": "blocked",
+    "frame_count": 0,
+    "public_probe_result": "HTTP 403; no tile bytes retained",
+    "old_transform_applied": false,
+    "reason": "no input tiles to apply the pinned IDCOMP palette/cookbook transform",
+    "required_next_evidence": [
+      "canonical frame identity",
+      "complete source-bound tile set",
+      "same-frame old gray baseline"
+    ]
+  }
+}

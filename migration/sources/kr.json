@@ -52,5 +52,52 @@
   },
   "blockers": [
     "Exact palette class mapping/data mask and native image-grid transform remain unverified."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "source": "kr",
+        "product": "composite",
+        "path_id": "kr/composite",
+        "status": "passed",
+        "blocked_reasons": [],
+        "scientific_status_unchanged": true,
+        "rule_version": "old-8d251601-gng-v1",
+        "config_hash": "5822c17bebf06daecb8f98b746895ac6f8bbd7476baf86b20c6570542818e5f4",
+        "input_hashes": [
+          "a6c98d630fcd635d96ee75b63350e74978cd0d8749c1a701f9e7c27a2ce88c01"
+        ],
+        "output_hash": "589ee3c600640913500a4453cf76b428ba36eb782f4b9998317962514bda605e",
+        "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/kr/KR-ICUSRC-GNG_20251230080000_merca_r_map.png",
+        "baseline_hash": "bd31d4a27af6fb5e28cdd5621a135daf22e26a6b150f31e395bc5bb3e22afa50",
+        "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+        "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/kr/KR-ICUSRC-GNG_20251230080000_merca_r_source.gif；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/kr/KR-ICUSRC-GNG_20251230080000_merca_r_map.png。",
+        "crop": [
+          0,
+          22,
+          719,
+          740
+        ],
+        "shape": [
+          461,
+          461
+        ],
+        "baseline_shape": [
+          461,
+          461
+        ],
+        "pixel_diff_count": 0,
+        "alpha_diff_count": 0,
+        "missing_diff_count": 0,
+        "background_diff_count": 0,
+        "alpha_comparison": "identical",
+        "missing_comparison": "identical",
+        "background_comparison": "identical",
+        "intentional_differences": [],
+        "review_conclusion": "exact pixel agreement"
+      }
+    ]
+  }
 }

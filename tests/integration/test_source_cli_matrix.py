@@ -172,7 +172,7 @@ def test_rainviewer_adapter_flows_through_sdk_cli_download_and_cat(
 
     preview = CliRunner().invoke(
         main,
-        ["cat", "rainviewer", "--renderer", "text", "--at", frame["valid_time"]],
+        ["cat", "rainviewer", "--decoded", "--renderer", "text", "--at", frame["valid_time"]],
     )
     assert preview.exit_code == 0, preview.output
     assert "source=rainviewer" in preview.output
@@ -234,7 +234,7 @@ def test_tw_numeric_adapter_flows_through_sdk_cli_download_and_cat(
         assert dataset.reflectivity.values[pixel["row"], pixel["column"]] == pixel["value"]
 
     preview = CliRunner().invoke(main, [
-        "cat", "tw", "--product", "grid", "--renderer", "text", "--at", frame["valid_time"],
+        "cat", "tw", "--decoded", "--product", "grid", "--renderer", "text", "--at", frame["valid_time"],
     ])
     assert preview.exit_code == 0, preview.output
     assert "source=tw product=grid" in preview.output
@@ -359,7 +359,7 @@ def test_registered_legacy_adapter_raw_replay_via_sdk_and_cli(
 
     # Neither adapter currently has an independently verified physical palette;
     # the text renderer must not present their raw display pixels as dBZ.
-    preview = CliRunner().invoke(main, ["cat", source_id, "--latest", "--renderer", "text"])
+    preview = CliRunner().invoke(main, ["cat", source_id, "--decoded", "--latest", "--renderer", "text"])
     assert preview.exit_code != 0
     assert "verified scientific decoder" in preview.output
 
@@ -409,7 +409,7 @@ def test_tw_http_registered_adapter_replays_provider_timeline_and_raw(
     assert any(path.read_bytes() == expected for path in output.rglob("*") if path.is_file())
     assert requests == [TwHttpSource.JS_URL, url, TwHttpSource.JS_URL, url]
 
-    preview = CliRunner().invoke(main, ["cat", "tw-http", "--latest", "--renderer", "text"])
+    preview = CliRunner().invoke(main, ["cat", "tw-http", "--decoded", "--latest", "--renderer", "text"])
     assert preview.exit_code != 0
     assert "verified scientific decoder" in preview.output
 
@@ -468,7 +468,7 @@ def test_kr_registered_adapter_replays_station_discovery_and_original_image(
     assert len(posts) == 10  # Five bounded lookbacks for each SDK/CLI discovery.
     assert len(gets) == 2
 
-    preview = CliRunner().invoke(main, ["cat", "kr", "--latest", "--renderer", "text"])
+    preview = CliRunner().invoke(main, ["cat", "kr", "--decoded", "--latest", "--renderer", "text"])
     assert preview.exit_code != 0
     assert "verified scientific decoder" in preview.output
 
@@ -563,7 +563,7 @@ def test_image_scraper_registered_adapter_replays_discovery_and_raw_cli(
     assert any(path.read_bytes() == expected for path in output.rglob("*") if path.is_file())
     assert requests.count(frame["uri"]) == 2
 
-    preview = CliRunner().invoke(main, ["cat", source_id, "--latest", "--renderer", "text"])
+    preview = CliRunner().invoke(main, ["cat", source_id, "--decoded", "--latest", "--renderer", "text"])
     if source_id == "sg":
         assert preview.exit_code == 0, preview.output
         assert "source=sg" in preview.output
@@ -643,7 +643,7 @@ def test_thai_registered_adapters_replay_raw_cli(
     # The two standalone SDK calls each fetch once; query-driven CLI download
     # should share discovery bytes with acquisition and fetch only once more.
     assert requested.count(frame["uri"]) == (3 if source_id == "th" else 2)
-    preview = CliRunner().invoke(main, ["cat", source_id, "--latest", "--renderer", "text"])
+    preview = CliRunner().invoke(main, ["cat", source_id, "--decoded", "--latest", "--renderer", "text"])
     assert preview.exit_code != 0
     assert "verified scientific decoder" in preview.output
 
@@ -752,7 +752,7 @@ def test_windy_registered_adapter_replays_all_four_raw_tiles(
     assert json.loads(run.output)["counts"]["written"] == 1
     assert len(list(output.rglob("*.png"))) == 4
     assert len(requested) == 8
-    preview = CliRunner().invoke(main, ["cat", "windy", "--latest", "--renderer", "text"])
+    preview = CliRunner().invoke(main, ["cat", "windy", "--decoded", "--latest", "--renderer", "text"])
     assert preview.exit_code != 0
     assert "verified scientific decoder" in preview.output
 
@@ -897,7 +897,7 @@ def test_source_cli_sdk_matrix_uses_hashed_raw_fixtures(
     assert report["counts"]["written"] == 1
     assert report["items"][0]["status"] == "written"
 
-    cat_args = ["cat", source_id, "--renderer", "text", "--at", frame["valid_time"]]
+    cat_args = ["cat", source_id, "--decoded", "--renderer", "text", "--at", frame["valid_time"]]
     cat_args.extend(("--product", frame["product"]))
     if frame.get("station"):
         cat_args.extend(("--station", frame["station"]))

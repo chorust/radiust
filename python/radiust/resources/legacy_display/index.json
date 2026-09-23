@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and eight remain blocked by path-specific missing evidence. OpenSnow and WU are excluded from this legacy-display scope by user decision.",
+  "paths": [
+    {
+      "source": "au",
+      "product": "composite",
+      "path_id": "au/composite",
+      "status": "passed",
+      "rule_version": "old-8d251601-au01-v1",
+      "config_hash": "6513e140e2f0749fdd16aaf29b45a4cdfc6482f7149c6ccec7df9237dec4b6fe",
+      "rule_file": "au.json",
+      "evidence_file": "evidence/au__composite.json"
+    },
+    {
+      "source": "bmkg",
+      "product": "composite",
+      "path_id": "bmkg/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The old IDCOMP palette/parser rule is pinned, but the current public tile request returned HTTP 403 and no current tile artifact or frame exists in tests/fixtures/sources/bmkg/fixture.json; the old transform could not be run and there is no same-frame old gray baseline."
+      ],
+      "rule_version": "old-8d251601-bmkg-idcomp-v1",
+      "config_hash": "c9cf833c6d228a62bcab4286905eef7b4e983bb6a0e312ea1f86569d798e95a4",
+      "rule_file": "bmkg.json"
+    },
+    {
+      "source": "ca",
+      "product": "rain",
+      "path_id": "ca/rain",
+      "status": "passed",
+      "rule_version": "old-8d251601-ca-casft-replay-v1",
+      "config_hash": "7496f2f2e61b33f0a09d9ebf8109c40298bcb2ab331946082f090bc952ef3faa",
+      "rule_file": "ca.json",
+      "evidence_file": "evidence/ca__rain.json"
+    },
+    {
+      "source": "es",
+      "product": "composite",
+      "path_id": "es/composite",
+      "status": "passed",
+      "rule_version": "old-8d251601-es-escomp-replay-v1",
+      "config_hash": "491a21fc896d610bcc38ebf11eefc3bcacc2d7b84fddf866a29cdd6ed06564dd",
+      "rule_file": "es.json",
+      "evidence_file": "evidence/es__composite.json"
+    },
+    {
+      "source": "fr",
+      "product": "composite",
+      "path_id": "fr/composite",
+      "status": "passed",
+      "rule_version": "old-8d251601-fr-frcomp-replay-v1",
+      "config_hash": "d648ec153f0f4b04facb7c9a1c46bdc65083f9258e35c367a57a460c36fd97ec",
+      "rule_file": "fr.json",
+      "evidence_file": "evidence/fr__composite.json"
+    },
+    {
+      "source": "id",
+      "product": "composite",
+      "path_id": "id/composite",
+      "status": "passed",
+      "rule_version": "old-8d251601-idac3-v1",
+      "config_hash": "8c6360cedbfa943acdc568769d258bb39374c367fd1ba83ea8de9575d20cb4fe",
+      "rule_file": "id.json",
+      "evidence_file": "evidence/id__composite.json"
+    },
+    {
+      "source": "id_sidarma",
+      "product": "cmax",
+      "path_id": "id_sidarma/cmax",
+      "status": "blocked",
+      "blocked_reasons": [
+        "No old source-path identity or matched legal raw/gray pair for the current SIDARMA CMAX path is established."
+      ]
+    },
+    {
+      "source": "kr",
+      "product": "composite",
+      "path_id": "kr/composite",
+      "status": "passed",
+      "rule_version": "old-8d251601-gng-v1",
+      "config_hash": "5822c17bebf06daecb8f98b746895ac6f8bbd7476baf86b20c6570542818e5f4",
+      "rule_file": "kr.json",
+      "evidence_file": "evidence/kr__composite.json"
+    },
+    {
+      "source": "my",
+      "product": "composite",
+      "path_id": "my/composite/east",
+      "status": "passed",
+      "rule_version": "old-8d251601-my-east-base-v1",
+      "config_hash": "c14b0420fba343d34723aeffa452e603045d0ead55c9a38f1d34a1a52aef1af7",
+      "rule_file": "my-east.json",
+      "evidence_file": "evidence/my__composite__east.json"
+    },
+    {
+      "source": "my",
+      "product": "composite",
+      "path_id": "my/composite/peninsular",
+      "status": "passed",
+      "rule_version": "old-8d251601-mycomp71-v1",
+      "config_hash": "052921f980f0feac7b30356555fc706d5b3882626d0e59e6b2fcbd0c740cf83a",
+      "rule_file": "my.json",
+      "evidence_file": "evidence/my__composite__peninsular.json"
+    },
+    {
+      "source": "nz",
+      "product": "rain",
+      "path_id": "nz/rain",
+      "status": "passed",
+      "rule_version": "old-8d251601-nz-nzau2-replay-v1",
+      "config_hash": "a45b0147877e343409549f44fb7f544aba3b46a0e8138edcb5378c8bc532020f",
+      "rule_file": "nz.json",
+      "evidence_file": "evidence/nz__rain.json"
+    },
+    {
+      "source": "ph",
+      "product": "composite",
+      "path_id": "ph/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The pinned PH/base.yaml rule is known, but the supplied old snapshot has no output/ph files, the pinned commit contains no PH raw/gray artifacts, and the current acquisition record has no verified raw; there is no source-matched pair to replay or compare."
+      ],
+      "rule_version": "old-8d251601-ph-base-v1",
+      "config_hash": "ed57039fe8724105a2d17b6947b7d509ab58fb6e1e8df885b05a4d2a84c0d8a4",
+      "rule_file": "ph.json"
+    },
+    {
+      "source": "pt",
+      "product": "composite",
+      "path_id": "pt/composite",
+      "status": "passed",
+      "rule_version": "old-8d251601-pt-ptst2-replay-v1",
+      "config_hash": "b20f74df36764d4891bc7c54dd3bac564d2aae017e6725533ccaae10f252a60d",
+      "rule_file": "pt.json",
+      "evidence_file": "evidence/pt__composite.json"
+    },
+    {
+      "source": "rainviewer",
+      "product": "composite",
+      "path_id": "rainviewer/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Old red-channel arithmetic runs on the current color=2, 512px PNG fixture (1024x1024 output; 22 gray values; 99.10% zero). The pinned old route uses color=255, 256px WebP. No same-frame old gray baseline exists, so compatibility is unverified."
+      ],
+      "rule_version": "old-8d251601-rainviewer-red-v1",
+      "config_hash": "eb8fc7a54b6439e1a0f8f90571ca5d554ccc974764a7c702498afb7a6562f9fb",
+      "rule_file": "rainviewer.json"
+    },
+    {
+      "source": "sg",
+      "product": "composite",
+      "path_id": "sg/composite",
+      "status": "passed",
+      "rule_version": "old-8d251601-sgcomp2-v1",
+      "config_hash": "48ab2c5116f4e864f0f692bf1c452003113fd6ba501c2a71cbbdfa52661d95c9",
+      "rule_file": "sg.json",
+      "evidence_file": "evidence/sg__composite.json"
+    },
+    {
+      "source": "th",
+      "product": "composite",
+      "path_id": "th/composite/cmp1",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The exact TMD cmp1.gif raw is present, but the pinned old TH/base.yaml parser rejects this frame because its invalid-color fraction exceeds the old 0.3 limit and returns no map; no gray baseline can be produced."
+      ]
+    },
+    {
+      "source": "th",
+      "product": "composite",
+      "path_id": "th/composite/kkn240Loop",
+      "status": "passed",
+      "rule_version": "old-8d251601-th-kkn240loop-replay-v1",
+      "config_hash": "0eb70e624f7baf69f934a3227ff18d02b1035cec6d8b142e3a2c46394543d483",
+      "rule_file": "th.json",
+      "evidence_file": "evidence/th__composite__kkn240Loop.json"
+    },
+    {
+      "source": "th_royalrain",
+      "product": "cappi",
+      "path_id": "th_royalrain/cappi",
+      "status": "passed",
+      "rule_version": "old-8d251601-th_royalrain-takhli-thkl3-replay-v1",
+      "config_hash": "49ca6ebf4fc7ba78c43ddd80ff1f76f8dcfc6f9471cee39c5ffe528a420ee58e",
+      "rule_file": "th_royalrain.json",
+      "evidence_file": "evidence/th_royalrain__cappi.json"
+    },
+    {
+      "source": "tw-http",
+      "product": "observation",
+      "path_id": "tw-http/observation",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Pinned tw_scraper/tw_s3 routes resolve CV1_3600 to TWCOMP2; the old TW parser configuration has no TWCOMP3 entry. Six local TWCOMP3 raw/map pairs (four TW-ICUSRC, two TW-SRC) therefore have no established old source/product identity and cannot be assigned to tw-http or tw/grid."
+      ]
+    },
+    {
+      "source": "tw",
+      "product": "grid",
+      "path_id": "tw/grid",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The recovered TW pairs are ICUSRC image outputs; they do not establish an old gray-display path for the current numeric grid product."
+      ]
+    },
+    {
+      "source": "tw",
+      "product": "observation",
+      "path_id": "tw/observation",
+      "status": "passed",
+      "rule_version": "old-8d251601-cv1-v1",
+      "config_hash": "047d3ddb8bce8444095a60895a7ff5760615680235d54423723cedb105b344ec",
+      "rule_file": "tw.json",
+      "evidence_file": "evidence/tw__observation.json"
+    },
+    {
+      "source": "vn",
+      "product": "cmax",
+      "path_id": "vn/cmax",
+      "status": "passed",
+      "rule_version": "old-8d251601-vndha2-v1",
+      "config_hash": "4cc443474779933db0508d9773ba6ab02558ce8c3145e3bea26932908ed5ae1d",
+      "rule_file": "vn.json",
+      "evidence_file": "evidence/vn__cmax.json"
+    },
+    {
+      "source": "windy",
+      "product": "reflectivity",
+      "path_id": "windy/reflectivity",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Old green/2 arithmetic runs on the current four 256px PNG tiles (512x512 output; 43 gray values; 98.58% zero). Frame time is cadence-derived and green-channel semantics lack provider confirmation; no same-frame old gray baseline exists."
+      ],
+      "rule_version": "old-8d251601-windy-green-v1",
+      "config_hash": "b32f512e0345b6c4232b03c94e2305555d39263c06030fa5798ca0f61805e0a1",
+      "rule_file": "windy.json"
+    }
+  ]
+}

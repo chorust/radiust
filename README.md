@@ -33,7 +33,13 @@ radiust download my --at 2025-12-29T06:50:01Z --output ./data --raw-only --json
 
 ```bash
 radiust cat --file ./data/path/to/frame.nc --renderer text
+radiust cat --file tests/fixtures/sources/th_royalrain/raw/takhli.png --renderer text
+radiust cat --file tests/fixtures/sources/th/raw/kkn240Loop.gif --renderer text
+radiust discover all --json
 ```
+
+PNG/GIF preview uses original image pixels (first GIF frame); no scientific decoding is performed.
+`discover all` 在默认禁止联网的配置下仍会返回完整目录状态，通常以退出码 5 表示所有目标均未成功获取实时资料；该结果不表示已完成实时来源验收。
 
 实际输出目录和 manifest 的命名规则见 [docs/cli.md](docs/cli.md) 与 [docs/output-maintenance.md](docs/output-maintenance.md)。
 

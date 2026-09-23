@@ -21,5 +21,34 @@
   ],
   "blockers": [
     "Native grid control points and palette semantics remain unverified."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "tw-http/observation",
+        "status": "blocked",
+        "rule_version": null,
+        "config_hash": null,
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "Six local TWCOMP3 raw/map pairs (four TW-ICUSRC, two TW-SRC) reproduce the pinned TW/base.yaml display rule pixel-for-pixel, and the pinned parser falls back to the country rule when a station-specific parser entry is absent. TWCOMP3 is an old output/config alias; the current station stays provider-native CV1_3600. Archive provenance does not bind these pairs to a specific collector endpoint (tw-http versus anonymous-S3 tw), so they are country-level rule evidence, not path-specific tw-http evidence."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      }
+    ]
+  }
 }

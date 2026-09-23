@@ -39,7 +39,7 @@ def test_cat_file_text_is_redirectable_and_image_renderer_requires_tty():
 
 def test_cat_source_text_uses_fixture_without_writing_output():
     runner = CliRunner()
-    result = runner.invoke(main, ["cat", "my", "--at", "2025-12-29T06:50:01Z", "--renderer", "text"])
+    result = runner.invoke(main, ["cat", "my", "--decoded", "--at", "2025-12-29T06:50:01Z", "--renderer", "text"])
 
     assert result.exit_code == 0, result.output
     assert "source=my" in result.output

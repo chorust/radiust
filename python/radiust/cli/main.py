@@ -1,30 +1,24 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import math
+from datetime import timedelta
 from pathlib import Path
 
 import click
 
 from ..api import download as sdk_download
 from ..config import load_config
-from ..models import Query, utc_datetime
+from ..models import Query
 from ..registry import get_source, sources
 from .cache import cache_command
 from .cat import cat_command
+from .query import build_query
+from .query import parse_time as _time
 from .reporting import emit, emit_error, exit_code
 
 
-def _time(value: str | None) -> datetime | None:
-    if value is None:
-        return None
-    try:
-        return utc_datetime(datetime.fromisoformat(value.replace("Z", "+00:00")))
-    except ValueError as exc:
-        raise click.BadParameter("time must be ISO-8601 with a timezone") from exc
-
-
 def _query(source: str, product: str | None, station: tuple[str, ...], latest: bool, at: str | None, start: str | None, end: str | None, base_time: str | None, max_age: float | None) -> Query:
-    return Query(source, product=product, stations=station, latest=latest, at=_time(at), start=_time(start), end=_time(end), base_time=_time(base_time), max_age=timedelta(seconds=max_age) if max_age is not None else None)
+    return build_query(source, product=product, stations=station, latest=latest, at=_time(at), start=_time(start), end=_time(end), base_time=_time(base_time), max_age=timedelta(seconds=max_age) if max_age is not None else None)
 
 
 def _bbox(value: str | None) -> tuple[float, float, float, float] | None:
@@ -114,13 +108,32 @@ def list_command(kind: str, source: str | None, config_path: Path | None, quiet:
 def discover_command(source: str, config_path: Path | None, product: str | None, station: tuple[str, ...], latest: bool, at: str | None, start: str | None, end: str | None, base_time: str | None, max_age: float | None, quiet: bool | None, verbose: bool | None, as_json: bool) -> None:
     try:
         from ..client import Client
+        from ..discovery import discover_all, discovery_exit_code
+        from .progress import Progress, ProgressEvent
 
         config_path, quiet, _verbose = _root_options(config_path, quiet, verbose)
+        if source == "all":
+            if product is not None or station or any(value is not None for value in (at, start, end, base_time)):
+                raise click.UsageError("discover all supports latest and max-age only; query a single source for other selectors")
+            if max_age is not None and (not math.isfinite(max_age) or max_age <= 0):
+                raise click.UsageError("--max-age must be finite and positive")
+            with Progress(quiet=quiet) as progress:
+                report = discover_all(
+                    _config(config_path), max_age=max_age,
+                    progress=lambda stage, completed, total: progress.update(ProgressEvent(stage, completed, total)),
+                )
+            emit(report, as_json=as_json, quiet=quiet and not as_json, command="discover")
+            raise click.exceptions.Exit(discovery_exit_code(report))
         query = _query(source, product, station, latest, at, start, end, base_time, max_age)
-        with Client(config=_config(config_path)) as client:
-            refs = client.discover(query)
+        with Progress(quiet=quiet) as progress:
+            progress.update(ProgressEvent("discover", 0))
+            with Client(config=_config(config_path)) as client:
+                refs = client.discover(query)
+            progress.update(ProgressEvent("discover", len(refs), len(refs)))
         payload = [{"source": r.source, "product": r.product, "station": r.station, "valid_time": r.valid_time.isoformat().replace("+00:00", "Z"), "logical_id": r.logical_id} for r in refs]
         emit(payload, as_json=as_json, quiet=quiet and not as_json, command="discover")
+    except click.exceptions.Exit:
+        raise
     except Exception as exc:
         emit_error(exc, as_json=as_json)
         raise click.exceptions.Exit(3 if getattr(exc, "code", "") == "no_data" else 2) from None
@@ -160,6 +173,8 @@ def discover_command(source: str, config_path: Path | None, product: str | None,
 @click.option("--json", "as_json", is_flag=True)
 def download_command(source: str, config_path: Path | None, product: str | None, station: tuple[str, ...], latest: bool, at: str | None, start: str | None, end: str | None, base_time: str | None, max_age: float | None, output: str, format_name: str, output_template: str | None, raw: bool, raw_only: bool, overwrite: bool, variable: str | None, grid: str, bbox: str | None, resolution: float | None, resampling: str, no_cache: bool, cache_dir: str | None, access_key: str | None, secret_key: str | None, endpoint: str | None, quiet: bool | None, verbose: bool | None, dry_run: bool, on_error: str, as_json: bool) -> None:
     try:
+        from .progress import Progress, ProgressEvent
+
         config_path, quiet, _verbose = _root_options(config_path, quiet, verbose)
         query = _query(source, product, station, latest, at, start, end, base_time, max_age)
         bbox_value = _bbox(bbox)
@@ -172,8 +187,11 @@ def download_command(source: str, config_path: Path | None, product: str | None,
         if dry_run:
             from ..client import Client
 
-            with Client(config=_config(config_path)) as client:
-                refs = client.discover(query)
+            with Progress(quiet=quiet) as progress:
+                progress.update(ProgressEvent("discover", 0))
+                with Client(config=_config(config_path)) as client:
+                    refs = client.discover(query)
+                progress.update(ProgressEvent("discover", len(refs), len(refs)))
             from ..models import DownloadReport, FrameResult
 
             report = DownloadReport("download", "dry-run", tuple(FrameResult(ref, "planned") for ref in refs), query={"source": source})
@@ -186,8 +204,9 @@ def download_command(source: str, config_path: Path | None, product: str | None,
             credentials = {key: value for key, value in {"access_key": access_key, "secret_key": secret_key, "endpoint": endpoint}.items() if value is not None}
             if credentials:
                 config_overrides["sources"] = {source: credentials}
-            report = sdk_download(query, output=output, format=format_name, raw=raw, raw_only=raw_only, overwrite=overwrite, output_template=output_template, on_error=on_error, config=_config(config_path, config_overrides), variable=variable, grid=grid, bbox=bbox_value, resolution=resolution, resampling=resampling)
-        emit(report, as_json=as_json, quiet=quiet and not as_json)
+            with Progress(quiet=quiet) as progress:
+                report = sdk_download(query, output=output, format=format_name, raw=raw, raw_only=raw_only, overwrite=overwrite, output_template=output_template, on_error=on_error, config=_config(config_path, config_overrides), variable=variable, grid=grid, bbox=bbox_value, resolution=resolution, resampling=resampling, progress=lambda stage, done, total: progress.update(ProgressEvent(stage, done, total)))
+        emit(report, as_json=as_json, quiet=quiet and not as_json, command="download")
         raise click.exceptions.Exit(exit_code(report))
     except click.exceptions.Exit:
         raise
@@ -207,9 +226,15 @@ def doctor_command(source: str | None, network: bool, config_path: Path | None, 
     from .doctor import run_doctor
 
     try:
-        config_path, quiet, _verbose = _root_options(config_path, quiet, verbose)
+        config_path, quiet, verbose = _root_options(config_path, quiet, verbose)
         payload = run_doctor(source=source, network=network, config_path=config_path)
-        emit(payload, as_json=as_json, quiet=quiet and not as_json)
+        if verbose and not as_json:
+            payload = {**payload, "diagnostics": {
+                "configuration": "explicit_file" if config_path is not None else "default_or_environment",
+                "network_probe_requested": network,
+                "source_scoped": source is not None,
+            }}
+        emit(payload, as_json=as_json, quiet=quiet and not as_json, command="doctor")
     except Exception as exc:
         emit_error(exc, as_json=as_json)
         raise click.exceptions.Exit(2) from None
@@ -223,10 +248,16 @@ def doctor_command(source: str | None, network: bool, config_path: Path | None, 
 @click.option("--json", "as_json", is_flag=True)
 def config_command(action: str, config_path: Path | None, quiet: bool | None, verbose: bool | None, as_json: bool) -> None:
     try:
-        config_path, quiet, _verbose = _root_options(config_path, quiet, verbose)
+        config_path, quiet, verbose = _root_options(config_path, quiet, verbose)
         if action != "show":
             raise click.UsageError("only config show is supported")
-        emit(_config(config_path).redacted(), as_json=as_json, quiet=quiet and not as_json)
+        payload = _config(config_path).redacted()
+        if verbose and not as_json:
+            payload = {**payload, "diagnostics": {
+                "configuration": "explicit_file" if config_path is not None else "default_or_environment",
+                "effective_network_allowed": bool(payload["runtime"]["allow_network"]),
+            }}
+        emit(payload, as_json=as_json, quiet=quiet and not as_json, command="config")
     except Exception as exc:
         emit_error(exc, as_json=as_json)
         raise click.exceptions.Exit(2) from None

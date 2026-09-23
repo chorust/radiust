@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import ssl
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -39,12 +40,14 @@ def _is_loopback(host: str | None) -> bool:
 
 
 class _CheckedRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def __init__(self, check):
+    def __init__(self, check, on_redirect):
         super().__init__()
         self._check = check
+        self._on_redirect = on_redirect
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         self._check(newurl)
+        self._on_redirect(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -57,10 +60,23 @@ class HTTPTransport:
     max_attempts: int = 3
     retry_backoff: float = 0.25
     x509_strict: bool = False
+    request_concurrency: int = 16
+    host_concurrency: int = 4
+    _request_slots: threading.BoundedSemaphore = dc_field(init=False, repr=False)
+    _host_slots: dict[str, threading.BoundedSemaphore] = dc_field(init=False, repr=False)
+    _host_slots_lock: threading.Lock = dc_field(init=False, repr=False)
+    _host_local: threading.local = dc_field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if self.max_bytes < 0 or self.timeout <= 0 or self.max_attempts < 1 or self.retry_backoff < 0:
+        if (
+            self.max_bytes < 0 or self.timeout <= 0 or self.max_attempts < 1 or self.retry_backoff < 0
+            or self.request_concurrency < 1 or self.host_concurrency < 1
+        ):
             raise ValueError("transport limits must be positive")
+        self._request_slots = threading.BoundedSemaphore(self.request_concurrency)
+        self._host_slots = {}
+        self._host_slots_lock = threading.Lock()
+        self._host_local = threading.local()
 
     def _check(self, url: str) -> None:
         parsed = urlparse(url)
@@ -113,31 +129,86 @@ class HTTPTransport:
         request_headers = dict(self.headers)
         request_headers.update(headers or {})
         request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
-        for attempt in range(self.max_attempts):
-            try:
-                return self._request_once_response(request)
-            except urllib.error.HTTPError as exc:
-                if exc.code in {401, 403}:
-                    raise AuthenticationError("HTTP authentication failed") from exc
-                if exc.code not in {408, 425, 429} and exc.code < 500:
-                    raise TransportError(f"HTTP request failed with status {exc.code}") from exc
-                if attempt + 1 >= self.max_attempts:
-                    raise TransportError(f"HTTP request failed with status {exc.code}") from exc
-                self._wait(exc.headers.get("Retry-After"), attempt)
-            except TransportError:
-                raise
-            except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                if attempt + 1 >= self.max_attempts:
-                    raise TransportError("request failed after the retry budget was exhausted") from exc
-                self._wait(None, attempt)
-        raise TransportError("request failed after the retry budget was exhausted")
+        host = self._host_for(url)
+        if not self._request_slots.acquire(timeout=self.timeout):
+            raise TransportError("request concurrency limit wait exceeded the timeout")
+        try:
+            host_slot = self._host_slot(host)
+            acquired_host = host_slot.acquire(timeout=self.timeout)
+        except BaseException:
+            self._request_slots.release()
+            raise
+        if not acquired_host:
+            self._request_slots.release()
+            raise TransportError("host concurrency limit wait exceeded the timeout")
+        self._host_local.current = (host, host_slot)
+        try:
+            for attempt in range(self.max_attempts):
+                if attempt:
+                    # Retries start a new request at the original URL.
+                    self._redirect_host(url)
+                try:
+                    return self._request_once_response(request)
+                except urllib.error.HTTPError as exc:
+                    if exc.code in {401, 403}:
+                        raise AuthenticationError("HTTP authentication failed") from exc
+                    if exc.code not in {408, 425, 429} and exc.code < 500:
+                        raise TransportError(f"HTTP request failed with status {exc.code}") from exc
+                    if attempt + 1 >= self.max_attempts:
+                        raise TransportError(f"HTTP request failed with status {exc.code}") from exc
+                    self._release_host_lease()
+                    self._wait(exc.headers.get("Retry-After"), attempt)
+                except TransportError:
+                    raise
+                except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                    if attempt + 1 >= self.max_attempts:
+                        raise TransportError("request failed after the retry budget was exhausted") from exc
+                    self._release_host_lease()
+                    self._wait(None, attempt)
+            raise TransportError("request failed after the retry budget was exhausted")
+        finally:
+            self._release_host_lease()
+            self._request_slots.release()
+
+    @staticmethod
+    def _host_for(url: str) -> str:
+        host = urlparse(url).hostname
+        if not host:
+            raise TransportError("request URL must include a host")
+        return host.lower()
+
+    def _host_slot(self, host: str) -> threading.BoundedSemaphore:
+        with self._host_slots_lock:
+            return self._host_slots.setdefault(host, threading.BoundedSemaphore(self.host_concurrency))
+
+    def _redirect_host(self, url: str) -> None:
+        host = self._host_for(url)
+        current = getattr(self._host_local, "current", None)
+        if current is not None and current[0] == host:
+            return
+        # urllib has finished the previous response before asking us to follow
+        # its redirect, so release the old host before waiting for the new one.
+        # This also prevents A→B/B→A redirect chains from deadlocking.
+        if current is not None:
+            current[1].release()
+            self._host_local.current = None
+        slot = self._host_slot(host)
+        if not slot.acquire(timeout=self.timeout):
+            raise TransportError("redirect host concurrency limit wait exceeded the timeout")
+        self._host_local.current = (host, slot)
+
+    def _release_host_lease(self) -> None:
+        current = getattr(self._host_local, "current", None)
+        if current is not None:
+            current[1].release()
+            self._host_local.current = None
 
     def _request_once(self, request: urllib.request.Request) -> bytes:
         return self._request_once_response(request).body
 
     def _request_once_response(self, request: urllib.request.Request) -> HTTPResponse:
         opener = urllib.request.build_opener(
-            _CheckedRedirectHandler(self._check),
+            _CheckedRedirectHandler(self._check, self._redirect_host),
             urllib.request.HTTPSHandler(context=self._tls_context()),
         )
         with opener.open(request, timeout=self.timeout) as response:

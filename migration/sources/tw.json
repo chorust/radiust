@@ -12,16 +12,109 @@
     "The separate grid product reads O-A0059-001 JSON and decodes native TWD67 (EPSG:3821) 921x881 dBZ values, southwest-first then east/north, with -99 invalid and -999 outside/removed flags.",
     "The PNG product retains its own metadata and remains blocked for scientific decoding until its pixel geometry and RGB-to-dBZ mapping are independently established; O-A0059-001 has a different shape and datum."
   ],
-  "evidence": ["tests/fixtures/sources/tw/fixture.json", "tests/fixtures/sources/tw/raw/O-A0059-001.json", "tests/sources/test_tw.py", "tests/live/test_representative_sources.py", "validation-results/live-cli-tw-grid.json", "live CWA PNG acquisition on 2026-09-18", "O-A0059-001.json anonymous S3 live 2026-09-20 12:30 Asia/Taipei (sha256 96f97544d0e2f3795b69cb2cbfe3f906a03bb4232d1eb62f15d5740445c56c90)", "2026-09-20 grid CLI NetCDF readback: 811401 cells, 1056 finite; control point row 262 col 580 = 18 dBZ, native extent (115,18,126.5,29)", "2026-09-20 retained upstream JSON replay: pixel, grid, 610042 missing and 200303 outside flags verified offline", "https://opendata.cwa.gov.tw/dataset/observation/O-A0059-001", "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-005", "https://www.cwa.gov.tw/Data/data_catalog/3-6-5.pdf"],
+  "evidence": [
+    "tests/fixtures/sources/tw/fixture.json",
+    "tests/fixtures/sources/tw/raw/O-A0059-001.json",
+    "tests/sources/test_tw.py",
+    "tests/live/test_representative_sources.py",
+    "validation-results/live-cli-tw-grid.json",
+    "live CWA PNG acquisition on 2026-09-18",
+    "O-A0059-001.json anonymous S3 live 2026-09-20 12:30 Asia/Taipei (sha256 96f97544d0e2f3795b69cb2cbfe3f906a03bb4232d1eb62f15d5740445c56c90)",
+    "2026-09-20 grid CLI NetCDF readback: 811401 cells, 1056 finite; control point row 262 col 580 = 18 dBZ, native extent (115,18,126.5,29)",
+    "2026-09-20 retained upstream JSON replay: pixel, grid, 610042 missing and 200303 outside flags verified offline",
+    "https://opendata.cwa.gov.tw/dataset/observation/O-A0059-001",
+    "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-005",
+    "https://www.cwa.gov.tw/Data/data_catalog/3-6-5.pdf"
+  ],
   "official_image_metadata_audit": {
     "checked_at": "2026-09-21",
     "dataset_url": "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-005",
     "product": "wide-area transparent integrated radar echo image",
     "provider_declared_cadence_minutes": 10,
-    "provider_declared_extent_lonlat": [115.0, 17.75, 126.5, 29.25],
-    "provider_declared_image_shape": [3600, 3600],
+    "provider_declared_extent_lonlat": [
+      115.0,
+      17.75,
+      126.5,
+      29.25
+    ],
+    "provider_declared_image_shape": [
+      3600,
+      3600
+    ],
     "separate_numeric_product": "O-A0059-001",
     "conclusion": "Official metadata confirms product identity, update interval, nominal extent and image dimensions. The published material does not establish pixel registration or an RGB-to-dBZ mapping; the image stays raw-only, and the numeric grid georeference must not be applied to it."
   },
-  "blockers": ["PNG O-A0058-005 geometry and physical palette are still unverified; numerical O-A0059-001 coordinates must not be applied directly to the 3600x3600 PNG."]
+  "blockers": [
+    "PNG O-A0058-005 geometry and physical palette are still unverified; numerical O-A0059-001 coordinates must not be applied directly to the 3600x3600 PNG."
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "tw/grid",
+        "status": "blocked",
+        "rule_version": null,
+        "config_hash": null,
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "The recovered TW pairs are ICUSRC image outputs; they do not establish an old gray-display path for the current numeric grid product."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      },
+      {
+        "source": "tw",
+        "product": "observation",
+        "path_id": "tw/observation",
+        "status": "passed",
+        "blocked_reasons": [],
+        "scientific_status_unchanged": true,
+        "rule_version": "old-8d251601-cv1-v1",
+        "config_hash": "047d3ddb8bce8444095a60895a7ff5760615680235d54423723cedb105b344ec",
+        "input_hashes": [
+          "c0de1e3dfecbe36a4265693fa577c679cdef51827dfe22d0ee55fa4366eeb690"
+        ],
+        "output_hash": "de31f08d8a9ecb2891df7e2772fad7fd5a4bca8870928f7b5fc7719f01b00952",
+        "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/tw/TW-ICUSRC-CV1_3600_20251230024000_merca_r_map.png",
+        "baseline_hash": "c25201bdbf5a6c8d72a50f723d5cdf34b4a9012887386adbbf44742ba686b34b",
+        "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+        "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/tw/TW-ICUSRC-CV1_3600_20251230024000_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/tw/TW-ICUSRC-CV1_3600_20251230024000_merca_r_map.png。",
+        "crop": [
+          0,
+          0,
+          3600,
+          3600
+        ],
+        "shape": [
+          3600,
+          3600
+        ],
+        "baseline_shape": [
+          3600,
+          3600
+        ],
+        "pixel_diff_count": 0,
+        "alpha_diff_count": 0,
+        "missing_diff_count": 0,
+        "background_diff_count": 0,
+        "alpha_comparison": "identical",
+        "missing_comparison": "identical",
+        "background_comparison": "identical",
+        "intentional_differences": [],
+        "review_conclusion": "exact pixel agreement"
+      }
+    ]
+  }
 }

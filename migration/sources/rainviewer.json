@@ -28,6 +28,36 @@
     "official public API live smoke on 2026-09-18 and 2026-09-20",
     "tests/integration/test_source_cli_matrix.py: RainViewer SDK fetch, raw-only CLI download, and CLI cat replay",
     "validation-results/live-cli-rainviewer.json: real latest-frame CLI download, raw retention, cat text, NetCDF readback, CF check, and repeat skip",
-    "validation-results/live-cli-public.json"
-  ]
+    "validation-results/live-cli-public.json",
+    "tests/fixtures/legacy-display/rainviewer/blocked-evidence.json"
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "rainviewer/composite",
+        "status": "blocked",
+        "rule_version": "old-8d251601-rainviewer-red-v1",
+        "config_hash": "eb8fc7a54b6439e1a0f8f90571ca5d554ccc974764a7c702498afb7a6562f9fb",
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "Old red-channel arithmetic was applied offline to the current color=2, 512px PNG fixture: output 1024x1024, 22 gray values, 99.10% zero. The pinned old route uses color=255, 256px WebP; no same-frame old gray baseline exists, so compatibility is unverified."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      }
+    ]
+  }
 }

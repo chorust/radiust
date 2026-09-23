@@ -60,9 +60,24 @@ def sort_frames(refs: Iterable[FrameRef]) -> tuple[FrameRef, ...]:
                 ref.station or "",
                 ref.base_time or datetime.min.replace(tzinfo=UTC),
                 ref.logical_id,
+                ref.revision or "",
+                ref.uri or "",
             ),
         )
     )
+
+
+def latest_per_product_station(refs: Iterable[FrameRef]) -> list[FrameRef]:
+    """Keep distinct latest candidates within each product and station."""
+    groups: dict[tuple[str, str | None], list[FrameRef]] = {}
+    for ref in refs:
+        key = (ref.product, ref.station)
+        candidates = groups.get(key)
+        if not candidates or ref.valid_time > candidates[0].valid_time:
+            groups[key] = [ref]
+        elif ref.valid_time == candidates[0].valid_time and ref not in candidates:
+            candidates.append(ref)
+    return [ref for candidates in groups.values() for ref in candidates]
 
 
 def select_one(refs: Iterable[FrameRef], *, context: str = "query") -> FrameRef:

@@ -1,0 +1,137 @@
+{
+  "source": "es",
+  "product": "composite",
+  "path_id": "es/composite",
+  "rule_version": "old-8d251601-es-escomp-replay-v1",
+  "encoding_version": "旧项目-gray-dbz-v1",
+  "legacy_reference": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ES/base.yaml#sha256=88677d008b051164c0b5f82c8952ebe10aa85d9b73b908cb8356cc83502b23c2",
+  "ordered_steps": [
+    {
+      "op": "crop",
+      "bounds": [
+        0,
+        0,
+        962,
+        1079
+      ],
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ES/base.yaml#sha256=88677d008b051164c0b5f82c8952ebe10aa85d9b73b908cb8356cc83502b23c2"
+    },
+    {
+      "op": "legacy_palette",
+      "colors": [
+        [
+          200,
+          0,
+          90
+        ],
+        [
+          255,
+          0,
+          0
+        ],
+        [
+          255,
+          127,
+          0
+        ],
+        [
+          255,
+          187,
+          0
+        ],
+        [
+          255,
+          255,
+          0
+        ],
+        [
+          0,
+          255,
+          0
+        ],
+        [
+          0,
+          192,
+          0
+        ],
+        [
+          67,
+          131,
+          35
+        ],
+        [
+          0,
+          252,
+          252
+        ],
+        [
+          0,
+          148,
+          252
+        ],
+        [
+          0,
+          0,
+          252
+        ],
+        [
+          255,
+          255,
+          255
+        ]
+      ],
+      "zero_colors": [
+        [
+          255,
+          255,
+          255
+        ],
+        [
+          239,
+          242,
+          249
+        ]
+      ],
+      "value_threshold": 30,
+      "zero_threshold": 10,
+      "cookbook": [
+        72,
+        66,
+        60,
+        54,
+        48,
+        42,
+        36,
+        30,
+        24,
+        18,
+        12,
+        0
+      ],
+      "invalid_fraction_limit": 0.3,
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ES/base.yaml#sha256=88677d008b051164c0b5f82c8952ebe10aa85d9b73b908cb8356cc83502b23c2"
+    },
+    {
+      "op": "gap_repair",
+      "method": "zero_invalid",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ES/base.yaml#sha256=88677d008b051164c0b5f82c8952ebe10aa85d9b73b908cb8356cc83502b23c2"
+    },
+    {
+      "op": "gray_encode",
+      "method": "legacy_cookbook",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ES/base.yaml#sha256=88677d008b051164c0b5f82c8952ebe10aa85d9b73b908cb8356cc83502b23c2"
+    }
+  ],
+  "input_constraints": {
+    "formats": [
+      "PNG"
+    ],
+    "max_pixels": 100000000,
+    "decoded_size": [
+      962,
+      1079
+    ]
+  },
+  "validation_status": "passed",
+  "config_hash": "491a21fc896d610bcc38ebf11eefc3bcacc2d7b84fddf866a29cdd6ed06564dd"
+}

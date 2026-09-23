@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import mimetypes
 from collections.abc import Awaitable, Callable, Mapping
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, suppress
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -40,6 +41,52 @@ def _check_browser_response(response: Any, *, stage: str) -> None:
 class BrowserAcquirer:
     def __init__(self, playwright_factory: Callable[[], Any] | None = None) -> None:
         self._playwright_factory = playwright_factory or _default_playwright_factory
+
+    @staticmethod
+    async def _limit_page_requests(browser_context: Any, page: Any, context: SourceContext) -> None:
+        """Keep browser-owned requests within the same local concurrency budget."""
+        request_slots = asyncio.Semaphore(max(1, int(context.limits["request_concurrency"])))
+        host_limit = max(1, int(context.limits["host_concurrency"]))
+        host_slots: dict[str, asyncio.Semaphore] = {}
+        leases: dict[int, tuple[asyncio.Semaphore, asyncio.Semaphore]] = {}
+
+        def release(request: Any) -> None:
+            lease = leases.pop(id(request), None)
+            if lease is not None:
+                lease[1].release()
+                lease[0].release()
+
+        async def route_request(route: Any) -> None:
+            request = route.request
+            host = (urlsplit(request.url).hostname or "_no_host").lower()
+            host_slot = host_slots.setdefault(host, asyncio.Semaphore(host_limit))
+            request_acquired = False
+            host_acquired = False
+            try:
+                await request_slots.acquire()
+                request_acquired = True
+                await host_slot.acquire()
+                host_acquired = True
+                context.cancellation.check()
+                leases[id(request)] = (request_slots, host_slot)
+                request_acquired = False
+                host_acquired = False
+                await route.continue_()
+            except BaseException:
+                if id(request) in leases:
+                    release(request)
+                else:
+                    if host_acquired:
+                        host_slot.release()
+                    if request_acquired:
+                        request_slots.release()
+                with suppress(Exception, asyncio.CancelledError):
+                    await route.abort()
+                raise
+
+        page.on("requestfinished", release)
+        page.on("requestfailed", release)
+        await browser_context.route("**/*", route_request)
 
     @staticmethod
     async def _prepare_page(
@@ -88,6 +135,7 @@ class BrowserAcquirer:
             browser_context = await browser.new_context(extra_http_headers=dict(headers or {}))
             stack.push_async_callback(browser_context.close)
             page = await browser_context.new_page()
+            await self._limit_page_requests(browser_context, page, context)
             await self._prepare_page(
                 page, browser_context, context, warmup_url=warmup_url,
                 headers=headers, csrf_selector=csrf_selector, csrf_header=csrf_header,
@@ -130,6 +178,7 @@ class BrowserAcquirer:
             )
             stack.push_async_callback(browser_context.close)
             page = await browser_context.new_page()
+            await self._limit_page_requests(browser_context, page, context)
             target = page_url or ref.uri
             await self._prepare_page(
                 page, browser_context, context, warmup_url=warmup_url,

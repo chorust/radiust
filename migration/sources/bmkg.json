@@ -15,10 +15,40 @@
     "python/radiust/resources/sources/bmkg.json",
     "live raw-only probe on 2026-09-18 returned a provider authentication/error response",
     "2026-09-21 explicit-network latest CLI probe returned HTTP 403; a direct probe of the current six-minute TMS tile URL returned HTTP 403 from Cloudflare",
-    "tests/sources/test_tile_adapter_replay.py replays four synthetic PNG tile payloads, validates hashes/order, and confirms scientific decode fails closed"
+    "tests/sources/test_tile_adapter_replay.py replays four synthetic PNG tile payloads, validates hashes/order, and confirms scientific decode fails closed",
+    "tests/fixtures/legacy-display/bmkg/blocked-evidence.json"
   ],
   "blockers": [
     "The current tile endpoint returns HTTP 403; no canonical upstream tile was acquired.",
     "IDCOMP palette, tile quality semantics and native geometry remain unverified."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "bmkg/composite",
+        "status": "blocked",
+        "rule_version": "old-8d251601-bmkg-idcomp-v1",
+        "config_hash": "c9cf833c6d228a62bcab4286905eef7b4e983bb6a0e312ea1f86569d798e95a4",
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "The old IDCOMP palette/parser rule is pinned, but the current public tile request returned HTTP 403 and no current tile artifact or frame exists in tests/fixtures/sources/bmkg/fixture.json; the old transform could not be run and there is no same-frame old gray baseline."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      }
+    ]
+  }
 }

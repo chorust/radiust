@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from .errors import BatchError, NoDataError, error_from_exception
 from .models import BatchResult, FrameRef, FrameResult, Query
 
 BatchInput = Query | FrameRef
+ProgressCallback = Callable[[str, int, int | None], None]
 
 
 async def _discover(client: Any, query: Query) -> list[FrameRef]:
@@ -20,7 +21,8 @@ async def _discover(client: Any, query: Query) -> list[FrameRef]:
     return list(await client.discover(query))
 
 
-async def resolve_refs(client: Any, query_or_refs: BatchInput | Iterable[BatchInput]) -> list[FrameRef]:
+async def resolve_refs(client: Any, query_or_refs: BatchInput | Iterable[BatchInput], *,
+                       progress: ProgressCallback | None = None) -> list[FrameRef]:
     """Expand queries and validate ordered frame identities before I/O."""
     if isinstance(query_or_refs, (Query, FrameRef)):
         values: Iterable[BatchInput] = (query_or_refs,)
@@ -29,6 +31,8 @@ async def resolve_refs(client: Any, query_or_refs: BatchInput | Iterable[BatchIn
             raise TypeError("batch input must contain Query or FrameRef values")
         values = query_or_refs
     refs: list[FrameRef] = []
+    if progress is not None:
+        progress("resolve", 0, None)
     for value in values:
         if isinstance(value, Query):
             refs.extend(await _discover(client, value))
@@ -36,6 +40,8 @@ async def resolve_refs(client: Any, query_or_refs: BatchInput | Iterable[BatchIn
             refs.append(value)
         else:
             raise TypeError("batch input must contain Query or FrameRef values")
+        if progress is not None:
+            progress("resolve", len(refs), None)
     if not refs:
         raise NoDataError("batch input returned no frames")
     keys = [(ref.logical_id, ref.revision) for ref in refs]
@@ -74,8 +80,9 @@ async def fetch_many_async(
     *,
     on_error: str = "collect",
     max_concurrency: int | None = None,
+    progress: ProgressCallback | None = None,
 ) -> BatchResult:
-    refs = await resolve_refs(client, query_or_refs)
+    refs = await resolve_refs(client, query_or_refs, progress=progress)
     if on_error not in {"collect", "raise"}:
         raise ValueError("on_error must be collect or raise for fetch_many")
     limit = max_concurrency or int(client.config.values["runtime"].get("frame_concurrency", 2))
@@ -84,11 +91,20 @@ async def fetch_many_async(
 
     semaphore = asyncio.Semaphore(limit)
     started = [False] * len(refs)
+    completed_count = 0
+    if progress is not None:
+        progress("fetch", 0, len(refs))
 
     async def run(index: int, ref: FrameRef) -> FrameResult:
+        nonlocal completed_count
         async with semaphore:
             started[index] = True
-            return await fetch_ref(client, ref)
+            try:
+                return await fetch_ref(client, ref)
+            finally:
+                completed_count += 1
+                if progress is not None:
+                    progress("fetch", completed_count, len(refs))
 
     tasks = [asyncio.create_task(run(index, ref)) for index, ref in enumerate(refs)]
     if on_error == "collect":

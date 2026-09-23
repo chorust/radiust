@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "source": "tw",
+  "product": null,
+  "path_id": null,
+  "status": "blocked",
+  "classification": "TW base display rule verified on six archived pairs; archive collector/product path remains unresolved",
+  "old_snapshot": {
+    "repository": "/Users/blizhan/data/code/旧项目/旧项目-旧项目",
+    "branch": "lz/release-260324",
+    "commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c"
+  },
+  "station_identity": {
+    "current_provider_station": "CV1_3600",
+    "archive_station_label": "TWCOMP3",
+    "alias_mapping": "not_assumed",
+    "policy": "Keep the current station provider-native; archive output/config labels are provenance only and do not determine its value."
+  },
+  "route_evidence": [
+    {
+      "path": "core/scrapers/tw_scraper.py",
+      "git_blob": "ca7294190792d6e903036b6baaef7547a05c376e",
+      "fact": "the pinned CWA HTTP scraper reads Observe_radar.js and requests CV1_3600"
+    },
+    {
+      "path": "core/scrapers/tw_s3_scraper.py",
+      "git_blob": "0c152ba5735a61108cf4c53a7dadc8dea6c164c7",
+      "fact": "O-A0058-005 maps to provider station CV1_3600"
+    },
+    {
+      "path": "conf/stations.json",
+      "git_blob": "26068a7a365617c34f86dd6d0224afdda466ef16",
+      "fact": "the old project maps CV1_3600 to its internal TWCOMP2 alias; this alias is not the current station identifier"
+    },
+    {
+      "path": "core/parser/__init__.py",
+      "git_blob": "d5e8535ee6ac59f311a0ff91c591aabc1b54a075",
+      "fact": "when radarid has no dedicated parser entry, the pinned parser selects PARSER_CONFIG[country], so the TW base rule applies without a TWCOMP3 station entry"
+    },
+    {
+      "path": "conf/parse/TW/base.yaml",
+      "git_blob": "d9a8ff6af676d7b660d8ec7e0f008e7282573bfb",
+      "sha256": "66ac41b75a257a4a9d3447db85bc67d1574ec83d188a127ecae8e73b2299f56f",
+      "fact": "the pinned TW base display rule is the country fallback used for these replays"
+    }
+  ],
+  "archive_pairs": [
+    "TW-ICUSRC-TWCOMP3_20251229075000",
+    "TW-ICUSRC-TWCOMP3_20251230025000",
+    "TW-ICUSRC-TWCOMP3_20251230075000",
+    "TW-ICUSRC-TWCOMP3_20251230082000",
+    "TW-SRC-TWCOMP3_20251229064000",
+    "TW-SRC-TWCOMP3_20251229065000"
+  ],
+  "pair_count": 6,
+  "raw_and_map_stems_match": true,
+  "transformation_replay": {
+    "rule": "tests/fixtures/legacy-display/tw/rule.json",
+    "rule_config_hash": "047d3ddb8bce8444095a60895a7ff5760615680235d54423723cedb105b344ec",
+    "basis": "Pinned TW/base.yaml migrated to the display-only rule; raw/map samples remain in the user's old repository and were read only for this migration validation.",
+    "all_pairs_pixel_exact": true,
+    "pairs": [
+      {
+        "stem": "TW-ICUSRC-TWCOMP3_20251229075000_merca_r",
+        "raw_sha256": "24bc8fd44ce47bd59aa522e42b185d1c68a83bd816fdad023d85e0891527c026",
+        "gray_sha256": "f8b285acc94b60487ef347c733dd0d76d7f2ca2482062ce18035f4e80d52cfea",
+        "shape": [3600, 3600],
+        "pixel_diff_count": 0
+      },
+      {
+        "stem": "TW-ICUSRC-TWCOMP3_20251230025000_merca_r",
+        "raw_sha256": "794789a5c43163eb9fbc62036fc229fb5f6e0708a9fc9f79d140143860a8ded6",
+        "gray_sha256": "887222d1081a14fd87371c37b25e14aed7d9e40f67f33644828d665b24b2fd22",
+        "shape": [3600, 3600],
+        "pixel_diff_count": 0
+      },
+      {
+        "stem": "TW-ICUSRC-TWCOMP3_20251230075000_merca_r",
+        "raw_sha256": "f0407c562bfc3faf0c38a8b6181fb6b842bb7284f59dc3ebc1efe83ea991fb16",
+        "gray_sha256": "08913c670c31eb4fdc5a04779c6daffa5c75aeb098107eee202220127e0f7ae2",
+        "shape": [3600, 3600],
+        "pixel_diff_count": 0
+      },
+      {
+        "stem": "TW-ICUSRC-TWCOMP3_20251230082000_merca_r",
+        "raw_sha256": "402b8ff5497889e4f147bd54e56486243032cd39f737f78231fffda635e20b0f",
+        "gray_sha256": "b29e73021a7ab6ed5511dc56d0420dcfcda0c3df17f1affd92b29e7418503202",
+        "shape": [3600, 3600],
+        "pixel_diff_count": 0
+      },
+      {
+        "stem": "TW-SRC-TWCOMP3_20251229064000_merca_r",
+        "raw_sha256": "938be281d04b56a189d5eae972c172d6d10ec9799486263b1857418bfc71fe76",
+        "gray_sha256": "5435f8d65c6b8f03942536aec79c84b5c2de272d0c9755cdb49cdf0190ff3c97",
+        "shape": [3600, 3600],
+        "pixel_diff_count": 0
+      },
+      {
+        "stem": "TW-SRC-TWCOMP3_20251229065000_merca_r",
+        "raw_sha256": "a73b62b98a6ee4a59c2a5d6b72158cd685d6656423d1707b70c3c4f47d1f6cc6",
+        "gray_sha256": "7146d843d19271e86ac1902e66936d976ab2673bb2c89d25a45e3d3644100148",
+        "shape": [3600, 3600],
+        "pixel_diff_count": 0
+      }
+    ]
+  },
+  "blocked_reasons": [
+    "The current station remains provider-native CV1_3600; TWCOMP3 is an old archive/config alias and does not rename it. All six TWCOMP3 raw/map pairs reproduce the pinned TW/base.yaml display rule pixel-for-pixel, and the pinned parser uses its country fallback when a station-specific rule is absent. The local archive does not bind these pairs to a particular current collector path (tw-http versus anonymous-S3 tw), so they provide country-level rule evidence but remain unassigned to tw-http; their 3600x3600 image pairs also do not establish a legacy gray path for tw/grid."
+  ],
+  "source_sample_copied_to_fixture": false,
+  "validation_only_attestation": "User authorized supplied local paired samples for migration validation only; no broader redistribution right is asserted.",
+  "scientific_status_unchanged": true
+}

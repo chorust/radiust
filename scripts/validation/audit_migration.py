@@ -42,6 +42,108 @@ def _task_report(path: Path) -> tuple[dict[str, int], list[str], list[dict[str, 
     return counts, open_tasks, descriptions
 
 
+def _audit_display(root: Path) -> dict[str, Any]:
+    """Check per-path display evidence without promoting scientific status."""
+    from radiust.display.rules import DisplayEvidence
+
+    inventory = _read_json(root / "migration/legacy-display-inventory.json")
+    schema = _read_json(root / "migration/legacy-display.schema.json")
+    manifest = _read_json(root / "tests/fixtures/legacy-display/manifest.json")
+    replay = _read_json(root / "validation-results/legacy-display.json")
+    packaged = _read_json(root / "python/radiust/resources/legacy_display/index.json")
+    errors: list[str] = []
+    if inventory.get("schema_version") != 1 or schema.get("$schema") is None:
+        errors.append("legacy display inventory or schema version is invalid")
+    definitions = schema.get("$defs", {})
+    required_inventory = set(definitions.get("inventoryPath", {}).get("required", []))
+    required_evidence = set(definitions.get("evidence", {}).get("required", []))
+
+    def index(items: object, label: str) -> dict[str, dict[str, Any]]:
+        if not isinstance(items, list):
+            errors.append(f"{label} paths must be an array")
+            return {}
+        results: dict[str, dict[str, Any]] = {}
+        for item in items:
+            if not isinstance(item, dict) or not isinstance(item.get("path_id"), str):
+                errors.append(f"{label} contains an invalid path")
+                continue
+            path_id = item["path_id"]
+            if path_id in results:
+                errors.append(f"{label} has duplicate {path_id}")
+            results[path_id] = item
+        return results
+
+    source_paths = index(inventory.get("paths"), "inventory")
+    manifest_paths = index(manifest.get("entries"), "manifest")
+    replay_paths = index(replay.get("paths"), "replay")
+    packaged_paths = index(packaged.get("paths"), "packaged index")
+    for label, path_set in (("manifest", manifest_paths), ("replay", replay_paths),
+                            ("packaged index", packaged_paths)):
+        if set(path_set) != set(source_paths):
+            errors.append(f"{label} path coverage differs from inventory")
+    per_source: dict[str, dict[str, dict[str, Any]]] = {}
+    for path_id, row in source_paths.items():
+        source, product = row.get("source"), row.get("product")
+        if not isinstance(source, str) or not isinstance(product, str) or not (
+            path_id == f"{source}/{product}" or path_id.startswith(f"{source}/{product}/")
+        ):
+            errors.append(f"inventory identity invalid for {path_id}")
+            continue
+        if not required_inventory <= set(row):
+            errors.append(f"inventory path lacks schema-required fields: {path_id}")
+        if source not in per_source:
+            migration_file = root / "migration/sources" / f"{source}.json"
+            try:
+                migration = _read_json(migration_file)
+                display = migration.get("display_migration", {})
+                per_source[source] = index(display.get("paths"), f"source {source}")
+                if display.get("schema_version") != 1:
+                    errors.append(f"source {source} display migration schema version is invalid")
+            except (OSError, ValueError, json.JSONDecodeError):
+                errors.append(f"source {source} has no valid display migration record")
+                per_source[source] = {}
+        if path_id not in per_source[source]:
+            errors.append(f"source {source} is missing display path {path_id}")
+            continue
+        record = per_source[source][path_id]
+        if not required_evidence <= set(record):
+            errors.append(f"source {source} display evidence lacks required fields: {path_id}")
+        try:
+            DisplayEvidence.from_mapping(record)
+        except (TypeError, ValueError):
+            errors.append(f"source {source} has invalid display evidence: {path_id}")
+        if record.get("status") != row.get("status") or record.get("scientific_status_unchanged") is not True:
+            errors.append(f"source {source} display status differs from inventory: {path_id}")
+        for other, label in ((manifest_paths.get(path_id), "manifest"),
+                             (replay_paths.get(path_id), "replay"),
+                             (packaged_paths.get(path_id), "packaged index")):
+            if other is None or other.get("status") != row.get("status"):
+                errors.append(f"{label} display status differs: {path_id}")
+        if row.get("status") == "passed":
+            if not row.get("old_config_verified") or not row.get("source_baseline_verified"):
+                errors.append(f"passed display lacks old-rule or legal-baseline verification: {path_id}")
+            if not record.get("input_hashes") or not record.get("baseline_hash"):
+                errors.append(f"passed display lacks source-matched fingerprints: {path_id}")
+        elif row.get("status") == "blocked" and not row.get("blocked_reasons"):
+            errors.append(f"blocked display has no missing-material explanation: {path_id}")
+    for source, entries in per_source.items():
+        expected = {key for key, row in source_paths.items() if row.get("source") == source}
+        if set(entries) != expected:
+            errors.append(f"source {source} display migration has missing or extra paths")
+    counts = {status: sum(row.get("status") == status for row in source_paths.values())
+              for status in ("passed", "difference_pending", "blocked")}
+    if replay.get("counts") != {"total": len(source_paths), **counts}:
+        errors.append("legacy replay status totals differ from inventory")
+    if manifest.get("coverage_status") != inventory.get("coverage_status"):
+        errors.append("manifest and inventory declare different coverage status")
+    coverage_closed = inventory.get("coverage_status", "").startswith("verified:")
+    return {
+        "total_paths": len(source_paths), "source_count": len(per_source), "counts": counts,
+        "coverage_closed": coverage_closed, "structural_errors": sorted(set(errors)),
+        "ready": bool(source_paths) and not errors and coverage_closed and counts["passed"] == len(source_paths),
+    }
+
+
 def build_report(root: Path) -> dict[str, Any]:
     """Return a secret-free migration coverage report for ``root``."""
 
@@ -91,6 +193,7 @@ def build_report(root: Path) -> dict[str, Any]:
     task_counts, open_tasks, open_task_details = _task_report(
         root / "specs/001-radiust-v1-migration/tasks.md"
     )
+    display = _audit_display(root)
     return {
         "schema_version": 1,
         "source_count": len(sources),
@@ -99,7 +202,8 @@ def build_report(root: Path) -> dict[str, Any]:
         "task_counts": task_counts,
         "open_tasks": open_tasks,
         "open_task_details": open_task_details,
-        "ready_for_v1": not missing and not open_tasks,
+        "display_migration": display,
+        "ready_for_v1": not missing and not open_tasks and display["ready"],
     }
 
 
@@ -128,7 +232,7 @@ def main(argv: list[str] | None = None) -> int:
         print(payload, end="")
     if report["missing"]:
         return 2
-    if args.require_complete and report["open_tasks"]:
+    if args.require_complete and (report["open_tasks"] or not report["display_migration"]["ready"]):
         return 3
     return 0
 

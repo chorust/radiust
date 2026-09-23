@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -22,11 +23,13 @@ DEFAULTS: dict[str, Any] = {
         "decode_workers": 2,
         "request_timeout": 30.0,
         "frame_deadline": 300.0,
+        "discovery_deadline": 300.0,
         "max_artifact_bytes": 512 * 1024 * 1024,
         "max_frame_bytes": 2 * 1024 * 1024 * 1024,
         "max_pixels": 100_000_000,
         "max_temp_bytes": 10 * 1024 * 1024 * 1024,
         "allow_network": False,
+        "temp_root": None,
     },
     "cache": {
         "dir": str(Path.home() / ".cache" / "radiust"),
@@ -43,8 +46,9 @@ KNOWN_SECTIONS = set(DEFAULTS)
 SECTION_FIELDS = {
     "runtime": {
         "frame_concurrency", "request_concurrency", "host_concurrency", "decode_workers",
-        "request_timeout", "frame_deadline", "max_artifact_bytes", "max_frame_bytes",
+        "request_timeout", "frame_deadline", "discovery_deadline", "max_artifact_bytes", "max_frame_bytes",
         "max_pixels", "max_temp_bytes", "allow_network",
+        "temp_root",
     },
     "cache": {"dir", "max_bytes", "max_age_days", "gc_interval_hours", "enabled"},
     "storage": {"output", "endpoint", "region", "access_key", "secret_key", "anonymous"},
@@ -155,13 +159,15 @@ def _validate_values(config: Mapping[str, Any]) -> None:
             raise ConfigError(f"runtime.{name} must be a positive integer") from exc
         if value < 1:
             raise ConfigError(f"runtime.{name} must be a positive integer")
-    for name in ("request_timeout", "frame_deadline"):
+    for name in ("request_timeout", "frame_deadline", "discovery_deadline"):
         try:
             value = float(runtime[name])
         except (KeyError, TypeError, ValueError) as exc:
             raise ConfigError(f"runtime.{name} must be positive") from exc
-        if value <= 0:
+        if not math.isfinite(value) or value <= 0:
             raise ConfigError(f"runtime.{name} must be positive")
+    if runtime.get("temp_root") is not None and not isinstance(runtime.get("temp_root"), (str, Path)):
+        raise ConfigError("runtime.temp_root must be a path or null")
     cache = config.get("cache", {})
     try:
         if int(cache["max_bytes"]) < 0 or int(cache["max_age_days"]) <= 0 or int(cache["gc_interval_hours"]) <= 0:

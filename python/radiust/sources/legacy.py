@@ -42,6 +42,7 @@ from ..field import RadarField
 from ..grids import GeographicGrid
 from ..logging import redact
 from ..models import Artifact, FrameRef, Query, SourceInfo, format_time, utc_datetime
+from ..query import latest_per_product_station
 from ..raw import RawFrame
 from .base import FixtureSource, Source
 
@@ -402,11 +403,7 @@ class LegacyImageSource(Source, ABC):
         elif query.start is not None:
             refs = [ref for ref in refs if query.start <= ref.valid_time < query.end]  # type: ignore[operator]
         elif query.latest:
-            latest: dict[str | None, FrameRef] = {}
-            for ref in refs:
-                if ref.station not in latest or ref.valid_time > latest[ref.station].valid_time:
-                    latest[ref.station] = ref
-            refs = list(latest.values())
+            refs = latest_per_product_station(refs)
             if query.max_age is not None:
                 now = datetime.now(timezone.utc)
                 refs = [ref for ref in refs if ref.valid_time > now or now - ref.valid_time <= query.max_age]

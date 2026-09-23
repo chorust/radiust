@@ -23,6 +23,7 @@ from ..errors import (
 from ..field import RadarField
 from ..grids import GeographicGrid
 from ..models import Artifact, FrameRef, Query, SourceInfo, format_time, utc_datetime
+from ..query import latest_per_product_station
 from ..raw import RawFrame
 
 
@@ -108,12 +109,7 @@ class FixtureSource(Source):
         elif query.start is not None:
             refs = [ref for ref in refs if query.start <= ref.valid_time < query.end]  # type: ignore[operator]
         elif query.latest:
-            groups: dict[tuple[str, str | None], FrameRef] = {}
-            for ref in refs:
-                key = (ref.product, ref.station)
-                if key not in groups or ref.valid_time > groups[key].valid_time:
-                    groups[key] = ref
-            refs = list(groups.values())
+            refs = latest_per_product_station(refs)
             if query.max_age:
                 now = datetime.now(timezone.utc)
                 refs = [ref for ref in refs if now - ref.valid_time <= query.max_age or ref.valid_time > now]
@@ -123,7 +119,9 @@ class FixtureSource(Source):
     async def download(self, ref: FrameRef, context: SourceContext) -> RawFrame:
         context.cancellation.check()
         fixture = self._fixture()
-        entry = next((item for item in fixture.get("frames", []) if self._frame_from_entry(item).logical_id == ref.logical_id), None)
+        # A logical frame may have several upstream revisions at the same time.
+        # Bind the downloaded artifacts to the exact discovered candidate.
+        entry = next((item for item in fixture.get("frames", []) if self._frame_from_entry(item) == ref), None)
         if entry is None:
             raise NoDataError(f"no fixture frame for {ref.logical_id}")
         artifacts: list[Artifact] = []

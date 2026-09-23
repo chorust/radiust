@@ -10,7 +10,7 @@ import shutil
 import tempfile
 import threading
 import uuid
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -57,6 +57,12 @@ from .storage.object import parse_object_uri
 from .streaming import AsyncFetchStream, SyncFetchStream
 
 _ALLOWED_DOWNLOAD_PROCESSING = {"variable", "grid", "bbox", "resolution", "resampling", "encoder_options"}
+ProgressCallback = Callable[[str, int, int | None], None]
+
+
+def _progress(callback: ProgressCallback | None, stage: str, completed: int, total: int | None = None) -> None:
+    if callback is not None:
+        callback(stage, completed, total)
 
 
 class _RemoteOutput:
@@ -87,6 +93,28 @@ def _normalize_download_processing(values: Mapping[str, Any]) -> dict[str, Any]:
 
 def _as_config(config: EffectiveConfig | dict[str, Any] | None) -> EffectiveConfig:
     return config if isinstance(config, EffectiveConfig) else load_config(config)
+
+
+def _new_http_transport(config: EffectiveConfig) -> Any:
+    from .transport import HTTPTransport
+
+    runtime = config.values["runtime"]
+    return HTTPTransport(
+        allow_network=bool(runtime.get("allow_network", False)),
+        max_bytes=int(runtime["max_artifact_bytes"]),
+        timeout=float(runtime["request_timeout"]),
+        request_concurrency=int(runtime["request_concurrency"]),
+        host_concurrency=int(runtime["host_concurrency"]),
+    )
+
+
+def _source_temp_root(runtime: Mapping[str, Any]) -> Path | None:
+    configured = runtime.get("temp_root")
+    if configured is None:
+        return None
+    parent = Path(configured)
+    parent.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="radiust-source-", dir=parent))
 
 
 def _raw_cache_keys(ref: FrameRef) -> tuple[str, str] | None:
@@ -224,14 +252,15 @@ class _AcquireContext:
 class Client:
     """Synchronous facade backed by one private event loop and one thread."""
 
-    def __init__(self, *, config: EffectiveConfig | dict[str, Any] | None = None, _cancellation: Cancellation | None = None, _remote_backend: RemoteBackend | None = None):
+    def __init__(self, *, config: EffectiveConfig | dict[str, Any] | None = None, _cancellation: Cancellation | None = None, _remote_backend: RemoteBackend | None = None, _transport: Any = None):
         self.config = _as_config(config)
         self._cancellation = _cancellation
         self._remote_backend = _remote_backend
         self._loop = asyncio.new_event_loop()
         self._thread_id = threading.get_ident()
         self._closed = False
-        self._transport = None
+        self._transport = _transport
+        self._active_task: asyncio.Task[Any] | None = None
         self._cache: CacheStore | None = None
         self._streams: set[AsyncFetchStream] = set()
 
@@ -261,22 +290,33 @@ class Client:
             if close is not None:
                 close()
             raise AsyncContextError("a running event loop is active; use AsyncClient")
-        return self._loop.run_until_complete(awaitable)
+        task = asyncio.ensure_future(awaitable, loop=self._loop)
+        self._active_task = task
+        try:
+            return self._loop.run_until_complete(task)
+        finally:
+            self._active_task = None
+
+    def cancel(self) -> None:
+        """Request cancellation of the active operation from another thread."""
+        if self._cancellation is not None:
+            self._cancellation.cancel()
+        task = self._active_task
+        if task is not None and not self._loop.is_closed():
+            with suppress(RuntimeError):
+                self._loop.call_soon_threadsafe(task.cancel)
 
     def _context(self, source_id: str) -> SourceContext:
-        from .transport import HTTPTransport
-
         runtime = self.config.values["runtime"]
+        if self._transport is None:
+            self._transport = _new_http_transport(self.config)
         return SourceContext(
             self.config,
             source_id,
             cancellation=self._cancellation or Cancellation(),
             cache=self._cache_store(),
-            transport=HTTPTransport(
-                allow_network=bool(runtime.get("allow_network", False)),
-                max_bytes=int(runtime["max_artifact_bytes"]),
-                timeout=float(runtime["request_timeout"]),
-            ),
+            temp_root=_source_temp_root(runtime),
+            transport=self._transport,
         )
 
     def _cache_store(self) -> CacheStore:
@@ -315,6 +355,7 @@ class Client:
     async def _adiscover(self, query: Query) -> list[FrameRef]:
         context = self._context(query.source)
         try:
+            context.cancellation.check()
             return await get_source(query.source).discover(query, context)
         finally:
             context.close()
@@ -333,8 +374,11 @@ class Client:
         finally:
             context.close()
 
-    def discover(self, query: Query) -> list[FrameRef]:
-        return self._run(self._adiscover(query))
+    def discover(self, query: Query, *, progress: ProgressCallback | None = None) -> list[FrameRef]:
+        _progress(progress, "discover", 0)
+        refs = self._run(self._adiscover(query))
+        _progress(progress, "discover", len(refs), len(refs))
+        return refs
 
     def acquire(self, ref: FrameRef) -> _AcquireContext:
         return _AcquireContext(self, ref)
@@ -348,11 +392,16 @@ class Client:
         finally:
             context.close()
 
-    def fetch(self, query: Query) -> Any:
-        refs = self.discover(query)
+    def fetch(self, query: Query, *, progress: ProgressCallback | None = None) -> Any:
+        refs = self.discover(query, progress=progress)
         ref = _one(refs)
+        _progress(progress, "acquire", 0, 1)
         with self.acquire(ref) as raw:
-            return self.decode(raw)
+            _progress(progress, "acquire", 1, 1)
+            _progress(progress, "decode", 0, 1)
+            value = self.decode(raw)
+            _progress(progress, "decode", 1, 1)
+            return value
 
     def fetch_many(
         self,
@@ -360,8 +409,9 @@ class Client:
         *,
         on_error: str = "collect",
         max_concurrency: int | None = None,
+        progress: ProgressCallback | None = None,
     ) -> BatchResult:
-        return self._run(fetch_many_async(self, query_or_refs, on_error=on_error, max_concurrency=max_concurrency))
+        return self._run(fetch_many_async(self, query_or_refs, on_error=on_error, max_concurrency=max_concurrency, progress=progress))
 
     def iter_fetch(
         self,
@@ -393,13 +443,14 @@ class Client:
         status, path = await self._commit_value(field, ref, revision, spec, self._output_target(output), overwrite=overwrite, raw=None)
         return DownloadReport("write", uuid.uuid4().hex, (FrameResult(ref, status, str(path) if path else None),))
 
-    def download(self, query_or_refs: BatchInput | Iterable[BatchInput], *, output: str | Path = "./data", format: str = "netcdf", raw: bool = False, raw_only: bool = False, overwrite: bool = False, output_template: str | None = None, on_error: str = "collect", config: EffectiveConfig | None = None, **processing: Any) -> DownloadReport:
+    def download(self, query_or_refs: BatchInput | Iterable[BatchInput], *, output: str | Path = "./data", format: str = "netcdf", raw: bool = False, raw_only: bool = False, overwrite: bool = False, output_template: str | None = None, on_error: str = "collect", config: EffectiveConfig | None = None, progress: ProgressCallback | None = None, **processing: Any) -> DownloadReport:
         if config is not None and config is not self.config:
             self.config = _as_config(config)
             self._cache = None
-        return self._run(self._adownload(query_or_refs, output=output, format=format, raw=raw, raw_only=raw_only, overwrite=overwrite, output_template=output_template, on_error=on_error, processing=processing))
+            self._transport = None
+        return self._run(self._adownload(query_or_refs, output=output, format=format, raw=raw, raw_only=raw_only, overwrite=overwrite, output_template=output_template, on_error=on_error, processing=processing, progress=progress))
 
-    async def _adownload(self, query_or_refs: BatchInput | Iterable[BatchInput], *, output: str | Path, format: str, raw: bool, raw_only: bool, overwrite: bool, output_template: str | None, on_error: str, processing: dict[str, Any]) -> DownloadReport:
+    async def _adownload(self, query_or_refs: BatchInput | Iterable[BatchInput], *, output: str | Path, format: str, raw: bool, raw_only: bool, overwrite: bool, output_template: str | None, on_error: str, processing: dict[str, Any], progress: ProgressCallback | None = None) -> DownloadReport:
         normalized = _normalize_download_processing(processing)
         if raw and raw_only:
             raise ValueError("raw and raw_only are mutually exclusive")
@@ -411,6 +462,7 @@ class Client:
         operation_context: SourceContext | None = None
         try:
             if isinstance(query_or_refs, Query):
+                _progress(progress, "discover", 0)
                 operation_context = self._context(query_or_refs.source)
                 refs = await get_source(query_or_refs.source).discover(query_or_refs, operation_context)
                 if not refs:
@@ -420,8 +472,10 @@ class Client:
                     raise ValueError("duplicate frame identity in batch")
             else:
                 refs = await resolve_refs(self, query_or_refs)
+            _progress(progress, "discover", len(refs), len(refs))
             spec = ProcessingSpec(output_kind="raw-only" if raw_only else "decoded", format=format, variable=normalized["variable"], grid=normalized["grid"], bbox=normalized["bbox"], resolution=normalized["resolution"], resampling=normalized["resampling"], options=normalized["options"])
             results: list[FrameResult] = []
+            _progress(progress, "download", 0, len(refs))
             for ref in refs:
                 try:
                     result = await self._adownload_one(
@@ -432,6 +486,7 @@ class Client:
                         overwrite=overwrite,
                         output_template=output_template,
                         context=operation_context if operation_context is not None and ref.source == operation_context.source_id else None,
+                        progress=progress,
                     )
                     results.append(result)
                 except asyncio.CancelledError:
@@ -444,27 +499,34 @@ class Client:
                     if on_error in {"raise", "stop"}:
                         partial = BatchResult(tuple(results))
                         raise BatchError("batch stopped after the first failure", partial_result=partial, cause=exc) from exc
+                _progress(progress, "download", len(results), len(refs))
             return DownloadReport("download", uuid.uuid4().hex, tuple(results), query=_query_dict(query_or_refs) if isinstance(query_or_refs, Query) else None)
         finally:
             if operation_context is not None:
                 operation_context.close()
 
-    async def _adownload_one(self, ref: FrameRef, spec: ProcessingSpec, output: Path, *, raw: bool, overwrite: bool, output_template: str | None, context: SourceContext | None = None) -> FrameResult:
+    async def _adownload_one(self, ref: FrameRef, spec: ProcessingSpec, output: Path, *, raw: bool, overwrite: bool, output_template: str | None, context: SourceContext | None = None, progress: ProgressCallback | None = None) -> FrameResult:
         close_context = context is None
         if context is None:
             context = self._context(ref.source)
         raw_frame: RawFrame | None = None
         try:
+            _progress(progress, "acquire", 0, 1)
             raw_frame = await self._download_raw(ref, context)
+            _progress(progress, "acquire", 1, 1)
             revision = resolved_revision(raw_frame.artifacts, ref.revision)
             if spec.output_kind == "raw-only":
                 value = None
             else:
+                _progress(progress, "decode", 0, 1)
                 value = get_source(ref.source).decode(raw_frame, context)
                 value = _apply_processing(value, spec)
                 context.check_value(value)
+                _progress(progress, "decode", 1, 1)
             formal_raw = raw_frame if raw or spec.output_kind == "raw-only" else None
+            _progress(progress, "commit", 0, 1)
             status, path = await self._commit_value(value, ref, revision, spec, output, overwrite=overwrite, raw=formal_raw, output_template=output_template)
+            _progress(progress, "commit", 1, 1)
             return FrameResult(ref, status, str(path) if path else None)
         finally:
             if raw_frame is not None:
@@ -626,6 +688,7 @@ class AsyncClient:
         self._remote_backend = _remote_backend
         self._closed = False
         self._cache: CacheStore | None = None
+        self._transport = None
         self._streams: set[AsyncFetchStream] = set()
         self._workers: dict[asyncio.Task[Any], Cancellation] = {}
 
@@ -640,10 +703,16 @@ class AsyncClient:
             raise RuntimeError("Client is closed")
 
     def _context(self, source_id: str) -> SourceContext:
-        from .transport import HTTPTransport
-
         runtime = self.config.values["runtime"]
-        return SourceContext(self.config, source_id, cache=self._cache_store(), transport=HTTPTransport(bool(runtime.get("allow_network", False)), int(runtime["max_artifact_bytes"]), float(runtime["request_timeout"])))
+        if self._transport is None:
+            self._transport = _new_http_transport(self.config)
+        return SourceContext(
+            self.config,
+            source_id,
+            cache=self._cache_store(),
+            temp_root=_source_temp_root(runtime),
+            transport=self._transport,
+        )
 
     def _cache_store(self) -> CacheStore:
         if self._cache is None:
@@ -721,9 +790,13 @@ class AsyncClient:
 
     async def _run_sync_worker(self, operation: Any) -> Any:
         cancellation = Cancellation()
+        config = self.config
+        if self._transport is None:
+            self._transport = _new_http_transport(config)
+        transport = self._transport
 
         def run_in_worker() -> Any:
-            sync = Client(config=self.config, _cancellation=cancellation, _remote_backend=self._remote_backend)
+            sync = Client(config=config, _cancellation=cancellation, _remote_backend=self._remote_backend, _transport=transport)
             try:
                 return operation(sync)
             finally:
@@ -768,9 +841,10 @@ class AsyncClient:
         *,
         on_error: str = "collect",
         max_concurrency: int | None = None,
+        progress: ProgressCallback | None = None,
     ) -> BatchResult:
         self._ensure_open()
-        return await fetch_many_async(self, query_or_refs, on_error=on_error, max_concurrency=max_concurrency)
+        return await fetch_many_async(self, query_or_refs, on_error=on_error, max_concurrency=max_concurrency, progress=progress)
 
     def aiter_fetch(
         self,
@@ -800,6 +874,7 @@ class AsyncClient:
         output_template: str | None = None,
         on_error: str = "collect",
         config: EffectiveConfig | None = None,
+        progress: ProgressCallback | None = None,
         **processing: Any,
     ) -> DownloadReport:
         self._ensure_open()
@@ -807,6 +882,7 @@ class AsyncClient:
         if config is not None and config is not self.config:
             self.config = _as_config(config)
             self._cache = None
+            self._transport = None
 
         return await self._run_sync_worker(
             lambda sync: sync._run(
@@ -820,6 +896,7 @@ class AsyncClient:
                     output_template=output_template,
                     on_error=on_error,
                     processing=processing,
+                    progress=progress,
                 )
             )
         )

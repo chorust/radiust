@@ -42,5 +42,34 @@
   "credential_configuration": {
     "runtime_environment": "RADIUST_SOURCES__ID_SIDARMA__API_KEY",
     "live_test_environment": "RADIUST_TEST_ID_SIDARMA_API_KEY"
+  },
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "id_sidarma/cmax",
+        "status": "blocked",
+        "rule_version": null,
+        "config_hash": null,
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "No old source-path identity or matched legal raw/gray pair for the current SIDARMA CMAX path is established."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      }
+    ]
   }
 }

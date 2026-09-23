@@ -1,0 +1,611 @@
+{
+  "schema_version": 1,
+  "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and eight remain blocked by path-specific missing evidence. OpenSnow and WU are excluded from this legacy-display scope by user decision.",
+  "entries": [
+    {
+      "source": "au",
+      "product": "composite",
+      "path_id": "au/composite",
+      "status": "passed",
+      "rule_path": "au/rule.json",
+      "rule_version": "old-8d251601-au01-v1",
+      "config_hash": "6513e140e2f0749fdd16aaf29b45a4cdfc6482f7149c6ccec7df9237dec4b6fe",
+      "baseline_path": "au/old-gray.png",
+      "baseline_hash": "6b0fb6c5982e693d3602f3081d863047b34cb6963771c16296fe225b9f49d7bb",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/au/AU-SRC-AU01_20251229065600_merca_r_map.png",
+      "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+      "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/au/AU-SRC-AU01_20251229065600_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/au/AU-SRC-AU01_20251229065600_merca_r_map.png。",
+      "crop": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "inputs": [
+        {
+          "path": "au/source.png",
+          "sha256": "90cb0eeb4a8fecbaf0aa2559fc3d5b98a0a5f79c5078db1d707b24be25f4d777",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "bmkg",
+      "product": "composite",
+      "path_id": "bmkg/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The old IDCOMP palette/parser rule is pinned, but the current public tile request returned HTTP 403 and no current tile artifact or frame exists in tests/fixtures/sources/bmkg/fixture.json; the old transform could not be run and there is no same-frame old gray baseline."
+      ],
+      "rule_path": "bmkg/rule.json",
+      "rule_version": "old-8d251601-bmkg-idcomp-v1",
+      "config_hash": "c9cf833c6d228a62bcab4286905eef7b4e983bb6a0e312ea1f86569d798e95a4"
+    },
+    {
+      "source": "ca",
+      "product": "rain",
+      "path_id": "ca/rain",
+      "status": "passed",
+      "rule_path": "ca/rule.json",
+      "rule_version": "old-8d251601-ca-casft-replay-v1",
+      "config_hash": "7496f2f2e61b33f0a09d9ebf8109c40298bcb2ab331946082f090bc952ef3faa",
+      "baseline_path": "ca/old-gray.png",
+      "baseline_hash": "e62850f08c272124243047564814ceca7927091646cbe4772feee9cb0f5804e7",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/parser/__init__.py:parse_img + core/scrapers/base.py:RadarScraper.post_process (×3.2); conf/parse/CA/base.yaml; frozen at ca/old-gray.png (generated, not historical stored output)",
+      "license_basis": "official ECCC public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+      "sample_provenance": "Source fixture: tests/fixtures/sources/ca/fixture.json; upstream snapshot=official-live-directory, collected_at=2026-09-18T03:54:00Z; raw=tests/fixtures/sources/ca/raw/CASFT.gif sha256=90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0; bound frame={\"frame_index\": 0, \"product\": \"rain\", \"revision\": \"202609180354_CASFT_CAPPI_1.5_RAIN.gif\", \"source\": \"ca\", \"station\": \"CASFT\", \"valid_time\": \"2026-09-18T03:54:00Z\"}; upstream URI=https://dd.meteo.gc.ca/20260918/WXO-DD/radar/CAPPI/GIF/CASFT/1.5/202609180354_CASFT_CAPPI_1.5_RAIN.gif; fixture license basis=official ECCC public radar artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline ca/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/CA/base.yaml#sha256=ffd002a86b354013417ae019de12301cab63f0323f7dd89fd0a5c7ef2f02ca2f; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation.",
+      "frame": {
+        "source": "ca",
+        "product": "rain",
+        "station": "CASFT",
+        "valid_time": "2026-09-18T03:54:00Z",
+        "revision": "202609180354_CASFT_CAPPI_1.5_RAIN.gif",
+        "frame_index": 0
+      },
+      "crop": [
+        1,
+        1,
+        479,
+        479
+      ],
+      "inputs": [
+        {
+          "path": "ca/source.gif",
+          "sha256": "90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0",
+          "format": "GIF",
+          "name": "CASFT.gif",
+          "role": "data",
+          "media_type": "image/gif"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "es",
+      "product": "composite",
+      "path_id": "es/composite",
+      "status": "passed",
+      "rule_path": "es/rule.json",
+      "rule_version": "old-8d251601-es-escomp-replay-v1",
+      "config_hash": "491a21fc896d610bcc38ebf11eefc3bcacc2d7b84fddf866a29cdd6ed06564dd",
+      "baseline_path": "es/old-gray.png",
+      "baseline_hash": "ed839f92ae78dd47e7cd87644e2e94d6d075e35b421cf485f9b1400a2b9b424c",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/parser/__init__.py:parse_img + core/scrapers/base.py:RadarScraper.post_process (×3.2); conf/parse/ES/base.yaml; frozen at es/old-gray.png (generated, not historical stored output)",
+      "license_basis": "AEMET's official radar page authorizes reuse and reproduction when AEMET is cited as author; preserve attribution and follow current upstream conditions",
+      "sample_provenance": "Source fixture: tests/fixtures/sources/es/fixture.json; upstream snapshot=official-live-api, collected_at=2026-09-18T03:05:26Z; raw=tests/fixtures/sources/es/raw/ESCOMP.png sha256=baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f; bound frame={\"frame_index\": null, \"product\": \"composite\", \"revision\": \"radw202609171440_3857\", \"source\": \"es\", \"station\": \"ESCOMP\", \"valid_time\": \"2026-09-17T14:40:00Z\"}; upstream URI=https://www.aemet.es/es/api-eltiempo/radar/imagen-radar/compo/radw202609171440_3857.png; fixture license basis=AEMET's official radar page authorizes reuse and reproduction when AEMET is cited as author; preserve attribution and follow current upstream conditions. Frozen baseline es/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ES/base.yaml#sha256=88677d008b051164c0b5f82c8952ebe10aa85d9b73b908cb8356cc83502b23c2; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation. AEMET attribution is retained as required by its fixture license basis.",
+      "frame": {
+        "source": "es",
+        "product": "composite",
+        "station": "ESCOMP",
+        "valid_time": "2026-09-17T14:40:00Z",
+        "revision": "radw202609171440_3857",
+        "frame_index": null
+      },
+      "crop": [
+        0,
+        0,
+        962,
+        1079
+      ],
+      "inputs": [
+        {
+          "path": "es/source.png",
+          "sha256": "baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f",
+          "format": "PNG",
+          "name": "ESCOMP.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "fr",
+      "product": "composite",
+      "path_id": "fr/composite",
+      "status": "passed",
+      "rule_path": "fr/rule.json",
+      "rule_version": "old-8d251601-fr-frcomp-replay-v1",
+      "config_hash": "d648ec153f0f4b04facb7c9a1c46bdc65083f9258e35c367a57a460c36fd97ec",
+      "baseline_path": "fr/old-gray.png",
+      "baseline_hash": "f95614658cfe6076b3f09d65f35d3273586ceca48f78da75c489da67f41182be",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/scrapers/fr_meteofrance_scraper.py; frozen at fr/old-gray.png (generated, not historical stored output)",
+      "license_basis": "official Météo-France public radar page/WMS artifact retained for migration validation; production usage remains subject to upstream terms",
+      "sample_provenance": "Source fixture: tests/fixtures/sources/fr/fixture.json; upstream snapshot=official-live-wms, collected_at=2026-09-18T02:53:34Z; raw=tests/fixtures/sources/fr/raw/FRCOMP.png sha256=131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248; bound frame={\"frame_index\": null, \"product\": \"composite\", \"revision\": \"20260918T024500Z\", \"source\": \"fr\", \"station\": \"FRCOMP\", \"valid_time\": \"2026-09-18T02:45:00Z\"}; upstream URI=https://rwg.meteofrance.com/geoservices/Radar-mapcache-WMS; fixture license basis=official Météo-France public radar page/WMS artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline fr/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/fr_meteofrance_scraper.py#git-blob=0844490e8e27d49c3353e19753a81ad6cb0f1b3a; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation.",
+      "frame": {
+        "source": "fr",
+        "product": "composite",
+        "station": "FRCOMP",
+        "valid_time": "2026-09-18T02:45:00Z",
+        "revision": "20260918T024500Z",
+        "frame_index": null
+      },
+      "crop": [
+        0,
+        0,
+        700,
+        600
+      ],
+      "inputs": [
+        {
+          "path": "fr/source.png",
+          "sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248",
+          "format": "PNG",
+          "name": "FRCOMP.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "id",
+      "product": "composite",
+      "path_id": "id/composite",
+      "status": "passed",
+      "rule_path": "id/rule.json",
+      "rule_version": "old-8d251601-idac3-v1",
+      "config_hash": "8c6360cedbfa943acdc568769d258bb39374c367fd1ba83ea8de9575d20cb4fe",
+      "baseline_path": "id/old-gray.png",
+      "baseline_hash": "d1ac36a242cebce37c018d74f62b42a602cebd672b17aa373d88301ccecaa98e",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/id/ID-ICUSRC-IDAC3_20251230074500_merca_r_map.png",
+      "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+      "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/id/ID-ICUSRC-IDAC3_20251230074500_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/id/ID-ICUSRC-IDAC3_20251230074500_merca_r_map.png。",
+      "crop": [
+        0,
+        0,
+        4084,
+        4084
+      ],
+      "inputs": [
+        {
+          "path": "id/source.png",
+          "sha256": "b7788761625d9557ceb12c13a2d92cbcaa034777d21c52cc6e7349ba15913170",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "id_sidarma",
+      "product": "cmax",
+      "path_id": "id_sidarma/cmax",
+      "status": "blocked",
+      "blocked_reasons": [
+        "No old source-path identity or matched legal raw/gray pair for the current SIDARMA CMAX path is established."
+      ]
+    },
+    {
+      "source": "kr",
+      "product": "composite",
+      "path_id": "kr/composite",
+      "status": "passed",
+      "rule_path": "kr/rule.json",
+      "rule_version": "old-8d251601-gng-v1",
+      "config_hash": "5822c17bebf06daecb8f98b746895ac6f8bbd7476baf86b20c6570542818e5f4",
+      "baseline_path": "kr/old-gray.png",
+      "baseline_hash": "bd31d4a27af6fb5e28cdd5621a135daf22e26a6b150f31e395bc5bb3e22afa50",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/kr/KR-ICUSRC-GNG_20251230080000_merca_r_map.png",
+      "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+      "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/kr/KR-ICUSRC-GNG_20251230080000_merca_r_source.gif；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/kr/KR-ICUSRC-GNG_20251230080000_merca_r_map.png。",
+      "crop": [
+        0,
+        22,
+        719,
+        740
+      ],
+      "inputs": [
+        {
+          "path": "kr/source.png",
+          "sha256": "a6c98d630fcd635d96ee75b63350e74978cd0d8749c1a701f9e7c27a2ce88c01",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "my",
+      "product": "composite",
+      "path_id": "my/composite/east",
+      "status": "passed",
+      "rule_path": "my/east/rule.json",
+      "rule_version": "old-8d251601-my-east-base-v1",
+      "config_hash": "c14b0420fba343d34723aeffa452e603045d0ead55c9a38f1d34a1a52aef1af7",
+      "baseline_path": "my/east/archive-old-gray.png",
+      "baseline_hash": "76c994921452c1f996017dc63c9171b58681406d128afe55c62f406bb4bb17af",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP72_20251229065201_merca_r_map.png",
+      "license_basis": "用户已确认本地旧项目原图/灰度配对样本可用于本次迁移验证；不推定对外再分发权。",
+      "sample_provenance": "用户确认的本地 raw/旧 gray 配对仅用于本次迁移验证。MY 东部当前规则选择 MY/base.yaml：三个归档候选均为 1113×650 raw 与 568×640 gray，均由该配置精确重放；当前引擎对本条配对亦为零像素差异。三组来源路径、SHA-256 与重放结果见 tests/fixtures/legacy-display/my/east/archive-candidates.json。不推定更广的再分发权，也不以旧项目别名生成当前 station ID。",
+      "crop": [
+        0,
+        0,
+        568,
+        640
+      ],
+      "inputs": [
+        {
+          "path": "my/east/source.png",
+          "sha256": "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "my",
+      "product": "composite",
+      "path_id": "my/composite/peninsular",
+      "status": "passed",
+      "rule_path": "my/rule.json",
+      "rule_version": "old-8d251601-mycomp71-v1",
+      "config_hash": "052921f980f0feac7b30356555fc706d5b3882626d0e59e6b2fcbd0c740cf83a",
+      "baseline_path": "my/old-gray.png",
+      "baseline_hash": "efe5ed56ccdfeb7c64dba11b0a400557323642a553dc971bd840d75c51ce806b",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP71_20251229065001_merca_r_map.png",
+      "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+      "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP71_20251229065001_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP71_20251229065001_merca_r_map.png。",
+      "crop": [
+        0,
+        0,
+        568,
+        640
+      ],
+      "inputs": [
+        {
+          "path": "my/source.png",
+          "sha256": "a60936811a91ae5f776759fc4072965c321eebc73431b78d3fba7fb1ebd7e68f",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "nz",
+      "product": "rain",
+      "path_id": "nz/rain",
+      "status": "passed",
+      "rule_path": "nz/rule.json",
+      "rule_version": "old-8d251601-nz-nzau2-replay-v1",
+      "config_hash": "a45b0147877e343409549f44fb7f544aba3b46a0e8138edcb5378c8bc532020f",
+      "baseline_path": "nz/old-gray.png",
+      "baseline_hash": "3a975385c218dd946631fabd8650f90b52b09af801de127b91dcee27b55145c4",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/parser/__init__.py:parse_img + core/scrapers/base.py:RadarScraper.post_process (×3.2); conf/parse/NZ/base.yaml; frozen at nz/old-gray.png (generated, not historical stored output)",
+      "license_basis": "official MetService public mobile radar artifact retained for migration validation; production usage remains subject to upstream terms",
+      "sample_provenance": "Source fixture: tests/fixtures/sources/nz/fixture.json; upstream snapshot=official-live-api, collected_at=2026-09-18T03:50:00Z; raw=tests/fixtures/sources/nz/raw/NZAU2.gif sha256=0d98e9bc3ac0cd1b25d303a1b40db3641e316fc85db75554b0b8053c9607f85e; bound frame={\"frame_index\": 0, \"product\": \"rain\", \"revision\": \"NZAU2-1789703400\", \"source\": \"nz\", \"station\": \"NZAU2\", \"valid_time\": \"2026-09-18T03:50:00Z\"}; upstream URI=https://mobile-apps.metservice.com/radarImage; fixture license basis=official MetService public mobile radar artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline nz/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/NZ/base.yaml#sha256=8446b23b32d9cd845ffc1b6f6d405a0f8918686333b3f3a7d552ec1096d5fab9; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation.",
+      "frame": {
+        "source": "nz",
+        "product": "rain",
+        "station": "NZAU2",
+        "valid_time": "2026-09-18T03:50:00Z",
+        "revision": "NZAU2-1789703400",
+        "frame_index": 0
+      },
+      "crop": [
+        0,
+        0,
+        1200,
+        1200
+      ],
+      "inputs": [
+        {
+          "path": "nz/source.gif",
+          "sha256": "0d98e9bc3ac0cd1b25d303a1b40db3641e316fc85db75554b0b8053c9607f85e",
+          "format": "GIF",
+          "name": "NZAU2.gif",
+          "role": "data",
+          "media_type": "image/gif"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "ph",
+      "product": "composite",
+      "path_id": "ph/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The pinned PH/base.yaml rule is known, but the supplied old snapshot has no output/ph files, the pinned commit contains no PH raw/gray artifacts, and the current acquisition record has no verified raw; there is no source-matched pair to replay or compare."
+      ],
+      "rule_path": "ph/rule.json",
+      "rule_version": "old-8d251601-ph-base-v1",
+      "config_hash": "ed57039fe8724105a2d17b6947b7d509ab58fb6e1e8df885b05a4d2a84c0d8a4"
+    },
+    {
+      "source": "pt",
+      "product": "composite",
+      "path_id": "pt/composite",
+      "status": "passed",
+      "rule_path": "pt/rule.json",
+      "rule_version": "old-8d251601-pt-ptst2-replay-v1",
+      "config_hash": "b20f74df36764d4891bc7c54dd3bac564d2aae017e6725533ccaae10f252a60d",
+      "baseline_path": "pt/old-gray.png",
+      "baseline_hash": "11b88c2741d6c5f17368b59685c1d12e02af0fc27a90262a7f784e89a548d654",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/scrapers/pt_ipma_scraper.py; frozen at pt/old-gray.png (generated, not historical stored output)",
+      "license_basis": "official IPMA public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+      "sample_provenance": "Source fixture: tests/fixtures/sources/pt/fixture.json; upstream snapshot=official-live-api, collected_at=2026-09-18T03:05:26Z; raw=tests/fixtures/sources/pt/raw/PTST2.png sha256=fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa; bound frame={\"frame_index\": null, \"product\": \"composite\", \"revision\": \"pcr_pst-2026-09-18T0250\", \"source\": \"pt\", \"station\": \"PTST2\", \"valid_time\": \"2026-09-18T02:50:00Z\"}; upstream URI=https://www.ipma.pt/resources.www/transf/radar/mad/pcr_pst-2026-09-18T0250.png; fixture license basis=official IPMA public radar artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline pt/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/pt_ipma_scraper.py#git-blob=87eb3f9d2108e0e2fdf0724826caa8e6349b4554; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation.",
+      "frame": {
+        "source": "pt",
+        "product": "composite",
+        "station": "PTST2",
+        "valid_time": "2026-09-18T02:50:00Z",
+        "revision": "pcr_pst-2026-09-18T0250",
+        "frame_index": null
+      },
+      "crop": [
+        0,
+        0,
+        1500,
+        1526
+      ],
+      "inputs": [
+        {
+          "path": "pt/source.png",
+          "sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa",
+          "format": "PNG",
+          "name": "PTST2.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "rainviewer",
+      "product": "composite",
+      "path_id": "rainviewer/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Old red-channel arithmetic runs on the current color=2, 512px PNG fixture (1024x1024 output; 22 gray values; 99.10% zero). The pinned old route uses color=255, 256px WebP. No same-frame old gray baseline exists, so compatibility is unverified."
+      ],
+      "rule_path": "rainviewer/rule.json",
+      "rule_version": "old-8d251601-rainviewer-red-v1",
+      "config_hash": "eb8fc7a54b6439e1a0f8f90571ca5d554ccc974764a7c702498afb7a6562f9fb"
+    },
+    {
+      "source": "sg",
+      "product": "composite",
+      "path_id": "sg/composite",
+      "status": "passed",
+      "rule_path": "sg/rule.json",
+      "rule_version": "old-8d251601-sgcomp2-v1",
+      "config_hash": "48ab2c5116f4e864f0f692bf1c452003113fd6ba501c2a71cbbdfa52661d95c9",
+      "baseline_path": "sg/old-gray.png",
+      "baseline_hash": "9b7119629aba0b072cc34ae8ec20fe6f3e39a1b360e8e7ff6c3b8bb8d88f347d",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/sg/SG-SRC-SGCOMP2_20251229065500_merca_r_map.png",
+      "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+      "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/sg/SG-SRC-SGCOMP2_20251229065500_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/sg/SG-SRC-SGCOMP2_20251229065500_merca_r_map.png。",
+      "crop": [
+        0,
+        0,
+        217,
+        120
+      ],
+      "inputs": [
+        {
+          "path": "sg/source.png",
+          "sha256": "3f679cc016808e94516b779981bde2c4c251df09185f03edd381d29b9b701eb0",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "th",
+      "product": "composite",
+      "path_id": "th/composite/cmp1",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The exact TMD cmp1.gif raw is present, but the pinned old TH/base.yaml parser rejects this frame because its invalid-color fraction exceeds the old 0.3 limit and returns no map; no gray baseline can be produced."
+      ]
+    },
+    {
+      "source": "th",
+      "product": "composite",
+      "path_id": "th/composite/kkn240Loop",
+      "status": "passed",
+      "rule_path": "th/kkn240Loop/rule.json",
+      "rule_version": "old-8d251601-th-kkn240loop-replay-v1",
+      "config_hash": "0eb70e624f7baf69f934a3227ff18d02b1035cec6d8b142e3a2c46394543d483",
+      "baseline_path": "th/kkn240Loop/old-gray.png",
+      "baseline_hash": "38b0cf109397f6eca4dd678147df81ab6bf34e5fbf3f87f3010cecfce991e812",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/parser/__init__.py:parse_img + core/scrapers/base.py:RadarScraper.post_process (×3.2); conf/parse/TH/base.yaml; frozen at th/kkn240Loop/old-gray.png (generated, not historical stored output)",
+      "license_basis": "official TMD public live radar artifact retained for migration validation; production usage remains subject to upstream terms",
+      "sample_provenance": "Source fixture: tests/fixtures/sources/th/fixture.json; upstream snapshot=official-live-gif, collected_at=2026-09-21T09:43:54Z; raw=tests/fixtures/sources/th/raw/kkn240Loop.gif sha256=98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd; bound frame={\"frame_index\": 0, \"product\": \"composite\", \"revision\": \"98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd\", \"source\": \"th\", \"station\": \"kkn240Loop\", \"valid_time\": \"2023-04-22T14:45:05Z\"}; upstream URI=https://weather.tmd.go.th/kkn/kkn240Loop.gif; fixture license basis=official TMD public live radar artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline th/kkn240Loop/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/base.yaml#sha256=eeb1c86db9a7632ed340a61444c77a52024005580602aed702ce74e506b6cf42; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation. GIF contains 6 footer times; old Image.open/parse_img defaults to frame_index=0, so this replay binds to first footer time 2023-04-22T14:45:05Z, not the final animation time 2023-04-22T16:00:05Z.",
+      "frame": {
+        "source": "th",
+        "product": "composite",
+        "station": "kkn240Loop",
+        "valid_time": "2023-04-22T14:45:05Z",
+        "revision": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+        "frame_index": 0
+      },
+      "crop": [
+        78,
+        0,
+        862,
+        789
+      ],
+      "inputs": [
+        {
+          "path": "th/kkn240Loop/source.gif",
+          "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+          "format": "GIF",
+          "name": "kkn240Loop.gif",
+          "role": "data",
+          "media_type": "image/gif"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "th_royalrain",
+      "product": "cappi",
+      "path_id": "th_royalrain/cappi",
+      "status": "passed",
+      "rule_path": "th_royalrain/rule.json",
+      "rule_version": "old-8d251601-th_royalrain-takhli-thkl3-replay-v1",
+      "config_hash": "49ca6ebf4fc7ba78c43ddd80ff1f76f8dcfc6f9471cee39c5ffe528a420ee58e",
+      "baseline_path": "th_royalrain/old-gray.png",
+      "baseline_hash": "21b36968ecae5efe3a4530f5795d0fd31ffdd999b0ab04f6b4199d13e55ce9d6",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; th_royalrain_scraper maps takhli→THKL3; core/parser/__init__.py:parse_img + core/scrapers/base.py:RadarScraper.post_process (×3.2); conf/parse/TH/THKL3.yaml; frozen at tests/fixtures/legacy-display/th_royalrain/old-gray.png (generated, not historical stored output)",
+      "license_basis": "official Royal Rainmaking public radar artifact retained for migration validation; production usage remains subject to upstream terms",
+      "sample_provenance": "Source fixture: tests/fixtures/sources/th_royalrain/fixture.json; official source snapshot=official-live-html; collected_at=2026-09-18T03:42:00Z; raw=tests/fixtures/sources/th_royalrain/raw/takhli.png sha256=8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd; station takhli is mapped by the old scraper to THKL3; actual config=conf/parse/TH/THKL3.yaml sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f; frame={\"frame_index\": null, \"product\": \"cappi\", \"revision\": \"2026091803420400dBZ.cappi\", \"source\": \"th_royalrain\", \"station\": \"takhli\", \"valid_time\": \"2026-09-18T03:42:00Z\"}; official URI=https://file.royalrain.go.th/opendata/radar_data/cappi/takhli/2026091803420400dBZ.cappi.png; fixture license basis=official Royal Rainmaking public radar artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline was generated offline by replaying 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f; it is not a historical old-output file; raw and derivative are retained only for migration validation.",
+      "frame": {
+        "source": "th_royalrain",
+        "product": "cappi",
+        "station": "takhli",
+        "valid_time": "2026-09-18T03:42:00Z",
+        "revision": "2026091803420400dBZ.cappi",
+        "frame_index": null
+      },
+      "crop": [
+        78,
+        0,
+        862,
+        789
+      ],
+      "inputs": [
+        {
+          "path": "th_royalrain/source.png",
+          "sha256": "8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd",
+          "format": "PNG",
+          "name": "takhli.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "tw-http",
+      "product": "observation",
+      "path_id": "tw-http/observation",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Six local TWCOMP3 raw/map pairs (four TW-ICUSRC, two TW-SRC) reproduce the pinned TW/base.yaml display rule pixel-for-pixel, and the pinned parser falls back to the country rule when a station-specific parser entry is absent. TWCOMP3 is an old output/config alias; the current station stays provider-native CV1_3600. Archive provenance does not bind these pairs to a specific collector endpoint (tw-http versus anonymous-S3 tw), so they are country-level rule evidence, not path-specific tw-http evidence."
+      ]
+    },
+    {
+      "source": "tw",
+      "product": "grid",
+      "path_id": "tw/grid",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The recovered TW pairs are ICUSRC image outputs; they do not establish an old gray-display path for the current numeric grid product."
+      ]
+    },
+    {
+      "source": "tw",
+      "product": "observation",
+      "path_id": "tw/observation",
+      "status": "passed",
+      "rule_path": "tw/rule.json",
+      "rule_version": "old-8d251601-cv1-v1",
+      "config_hash": "047d3ddb8bce8444095a60895a7ff5760615680235d54423723cedb105b344ec",
+      "baseline_path": "tw/old-gray.png",
+      "baseline_hash": "c25201bdbf5a6c8d72a50f723d5cdf34b4a9012887386adbbf44742ba686b34b",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/tw/TW-ICUSRC-CV1_3600_20251230024000_merca_r_map.png",
+      "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+      "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/tw/TW-ICUSRC-CV1_3600_20251230024000_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/tw/TW-ICUSRC-CV1_3600_20251230024000_merca_r_map.png。",
+      "crop": [
+        0,
+        0,
+        3600,
+        3600
+      ],
+      "inputs": [
+        {
+          "path": "tw/source.png",
+          "sha256": "c0de1e3dfecbe36a4265693fa577c679cdef51827dfe22d0ee55fa4366eeb690",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "vn",
+      "product": "cmax",
+      "path_id": "vn/cmax",
+      "status": "passed",
+      "rule_path": "vn/rule.json",
+      "rule_version": "old-8d251601-vndha2-v1",
+      "config_hash": "4cc443474779933db0508d9773ba6ab02558ce8c3145e3bea26932908ed5ae1d",
+      "baseline_path": "vn/old-gray.png",
+      "baseline_hash": "0339b4b4df717bdfca2e733119d7962d572c98d2a6b5956e3a1caa88ff25a8d2",
+      "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/vn/VN-SRC-VNDHA2_20251229065000_merca_r_map.png",
+      "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+      "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/vn/VN-SRC-VNDHA2_20251229065000_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/vn/VN-SRC-VNDHA2_20251229065000_merca_r_map.png。",
+      "crop": [
+        0,
+        0,
+        2310,
+        2310
+      ],
+      "inputs": [
+        {
+          "path": "vn/source.png",
+          "sha256": "d9af0c585255e0e9e710b6e3177d9fb2baf4332f79b06da6bd475011464634b1",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    },
+    {
+      "source": "windy",
+      "product": "reflectivity",
+      "path_id": "windy/reflectivity",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Old green/2 arithmetic runs on the current four 256px PNG tiles (512x512 output; 43 gray values; 98.58% zero). Frame time is cadence-derived and green-channel semantics lack provider confirmation; no same-frame old gray baseline exists."
+      ],
+      "rule_path": "windy/rule.json",
+      "rule_version": "old-8d251601-windy-green-v1",
+      "config_hash": "b32f512e0345b6c4232b03c94e2305555d39263c06030fa5798ca0f61805e0a1"
+    }
+  ]
+}

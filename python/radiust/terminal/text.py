@@ -9,11 +9,27 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
+from ..cli.safety import safe_text
+from ..display.models import RawPreview
 from ..field import RadarDataset, RadarField
 from ..outputs.netcdf import read_netcdf
 
 
 def summarize(value: RadarField | RadarDataset | str | Path, *, at: datetime | None = None, variable: str | None = None) -> str:
+    if isinstance(value, RawPreview):
+        result = (
+            f"image path={safe_text(value.file_identity)} raw source={safe_text(value.source or 'unknown')} "
+            f"product={safe_text(value.product or 'unknown')} station={safe_text(value.station or 'unknown')} "
+            f"time={safe_text(value.valid_time or 'unknown')} units=unknown "
+            f"format={value.format} size={value.width}x{value.height} "
+            f"sha256={value.sha256} display={value.display_mode} "
+            f"rule={safe_text(value.rule_version or 'unknown')}"
+        )
+        if value.format == "GIF":
+            result += "; first frame (index=0)"
+        if value.reason:
+            result += f"; {safe_text(value.reason)}"
+        return result
     if isinstance(value, (str, Path)):
         path = Path(value)
         if path.suffix.lower() in {".nc", ".netcdf"}:

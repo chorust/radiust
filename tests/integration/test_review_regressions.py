@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import gc
-import threading
 import time
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.request import Request
 
 import numpy as np
 import pytest
@@ -20,7 +19,7 @@ from radiust.field import RadarDataset, RadarField
 from radiust.grids import CartesianGrid, GeographicGrid
 from radiust.models import Artifact
 from radiust.raw import RawFrame
-from radiust.transport import HTTPTransport
+from radiust.transport import HTTPTransport, _CheckedRedirectHandler
 
 
 def _ref(source: str = "review-test") -> FrameRef:
@@ -214,26 +213,18 @@ async def test_cancelled_async_write_never_commits_late_output(monkeypatch, tmp_
     assert not list(tmp_path.rglob("*.manifest.json"))
 
 
-class _RedirectHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(302)
-        self.send_header("Location", "http://0.0.0.0:9/blocked")
-        self.end_headers()
-
-    def log_message(self, format, *args):
-        return
-
-
 def test_redirect_destination_is_checked_against_network_policy() -> None:
-    server = HTTPServer(("127.0.0.1", 0), _RedirectHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    transport = HTTPTransport(max_attempts=1, timeout=0.2)
+    old_slot = transport._host_slot("127.0.0.1")
+    assert old_slot.acquire(blocking=False)
+    transport._host_local.current = ("127.0.0.1", old_slot)
+    handler = _CheckedRedirectHandler(transport._check, transport._redirect_host)
     try:
         with pytest.raises(TransportError, match="public network"):
-            HTTPTransport(max_attempts=1, timeout=0.2).get_sync(
-                f"http://127.0.0.1:{server.server_port}/redirect"
+            handler.redirect_request(
+                Request("http://127.0.0.1/redirect"), None, 302, "Found", {},
+                "http://0.0.0.0:9/blocked",
             )
+        assert transport._host_local.current[0] == "127.0.0.1"
     finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=1)
+        transport._release_host_lease()

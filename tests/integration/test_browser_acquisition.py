@@ -87,6 +87,7 @@ class _Page:
         self.urls: list[str] = []
         self.context = None
         self.headers_by_url: list[dict[str, str]] = []
+        self.events = {}
 
     async def goto(self, _url, **_kwargs):
         self.urls.append(_url)
@@ -99,6 +100,9 @@ class _Page:
     def expect_download(self):
         return _DownloadInfo(self.body)
 
+    def on(self, event, callback):
+        self.events[event] = callback
+
     async def click(self, _selector):
         return None
 
@@ -109,12 +113,16 @@ class _BrowserContext:
         self.page.context = self
         self.headers = dict(headers)
         self.closed = False
+        self.routes = {}
 
     async def new_page(self):
         return self.page
 
     async def set_extra_http_headers(self, headers):
         self.headers = dict(headers)
+
+    async def route(self, pattern, handler):
+        self.routes[pattern] = handler
 
     async def close(self):
         self.closed = True
@@ -237,6 +245,53 @@ async def test_browser_can_replay_timeline_as_transient_bytes_in_one_session(tmp
     assert manager.browser.context.closed
     assert manager.browser.closed
     assert list(tmp_path.iterdir()) == []  # Discovery is not a scientific RawFrame.
+
+
+@pytest.mark.asyncio
+async def test_browser_route_limits_active_requests_per_host(tmp_path):
+    context = _context(tmp_path, request_concurrency=3, host_concurrency=1)
+    browser_context = _BrowserContext(b"response", {})
+    page = browser_context.page
+    await BrowserAcquirer._limit_page_requests(browser_context, page, context)
+    route_request = browser_context.routes["**/*"]
+    continued = []
+
+    class Request:
+        def __init__(self, url):
+            self.url = url
+
+    class Route:
+        def __init__(self, request):
+            self.request = request
+
+        async def continue_(self):
+            continued.append(self.request)
+
+        async def abort(self):
+            raise AssertionError("unexpected request abort")
+
+    requests = [
+        Request("https://same.example/one"),
+        Request("https://same.example/two"),
+        Request("https://other.example/three"),
+    ]
+    tasks = [asyncio.create_task(route_request(Route(request))) for request in requests]
+    await asyncio.sleep(0.02)
+
+    assert len(continued) == 2
+    assert {request.url.split("/")[2] for request in continued} == {
+        "same.example", "other.example",
+    }
+
+    first_same_host = next(request for request in continued if "same.example" in request.url)
+    page.events["requestfinished"](first_same_host)
+    await asyncio.sleep(0.02)
+    assert len(continued) == 3
+
+    for request in tuple(continued):
+        page.events["requestfinished"](request)
+    await asyncio.gather(*tasks)
+    context.close()
 
 
 @pytest.mark.asyncio

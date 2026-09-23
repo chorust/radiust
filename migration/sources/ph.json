@@ -26,7 +26,8 @@
     "tests/integration/test_browser_acquisition.py verifies that signed navigation URLs are absent from RawFrame metadata, artifact names, and the safe raw manifest",
     "tests/contract/test_browser_workflow.py verifies the credential-free browser-contract CI job",
     "tests/live/test_ph_browser_replay.py",
-    "validation-results/live.json"
+    "validation-results/live.json",
+    "tests/fixtures/legacy-display/ph/blocked-evidence.json"
   ],
   "blockers": [
     "A currently valid authorized timeline token and legally retainable canonical upstream image are required; the legacy literal was found but its current validity was not established.",
@@ -36,5 +37,34 @@
   "credential_configuration": {
     "runtime_environment": "RADIUST_SOURCES__PH__TIMELINE_TOKEN",
     "live_test_environment": "RADIUST_TEST_PH_TIMELINE_TOKEN"
+  },
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "ph/composite",
+        "status": "blocked",
+        "rule_version": "old-8d251601-ph-base-v1",
+        "config_hash": "ed57039fe8724105a2d17b6947b7d509ab58fb6e1e8df885b05a4d2a84c0d8a4",
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "The pinned PH/base.yaml rule is known, but the supplied old snapshot has no output/ph files, the pinned commit contains no PH raw/gray artifacts, and the current acquisition record has no verified raw; there is no source-matched pair to replay or compare."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      }
+    ]
   }
 }

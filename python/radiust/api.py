@@ -21,14 +21,14 @@ async def afetch(query: Any, *, config: Any = None) -> Any:
         return await client.fetch(query)
 
 
-def fetch_many(query_or_refs: Any, *, config: Any = None, on_error: str = "collect", max_concurrency: int | None = None) -> Any:
+def fetch_many(query_or_refs: Any, *, config: Any = None, on_error: str = "collect", max_concurrency: int | None = None, progress: Any = None) -> Any:
     with Client(config=config) as client:
-        return client.fetch_many(query_or_refs, on_error=on_error, max_concurrency=max_concurrency)
+        return client.fetch_many(query_or_refs, on_error=on_error, max_concurrency=max_concurrency, progress=progress)
 
 
-async def afetch_many(query_or_refs: Any, *, config: Any = None, on_error: str = "collect", max_concurrency: int | None = None) -> Any:
+async def afetch_many(query_or_refs: Any, *, config: Any = None, on_error: str = "collect", max_concurrency: int | None = None, progress: Any = None) -> Any:
     async with AsyncClient(config=config) as client:
-        return await client.fetch_many(query_or_refs, on_error=on_error, max_concurrency=max_concurrency)
+        return await client.fetch_many(query_or_refs, on_error=on_error, max_concurrency=max_concurrency, progress=progress)
 
 
 def iter_fetch(query_or_refs: Any, *, config: Any = None, on_error: str = "collect", max_prefetch: int | None = None) -> Any:
@@ -44,9 +44,9 @@ async def aiter_fetch(query_or_refs: Any, *, config: Any = None, on_error: str =
             yield item
 
 
-def download(query_or_refs: Any, *, output: str = "./data", format: str = "netcdf", raw: bool = False, raw_only: bool = False, overwrite: bool = False, output_template: str | None = None, on_error: str = "collect", config: Any = None, **processing: Any) -> Any:
+def download(query_or_refs: Any, *, output: str = "./data", format: str = "netcdf", raw: bool = False, raw_only: bool = False, overwrite: bool = False, output_template: str | None = None, on_error: str = "collect", config: Any = None, progress: Any = None, **processing: Any) -> Any:
     with Client(config=config) as client:
-        return client.download(query_or_refs, output=output, format=format, raw=raw, raw_only=raw_only, overwrite=overwrite, output_template=output_template, on_error=on_error, **processing)
+        return client.download(query_or_refs, output=output, format=format, raw=raw, raw_only=raw_only, overwrite=overwrite, output_template=output_template, on_error=on_error, progress=progress, **processing)
 
 
 async def adownload(query_or_refs: Any, **kwargs: Any) -> Any:

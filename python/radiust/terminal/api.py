@@ -8,7 +8,9 @@ from typing import TextIO
 
 from PIL import Image
 
+from ..display.models import RawPreview
 from ..rendering.core import RenderedImage, render_field
+from ..rendering.palettes import DEFAULT_PALETTE
 from .ansi import render_ansi
 from .capabilities import capabilities
 from .iterm2 import iterm2_sequence
@@ -29,6 +31,22 @@ def show(value: object, *, renderer: str = "auto", width: int | None = None, hei
         raise ValueError("Kitty graphics capability was not confirmed")
     if renderer != "auto" and chosen == "iterm2" and not detected.iterm2:
         raise ValueError("iTerm2 inline-image capability was not confirmed")
+    if isinstance(value, RawPreview):
+        if chosen == "text":
+            stream.write(summarize(value) + "\n")
+            return
+        rendered = RenderedImage(value.rgba, DEFAULT_PALETTE, 0, 1, summarize(value), (), "unknown", None, {})
+        if chosen == "ansi":
+            stream.write(render_ansi(rendered, width=width or 80, height=height or 24) + "\n")
+            return
+        output = io.BytesIO()
+        Image.fromarray(value.rgba, mode="RGBA").save(output, format="PNG")
+        png = output.getvalue()
+        sequence = "".join(kitty_chunks(png)) if chosen == "kitty" else iterm2_sequence(png, width=width, height=height)
+        with TerminalSession(stream):
+            stream.write(sequence)
+            stream.flush()
+        return
     if isinstance(value, (str, Path)) and Path(value).suffix.lower() in {".nc", ".netcdf"} and chosen != "text":
         value = _dataset_from_netcdf(Path(value), at=options.get("at") if isinstance(options.get("at"), datetime) else None)
     if isinstance(value, (str, Path)) and Path(value).suffix.lower() == ".png":

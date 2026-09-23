@@ -7,7 +7,10 @@
   "status": "acquisition-verified-science-geometry-blocked",
   "upstream": {
     "official_page": "https://weather.tmd.go.th/cmpLoop.php",
-    "products": ["nationwide composite", "Khon Kaen 240 km loop"],
+    "products": [
+      "nationwide composite",
+      "Khon Kaen 240 km loop"
+    ],
     "displayed_time_zone": "UTC",
     "adapter_time_binding": "Tesseract OCR reads every fixed-layout UTC footer; latest animation frame binds valid_time, and unrecognized timestamps fail closed"
   },
@@ -54,7 +57,31 @@
     },
     "official_display_scale_reference": {
       "url": "https://ubonmet.tmd.go.th/files/KM-base/KM-2560-3.pdf",
-      "shown_dbz_labels": [10.0, 11.5, 16.5, 19.0, 21.5, 24.0, 26.5, 29.0, 31.5, 34.0, 36.5, 39.0, 41.5, 44.0, 46.5, 49.0, 51.5, 54.0, 56.5, 59.0, 61.5, 64.0, 66.5],
+      "shown_dbz_labels": [
+        10.0,
+        11.5,
+        16.5,
+        19.0,
+        21.5,
+        24.0,
+        26.5,
+        29.0,
+        31.5,
+        34.0,
+        36.5,
+        39.0,
+        41.5,
+        44.0,
+        46.5,
+        49.0,
+        51.5,
+        54.0,
+        56.5,
+        59.0,
+        61.5,
+        64.0,
+        66.5
+      ],
       "mapping_to_kkn240Loop_pixel_palette": "not established; a displayed legend and station-operating document do not define the indexed GIF palette"
     },
     "service_terms": "official TMD radar is published as a public service; the disclaimer warns images are semi-real-time and not quality-controlled",
@@ -69,9 +96,19 @@
     "last_modified": null,
     "size_bytes": 2666961,
     "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
-    "dimensions": [680, 680],
+    "dimensions": [
+      680,
+      680
+    ],
     "animation_frames": 6,
-    "frame_durations_ms": [750, 750, 750, 750, 750, 1500],
+    "frame_durations_ms": [
+      750,
+      750,
+      750,
+      750,
+      750,
+      1500
+    ],
     "observation_times_ocr_utc": [
       "2023-04-22T14:45:05Z",
       "2023-04-22T15:00:05Z",
@@ -91,7 +128,9 @@
         "valid_time": "2023-04-22T14:30:00.000000Z",
         "raw_size_bytes": 158551,
         "raw_sha256": "55c279de79da7f45acefe2fbff1a03faa1e15b0dadd186d2c2d8b7a93451999e",
-        "footer_observation_times": ["2023-04-22T14:30:00Z"]
+        "footer_observation_times": [
+          "2023-04-22T14:30:00Z"
+        ]
       },
       {
         "station": "kkn240Loop",
@@ -113,5 +152,75 @@
   },
   "blockers": [
     "Provider frame time, native geometry, and palette semantics remain unverified."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "path_id": "th/composite/cmp1",
+        "status": "blocked",
+        "rule_version": null,
+        "config_hash": null,
+        "input_hashes": [],
+        "output_hash": null,
+        "baseline_identity": null,
+        "baseline_hash": null,
+        "crop": null,
+        "shape": null,
+        "pixel_diff_count": null,
+        "alpha_comparison": null,
+        "background_comparison": null,
+        "missing_comparison": null,
+        "intentional_differences": [],
+        "review_conclusion": null,
+        "blocked_reasons": [
+          "The exact TMD cmp1.gif raw is present, but the pinned old TH/base.yaml parser rejects this frame because its invalid-color fraction exceeds the old 0.3 limit and returns no map; no gray baseline can be produced."
+        ],
+        "sample_provenance": null,
+        "scientific_status_unchanged": true
+      },
+      {
+        "source": "th",
+        "product": "composite",
+        "path_id": "th/composite/kkn240Loop",
+        "status": "passed",
+        "blocked_reasons": [],
+        "scientific_status_unchanged": true,
+        "rule_version": "old-8d251601-th-kkn240loop-replay-v1",
+        "config_hash": "0eb70e624f7baf69f934a3227ff18d02b1035cec6d8b142e3a2c46394543d483",
+        "input_hashes": [
+          "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd"
+        ],
+        "output_hash": "14a3be63af31ee4fdbff762abbacf903db88241bb1d155dc78c1dba748645827",
+        "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/parser/__init__.py:parse_img + core/scrapers/base.py:RadarScraper.post_process (×3.2); conf/parse/TH/base.yaml; frozen at th/kkn240Loop/old-gray.png (generated, not historical stored output)",
+        "baseline_hash": "38b0cf109397f6eca4dd678147df81ab6bf34e5fbf3f87f3010cecfce991e812",
+        "license_basis": "official TMD public live radar artifact retained for migration validation; production usage remains subject to upstream terms",
+        "sample_provenance": "Source fixture: tests/fixtures/sources/th/fixture.json; upstream snapshot=official-live-gif, collected_at=2026-09-21T09:43:54Z; raw=tests/fixtures/sources/th/raw/kkn240Loop.gif sha256=98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd; bound frame={\"frame_index\": 0, \"product\": \"composite\", \"revision\": \"98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd\", \"source\": \"th\", \"station\": \"kkn240Loop\", \"valid_time\": \"2023-04-22T14:45:05Z\"}; upstream URI=https://weather.tmd.go.th/kkn/kkn240Loop.gif; fixture license basis=official TMD public live radar artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline th/kkn240Loop/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/base.yaml#sha256=eeb1c86db9a7632ed340a61444c77a52024005580602aed702ce74e506b6cf42; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation. GIF contains 6 footer times; old Image.open/parse_img defaults to frame_index=0, so this replay binds to first footer time 2023-04-22T14:45:05Z, not the final animation time 2023-04-22T16:00:05Z.",
+        "crop": [
+          78,
+          0,
+          862,
+          789
+        ],
+        "shape": [
+          461,
+          461
+        ],
+        "baseline_shape": [
+          461,
+          461
+        ],
+        "pixel_diff_count": 0,
+        "alpha_diff_count": 0,
+        "missing_diff_count": 0,
+        "background_diff_count": 0,
+        "alpha_comparison": "identical",
+        "missing_comparison": "identical",
+        "background_comparison": "identical",
+        "intentional_differences": [],
+        "review_conclusion": "exact pixel agreement"
+      }
+    ]
+  }
 }

@@ -384,3 +384,118 @@ class DownloadReport:
             "error": None,
             "interrupted": self.interrupted,
         }
+
+
+DISCOVERY_STATUSES = (
+    "success", "no_data", "stale", "missing_credentials", "retired",
+    "network_restricted", "upstream_failed", "ambiguous", "timeout",
+    "cancelled", "not_started",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryTarget:
+    """One catalog source/product/station, or one source-level placeholder."""
+
+    source: str
+    product: str | None
+    station: str | None
+
+    def __post_init__(self) -> None:
+        validate_identifier(self.source, "source")
+        if self.product is not None:
+            validate_identifier(self.product, "product")
+        if self.station is not None:
+            validate_identifier(self.station, "station")
+            if self.product is None:
+                raise ValueError("station requires a product")
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryItem:
+    """A single terminal discovery outcome, independent of download status."""
+
+    target: DiscoveryTarget
+    status: str
+    valid_time: str | None = None
+    error: Mapping[str, Any] | None = None
+    frame: Mapping[str, Any] | None = None
+    capabilities: Mapping[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        if self.status not in DISCOVERY_STATUSES:
+            raise ValueError(f"invalid discovery status: {self.status}")
+        if self.status == "success":
+            if self.frame is None or self.valid_time is None:
+                raise ValueError("success requires a unique frame and valid_time")
+            if self.target.product is None or any(
+                self.frame.get(field) != getattr(self.target, field)
+                for field in ("source", "product", "station")
+            ) or self.frame.get("valid_time") != self.valid_time:
+                raise ValueError("success frame identity must match its catalog target and valid_time")
+            if self.error is not None:
+                raise ValueError("success must not contain an error")
+        elif self.frame is not None:
+            raise ValueError("non-success discovery cannot select a frame")
+
+    @classmethod
+    def from_mapping(cls, item: Mapping[str, Any]) -> DiscoveryItem:
+        return cls(
+            DiscoveryTarget(item["source"], item.get("product"), item.get("station")),
+            item["status"], item.get("valid_time"), item.get("error"),
+            item.get("frame"), item.get("capabilities"),
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        # Never serialize FrameRef locator, metadata, signed URI or provider
+        # credentials, even if a worker sends those fields by mistake.
+        from .cli.safety import safe_value
+
+        frame = None if self.frame is None else {
+            key: self.frame.get(key)
+            for key in ("source", "product", "station", "valid_time", "base_time")
+        }
+        return safe_value({
+            "source": self.target.source, "product": self.target.product,
+            "station": self.target.station, "status": self.status,
+            "valid_time": self.valid_time, "error": dict(self.error) if self.error is not None else None,
+            "frame": frame,
+            "capabilities": dict(self.capabilities) if self.capabilities is not None else None,
+        })
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryReport:
+    """Full v1 envelope; one item per unique target and complete zero counts."""
+
+    items: tuple[DiscoveryItem, ...]
+    interrupted: bool = False
+    max_age: float | None = None
+    run_id: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "items", tuple(self.items))
+        targets = [item.target for item in self.items]
+        if len(targets) != len(set(targets)):
+            raise ValueError("duplicate discovery target")
+
+    @property
+    def counts(self) -> dict[str, int]:
+        return {"total": len(self.items), **{
+            name: sum(item.status == name for item in self.items)
+            for name in DISCOVERY_STATUSES
+        }}
+
+    def as_dict(self) -> dict[str, Any]:
+        ordered = sorted(self.items, key=lambda item: (
+            item.target.source,
+            (item.target.product is not None, item.target.product or ""),
+            (item.target.station is not None, item.target.station or ""),
+            (item.valid_time is not None, item.valid_time or ""),
+        ))
+        return {
+            "schema_version": 1, "command": "discover", "run_id": self.run_id,
+            "query": {"source": "all", "latest": True, "max_age": self.max_age},
+            "counts": self.counts, "items": [item.as_dict() for item in ordered],
+            "error": None, "interrupted": self.interrupted,
+        }

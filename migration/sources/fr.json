@@ -74,7 +74,10 @@
   "retained_frame_validation": {
     "test": "tests/sources/test_fr.py::test_fr_retained_wms_frame_matches_references_and_stays_display_only",
     "fixture_sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248",
-    "dimensions": [700, 600],
+    "dimensions": [
+      700,
+      600
+    ],
     "valid_time": "2026-09-18T02:45:00Z",
     "reference_rgba_samples": "all manifest samples match the retained raw PNG",
     "decode": "fails closed for the current raw RGBA WMS artifact; the versioned legacy gray decoder is available only for explicitly identified post-process grayscale artifacts",
@@ -83,5 +86,52 @@
   "blockers": [
     "A verified BASE_REFLECTIVITY color-to-dBZ mapping is still required before the legacy WMS PNG can become a scientific RadarField.",
     "The official BUFR API is a candidate provider-native alternative, but no authorized token or retained BUFR sample is available for contract validation."
-  ]
+  ],
+  "display_migration": {
+    "schema_version": 1,
+    "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and 8 remain blocked by path-specific missing evidence. OpenSnow/WU are outside this legacy-display scope.",
+    "paths": [
+      {
+        "source": "fr",
+        "product": "composite",
+        "path_id": "fr/composite",
+        "status": "passed",
+        "blocked_reasons": [],
+        "scientific_status_unchanged": true,
+        "rule_version": "old-8d251601-fr-frcomp-replay-v1",
+        "config_hash": "d648ec153f0f4b04facb7c9a1c46bdc65083f9258e35c367a57a460c36fd97ec",
+        "input_hashes": [
+          "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248"
+        ],
+        "output_hash": "c8b056240dae308cf8ae88339c44cc07ebad15024bf742903df881374db70c56",
+        "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c; core/scrapers/fr_meteofrance_scraper.py; frozen at fr/old-gray.png (generated, not historical stored output)",
+        "baseline_hash": "f95614658cfe6076b3f09d65f35d3273586ceca48f78da75c489da67f41182be",
+        "license_basis": "official Météo-France public radar page/WMS artifact retained for migration validation; production usage remains subject to upstream terms",
+        "sample_provenance": "Source fixture: tests/fixtures/sources/fr/fixture.json; upstream snapshot=official-live-wms, collected_at=2026-09-18T02:53:34Z; raw=tests/fixtures/sources/fr/raw/FRCOMP.png sha256=131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248; bound frame={\"frame_index\": null, \"product\": \"composite\", \"revision\": \"20260918T024500Z\", \"source\": \"fr\", \"station\": \"FRCOMP\", \"valid_time\": \"2026-09-18T02:45:00Z\"}; upstream URI=https://rwg.meteofrance.com/geoservices/Radar-mapcache-WMS; fixture license basis=official Météo-France public radar page/WMS artifact retained for migration validation; production usage remains subject to upstream terms. Frozen baseline fr/old-gray.png was generated offline by replaying exact pinned old code 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/fr_meteofrance_scraper.py#git-blob=0844490e8e27d49c3353e19753a81ad6cb0f1b3a; it is not a historical map retained in the old output archive. Use and retained derivative are limited to migration validation.",
+        "crop": [
+          0,
+          0,
+          700,
+          600
+        ],
+        "shape": [
+          600,
+          700
+        ],
+        "baseline_shape": [
+          600,
+          700
+        ],
+        "pixel_diff_count": 0,
+        "alpha_diff_count": 0,
+        "missing_diff_count": 0,
+        "background_diff_count": 0,
+        "alpha_comparison": "identical",
+        "missing_comparison": "identical",
+        "background_comparison": "identical",
+        "intentional_differences": [],
+        "review_conclusion": "exact pixel agreement"
+      }
+    ]
+  }
 }

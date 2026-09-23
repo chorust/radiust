@@ -99,3 +99,22 @@ def test_zero_argument_entry_point_factory_can_be_resolved(monkeypatch):
     registry = SourceRegistry()
     assert registry.get("external-test").info == info
     assert registry.get("external-test") is created[0]
+
+
+def test_third_party_entry_points_are_not_loaded_during_registry_import_or_construction(monkeypatch):
+    """Aggregate discovery must enter its killable child before plugin code runs."""
+    from radiust import registry as registry_module
+
+    calls = []
+
+    def listing(**_kwargs):
+        calls.append("enumerated")
+        return []
+
+    monkeypatch.setattr(registry_module, "entry_points", listing)
+    isolated = SourceRegistry()
+    assert calls == [], "untrusted plugin enumeration ran outside the bounded discovery worker"
+    assert len(isolated.infos()) == 24
+    assert calls == ["enumerated"]
+    assert len(isolated.infos()) == 24
+    assert calls == ["enumerated"], "plugin loading should happen only once"

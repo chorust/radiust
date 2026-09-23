@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "scope": "Select the legacy display configuration that works for the current MY East station; current station identity is not derived from old project filenames or aliases.",
+  "old_snapshot": {
+    "repository": "/Users/blizhan/data/code/旧项目/旧项目-旧项目",
+    "branch": "lz/release-260324",
+    "commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c"
+  },
+  "replay_method": "Execute pinned core/parser/__init__.py parse_img with the pinned MY/{base,MYCOMP72}.yaml, then apply core/scrapers/base.py post_process ×3.2 clip/cast/optional Pillow resize; no network access.",
+  "archive_candidates": [
+    {
+      "stem": "MY-SRC-MYCOMP72_20251229065201_merca_r",
+      "source_path": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP72_20251229065201_merca_r_source.png",
+      "source_bytes": 171012,
+      "source_sha256": "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a",
+      "source_format_signature": "PNG",
+      "source_dimensions": [
+        1113,
+        650
+      ],
+      "gray_path": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP72_20251229065201_merca_r_map.png",
+      "gray_bytes": 18241,
+      "gray_sha256": "76c994921452c1f996017dc63c9171b58681406d128afe55c62f406bb4bb17af",
+      "gray_dimensions": [
+        568,
+        640
+      ],
+      "pinned_replays": {
+        "base.yaml": {
+          "dimensions": [
+            568,
+            640
+          ],
+          "raster_bytes_sha256": "b081a6ffefb5615f315d8d97db286eee623f37942b7db0ff15526b56659e73ce",
+          "pixel_diff_count": 0
+        },
+        "MYCOMP72.yaml": {
+          "dimensions": [
+            826,
+            650
+          ],
+          "raster_bytes_sha256": "70af8b3cd72106f9cc9cf9633762c194ee7a3172e2af80b6a3117bd669fa5101",
+          "pixel_diff_count": null
+        }
+      }
+    },
+    {
+      "stem": "MY-SRC-MYCOMP72_20251229071201_merca_r",
+      "source_path": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP72_20251229071201_merca_r_source.png",
+      "source_bytes": 171608,
+      "source_sha256": "7520ccf1281671fc7e6d7995341800c0802f43cc64bcdc2e909a833768ae6992",
+      "source_format_signature": "PNG",
+      "source_dimensions": [
+        1113,
+        650
+      ],
+      "gray_path": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP72_20251229071201_merca_r_map.png",
+      "gray_bytes": 18514,
+      "gray_sha256": "686ed27b1bd6a33d8efcb92e7c7a6cc3895851051ade9ba4e0d4e8a0de9e23e3",
+      "gray_dimensions": [
+        568,
+        640
+      ],
+      "pinned_replays": {
+        "base.yaml": {
+          "dimensions": [
+            568,
+            640
+          ],
+          "raster_bytes_sha256": "e204f3ed7388cd4ad6ee1805fba47c6c5892e80ff47b11eb9b60a331ccd38396",
+          "pixel_diff_count": 0
+        },
+        "MYCOMP72.yaml": {
+          "dimensions": [
+            826,
+            650
+          ],
+          "raster_bytes_sha256": "99e6229a1a69962b47715ca2621dc78882807734ee51a8dc05c89ed82479bb0f",
+          "pixel_diff_count": null
+        }
+      }
+    },
+    {
+      "stem": "MY-ICUSRC-MYCOMP72_20251229094201_merca_r",
+      "source_path": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-ICUSRC-MYCOMP72_20251229094201_merca_r_source.gif",
+      "source_bytes": 175002,
+      "source_sha256": "36526789719a319a8ef9e4e09b7b0a255ffbad34875e53e83d1d09eb3bdf5415",
+      "source_format_signature": "PNG",
+      "source_dimensions": [
+        1113,
+        650
+      ],
+      "gray_path": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-ICUSRC-MYCOMP72_20251229094201_merca_r_map.png",
+      "gray_bytes": 18922,
+      "gray_sha256": "d6e93b1988adc9df8178e4c2e3bf0bd9df884d295a33423b86402425ef48a594",
+      "gray_dimensions": [
+        568,
+        640
+      ],
+      "pinned_replays": {
+        "base.yaml": {
+          "dimensions": [
+            568,
+            640
+          ],
+          "raster_bytes_sha256": "010c8198573fac0ad2685daf893bb38aa9883f3d2bb52279354b206d096ee1c6",
+          "pixel_diff_count": 0
+        },
+        "MYCOMP72.yaml": {
+          "dimensions": [
+            826,
+            650
+          ],
+          "raster_bytes_sha256": "46dfa6226792fa9ba45c4e1123b5ba988acadba9677ad6824f4ac2acc08a060e",
+          "pixel_diff_count": null
+        }
+      }
+    }
+  ],
+  "result": {
+    "base_yaml_pixel_exact_pairs": 3,
+    "all_archived_gray_dimensions": [
+      568,
+      640
+    ],
+    "current_station_rule": "MY/base.yaml",
+    "current_engine_pixel_diff_count": 0,
+    "current_engine_output_sha256": "4aebf01dfad273429ba4f568f396e11c14bc80919c1912dc8ccd33b79ac68c36"
+  },
+  "sample_use": {
+    "authorization": "user-confirmed local pairs for migration validation only",
+    "redistribution_rights_inferred": false
+  },
+  "scientific_status_unchanged": true,
+  "current_station_selection": {
+    "station": "east",
+    "config": "MY/base.yaml",
+    "config_sha256": "3671c2330eda5a1f15a9cfac0c0b9b5e389a759b987000daebd5f3abecfa928e",
+    "rule_version": "old-8d251601-my-east-base-v1",
+    "config_fingerprint": "c14b0420fba343d34723aeffa452e603045d0ead55c9a38f1d34a1a52aef1af7",
+    "archive_candidates_pixel_exact": 3,
+    "current_engine_output_hash": "4aebf01dfad273429ba4f568f396e11c14bc80919c1912dc8ccd33b79ac68c36",
+    "current_engine_shape": [
+      640,
+      568
+    ],
+    "pixel_diff_count": 0,
+    "historical_route_cause_investigated": false
+  }
+}

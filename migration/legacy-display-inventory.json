@@ -1,0 +1,475 @@
+{
+  "schema_version": 1,
+  "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
+  "coverage_status": "partial: eight historical local raw/gray paths and seven exact-old-code replay goldens pass; 15 of 23 in-scope source/product paths pass, zero differences are pending, and eight remain blocked by path-specific missing evidence. OpenSnow and WU are excluded from this legacy-display scope by user decision.",
+  "paths": [
+    {
+      "source": "au",
+      "product": "composite",
+      "path_id": "au/composite",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-au01-v1",
+      "input_hashes": [
+        "90cb0eeb4a8fecbaf0aa2559fc3d5b98a0a5f79c5078db1d707b24be25f4d777"
+      ],
+      "output_hash": "aa4d83a7b3245a0de4ba56b0f570917993db748110ba441c4813201039f8c08d",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/au_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/au.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "bmkg",
+      "product": "composite",
+      "path_id": "bmkg/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The old IDCOMP palette/parser rule is pinned, but the current public tile request returned HTTP 403 and no current tile artifact or frame exists in tests/fixtures/sources/bmkg/fixture.json; the old transform could not be run and there is no same-frame old gray baseline."
+      ],
+      "rule_version": "old-8d251601-bmkg-idcomp-v1",
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/tiles/radar.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/bmkg.json",
+      "old_config_verified": true,
+      "source_baseline_verified": false
+    },
+    {
+      "source": "ca",
+      "product": "rain",
+      "path_id": "ca/rain",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-ca-casft-replay-v1",
+      "input_hashes": [
+        "90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0"
+      ],
+      "output_hash": "bbcca382104a917f9927813be2f7cdce385416d7c60c9e3e8154f55a789d67ba",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/ca_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/ca.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "es",
+      "product": "composite",
+      "path_id": "es/composite",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-es-escomp-replay-v1",
+      "input_hashes": [
+        "baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f"
+      ],
+      "output_hash": "dc67ae6ce0af75f07ac22d7aed0c5e42ec972a5d380a616d4426a5243dc7859f",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/es_aemet_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/es.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "fr",
+      "product": "composite",
+      "path_id": "fr/composite",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-fr-frcomp-replay-v1",
+      "input_hashes": [
+        "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248"
+      ],
+      "output_hash": "c8b056240dae308cf8ae88339c44cc07ebad15024bf742903df881374db70c56",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/fr_meteofrance_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/fr.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "id",
+      "product": "composite",
+      "path_id": "id/composite",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-idac3-v1",
+      "input_hashes": [
+        "b7788761625d9557ceb12c13a2d92cbcaa034777d21c52cc6e7349ba15913170"
+      ],
+      "output_hash": "705d84039e4312907461b88c874a9139c8238a7c44d7fa7ee8baa92cc41a6bba",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/id_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/id.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "id_sidarma",
+      "product": "cmax",
+      "path_id": "id_sidarma/cmax",
+      "status": "blocked",
+      "blocked_reasons": [
+        "No old source-path identity or matched legal raw/gray pair for the current SIDARMA CMAX path is established."
+      ],
+      "rule_version": null,
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/id_sidarma_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/id_sidarma.json",
+      "old_config_verified": false,
+      "source_baseline_verified": false
+    },
+    {
+      "source": "kr",
+      "product": "composite",
+      "path_id": "kr/composite",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-gng-v1",
+      "input_hashes": [
+        "a6c98d630fcd635d96ee75b63350e74978cd0d8749c1a701f9e7c27a2ce88c01"
+      ],
+      "output_hash": "589ee3c600640913500a4453cf76b428ba36eb782f4b9998317962514bda605e",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/kr_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/kr.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "my",
+      "product": "composite",
+      "path_id": "my/composite/east",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-my-east-base-v1",
+      "input_hashes": [
+        "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a"
+      ],
+      "output_hash": "4aebf01dfad273429ba4f568f396e11c14bc80919c1912dc8ccd33b79ac68c36",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/my_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/my.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "my",
+      "product": "composite",
+      "path_id": "my/composite/peninsular",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-mycomp71-v1",
+      "input_hashes": [
+        "a60936811a91ae5f776759fc4072965c321eebc73431b78d3fba7fb1ebd7e68f"
+      ],
+      "output_hash": "d9a799448a0c644b9800485b8708215b4b9232524f267347fe088386fd5dae7f",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/my_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/my.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "nz",
+      "product": "rain",
+      "path_id": "nz/rain",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-nz-nzau2-replay-v1",
+      "input_hashes": [
+        "0d98e9bc3ac0cd1b25d303a1b40db3641e316fc85db75554b0b8053c9607f85e"
+      ],
+      "output_hash": "4c950986bf8d02c2db9ac6a0c7ef70c2814f8f37ff5dc89e2b808d9af9a79ec6",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/nz_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/nz.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "ph",
+      "product": "composite",
+      "path_id": "ph/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The pinned PH/base.yaml rule is known, but the supplied old snapshot has no output/ph files, the pinned commit contains no PH raw/gray artifacts, and the current acquisition record has no verified raw; there is no source-matched pair to replay or compare."
+      ],
+      "rule_version": "old-8d251601-ph-base-v1",
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/ph_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/ph.json",
+      "old_config_verified": true,
+      "source_baseline_verified": false
+    },
+    {
+      "source": "pt",
+      "product": "composite",
+      "path_id": "pt/composite",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-pt-ptst2-replay-v1",
+      "input_hashes": [
+        "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa"
+      ],
+      "output_hash": "b5f306f8899d1d2709dcc39a443f02b11c9697da06766bea76088ea87fcb4c84",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/pt_ipma_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/pt.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "rainviewer",
+      "product": "composite",
+      "path_id": "rainviewer/composite",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Old red-channel arithmetic runs on the current color=2, 512px PNG fixture (1024x1024 output; 22 gray values; 99.10% zero). The pinned old route uses color=255, 256px WebP. No same-frame old gray baseline exists, so compatibility is unverified."
+      ],
+      "rule_version": "old-8d251601-rainviewer-red-v1",
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/tiles/radar.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/rainviewer.json",
+      "old_config_verified": true,
+      "source_baseline_verified": false
+    },
+    {
+      "source": "sg",
+      "product": "composite",
+      "path_id": "sg/composite",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-sgcomp2-v1",
+      "input_hashes": [
+        "3f679cc016808e94516b779981bde2c4c251df09185f03edd381d29b9b701eb0"
+      ],
+      "output_hash": "225148d21896b61012282f322db30d025a657d0a9604c19768fb06cd0646b7f3",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/sg_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/sg.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "th",
+      "product": "composite",
+      "path_id": "th/composite/cmp1",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The exact TMD cmp1.gif raw is present, but the pinned old TH/base.yaml parser rejects this frame because its invalid-color fraction exceeds the old 0.3 limit and returns no map; no gray baseline can be produced."
+      ],
+      "rule_version": null,
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/th_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/th.json",
+      "old_config_verified": true,
+      "source_baseline_verified": false
+    },
+    {
+      "source": "th",
+      "product": "composite",
+      "path_id": "th/composite/kkn240Loop",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-th-kkn240loop-replay-v1",
+      "input_hashes": [
+        "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd"
+      ],
+      "output_hash": "14a3be63af31ee4fdbff762abbacf903db88241bb1d155dc78c1dba748645827",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/th_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/th.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "th_royalrain",
+      "product": "cappi",
+      "path_id": "th_royalrain/cappi",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-th_royalrain-takhli-thkl3-replay-v1",
+      "input_hashes": [
+        "8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd"
+      ],
+      "output_hash": "c725532fe992c1a191e686e9763c3bc1bcd857d4f79af11ad398523b02c5633f",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/th_royalrain_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/th_royalrain.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "tw-http",
+      "product": "observation",
+      "path_id": "tw-http/observation",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Six local TWCOMP3 raw/map pairs (four TW-ICUSRC, two TW-SRC) reproduce the pinned TW/base.yaml display rule pixel-for-pixel, and the pinned parser falls back to the country rule when a station-specific parser entry is absent. TWCOMP3 is an old output/config alias; the current station stays provider-native CV1_3600. Archive provenance does not bind these pairs to a specific collector endpoint (tw-http versus anonymous-S3 tw), so they are country-level rule evidence, not path-specific tw-http evidence."
+      ],
+      "rule_version": null,
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/tw_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/tw-http.json",
+      "old_config_verified": false,
+      "source_baseline_verified": false
+    },
+    {
+      "source": "tw",
+      "product": "grid",
+      "path_id": "tw/grid",
+      "status": "blocked",
+      "blocked_reasons": [
+        "The recovered TW pairs are ICUSRC image outputs; they do not establish an old gray-display path for the current numeric grid product."
+      ],
+      "rule_version": null,
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/tw_s3_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/tw.json",
+      "old_config_verified": true,
+      "source_baseline_verified": false
+    },
+    {
+      "source": "tw",
+      "product": "observation",
+      "path_id": "tw/observation",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-cv1-v1",
+      "input_hashes": [
+        "c0de1e3dfecbe36a4265693fa577c679cdef51827dfe22d0ee55fa4366eeb690"
+      ],
+      "output_hash": "de31f08d8a9ecb2891df7e2772fad7fd5a4bca8870928f7b5fc7719f01b00952",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/tw_s3_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/tw.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "vn",
+      "product": "cmax",
+      "path_id": "vn/cmax",
+      "status": "passed",
+      "blocked_reasons": [],
+      "rule_version": "old-8d251601-vndha2-v1",
+      "input_hashes": [
+        "d9af0c585255e0e9e710b6e3177d9fb2baf4332f79b06da6bd475011464634b1"
+      ],
+      "output_hash": "95d9e1f5b35ebb6109467f036164db18712e1a04d26f23e9d9dd05e8ef077c61",
+      "scientific_status_unchanged": true,
+      "old_path": "core/scrapers/vn_scraper.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/vn.json",
+      "old_config_verified": true,
+      "source_baseline_verified": true
+    },
+    {
+      "source": "windy",
+      "product": "reflectivity",
+      "path_id": "windy/reflectivity",
+      "status": "blocked",
+      "blocked_reasons": [
+        "Old green/2 arithmetic runs on the current four 256px PNG tiles (512x512 output; 43 gray values; 98.58% zero). Frame time is cadence-derived and green-channel semantics lack provider confirmation; no same-frame old gray baseline exists."
+      ],
+      "rule_version": "old-8d251601-windy-green-v1",
+      "input_hashes": [],
+      "output_hash": null,
+      "scientific_status_unchanged": true,
+      "old_path": "core/tiles/radar.py",
+      "catalog_product_evidence": "python/radiust/resources/catalog.json",
+      "source_inventory_evidence": "specs/001-radiust-v1-migration/source-inventory.md",
+      "migration_evidence": "migration/sources/windy.json",
+      "old_config_verified": true,
+      "source_baseline_verified": false
+    }
+  ],
+  "old_commit_access": "User-supplied read-only snapshot at /Users/blizhan/data/code/旧项目/旧项目-旧项目; branch lz/release-260324; exact commit object 8d251601ca551fbd5c05451f1fb337fc4b75362c verified. The output pairs are ignored local files, not commit contents; no credential files were read.",
+  "source_aliases": {},
+  "scope_evidence": [
+    "migration/inventory.json",
+    "specs/001-radiust-v1-migration/source-inventory.md",
+    "python/radiust/resources/catalog.json",
+    "tests/fixtures/sources/th/fixture.json",
+    "tests/fixtures/sources/my/fixture.json",
+    "User-supplied local snapshot: exact old commit 8d251601ca551fbd5c05451f1fb337fc4b75362c and conf/parse configuration tree.",
+    "Pinned old implementation: core/parser/__init__.py; core/scrapers/base.py; core/tiles/radar.py; FR/PT source-specific _png_to_map code.",
+    "Local output pairs use matching _source/_map stems; hashes and station/time names are retained in tests/fixtures/legacy-display and validation-results/legacy-display.json.",
+    "User explicitly attested the local paired raw/gray samples are lawful for this migration validation; no broader redistribution right is inferred.",
+    "Pinned parser replay matched historical AU, ID, KR, MY East (MY/base.yaml), MY peninsular, SG, TW, and VN display paths; MY East has three matching local archive candidates. TH station-configuration variants were also replay-checked.",
+    "MY East current-site rule selection: pinned MY/base.yaml reproduces all three retained 568x640 archive maps; the migrated display engine also matches the registered baseline pixel-exactly. A separate MYCOMP72 replay remains supplemental evidence.",
+    "Pinned TW audit: CV1_3600 is the provider station and maps to the old project's TWCOMP2 alias; six archived TWCOMP3 raw/map pairs (four TW-ICUSRC, two TW-SRC) replay the TW/base.yaml rule pixel-exactly. The pinned parser selects the country fallback when an alias has no station-specific config. Their archive provenance does not identify a collector endpoint, so they remain country-level display evidence rather than path-specific tw-http evidence; details and hashes are in tests/fixtures/legacy-display/tw/unmatched-archive-evidence.json."
+  ],
+  "unclosed_scope_evidence": [
+    "8 of 23 in-scope source/product paths remain blocked by missing source-matched pairs, unresolved identities, or incomplete tile-frame evidence; no difference_pending paths remain.",
+    "The MY East current-site rule is MY/base.yaml, which reproduces the archived 568x640 gray output exactly; the separate MYCOMP72 replay is retained as supplemental code evidence and does not gate the current-site choice.",
+    "The output directory is git-ignored and contains no per-file upstream/license sidecar; legal reuse is recorded only as the user attestation for this migration validation.",
+    "Six additional TWCOMP3 archive pairs replay the country-level TW/base.yaml display rule pixel-exactly. The provider-native current station remains CV1_3600; TWCOMP3 is only an old output/config alias. Missing per-file collector provenance leaves those pairs unbound to tw-http versus anonymous-S3 tw, and image pairs do not establish a legacy gray path for tw/grid."
+  ],
+  "excluded_current_sources": {
+    "cam": "outside the 14 named regional display migrations, retain independently in acquisition inventory",
+    "uk": "outside the 14 named regional display migrations; source catalog declares retired",
+    "br_cptec": "T032/T037–T045 enumerate fourteen country migrations and do not include BR; the supplied pinned 8d251601 snapshot has no br_cptec parser/config path, although the ignored output tree contains 41 same-stem raw/map pairs. They are not mapped to this feature without an exact old source-rule identity."
+  },
+  "excluded_display_sources": {
+    "opensnow": "User decision: excluded from this legacy-display migration scope; acquisition inventory and adapter remain independent.",
+    "wunderground": "User decision: excluded from this legacy-display migration scope; acquisition inventory and adapter remain independent."
+  }
+}

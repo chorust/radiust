@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "coverage_status": "Supplemental exact-old-code replay check; not the archived gray baseline.",
+  "entries": [
+    {
+      "source": "my",
+      "product": "composite",
+      "path_id": "my/composite/east",
+      "status": "passed",
+      "rule_path": "my/east/mycomp72-replay-rule.json",
+      "rule_version": "old-8d251601-mycomp72-v1",
+      "config_hash": "91794568a819073f303e9e14363757c9ab6197f39c4d8978f4f13f2ad023b928",
+      "baseline_path": "my/east/replay-old-code.png",
+      "baseline_hash": "446a5a539deaef9a497fd3e53c9be4e3a790dddff0117fe63e5709bb118e1918",
+      "baseline_identity": "pinned-old-code-replay:8d251601ca551fbd5c05451f1fb337fc4b75362c:MYCOMP72.yaml; generated only for migration validation",
+      "license_basis": "用户已确认本地旧项目原图/灰度配对样本可用于本次迁移验证；不推定对外再分发权。",
+      "sample_provenance": "Supplemental replay input from the user-confirmed local migration-validation pair; the pinned MYCOMP72 code replay is retained only as a separate comparison. The current MY East station rule is MY/base.yaml, as recorded in archive-candidates.json.",
+      "crop": [
+        0,
+        0,
+        826,
+        650
+      ],
+      "inputs": [
+        {
+          "path": "my/east/source.png",
+          "sha256": "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a",
+          "format": "PNG",
+          "name": "source.png",
+          "role": "data",
+          "media_type": "image/png"
+        }
+      ],
+      "intentional_differences": []
+    }
+  ]
+}
