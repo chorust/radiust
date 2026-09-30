@@ -1,0 +1,453 @@
+{
+  "schema_version": 1,
+  "benchmark": "radiust-rust-batch-raw-only-loopback",
+  "task": "T061",
+  "status": "passed",
+  "captured_at_utc": "2026-09-29T05:30:18.917764+00:00",
+  "scope": {
+    "operation": "raw-only local batch download and commit",
+    "provider": "FixtureAdapter synthetic payloads",
+    "rounds_required": 30,
+    "rounds_measured": 30,
+    "network_policy": {
+      "cargo_build_offline": true,
+      "proxy_environment_removed": true,
+      "no_proxy": "*",
+      "fixture_listener": "127.0.0.1 ephemeral port",
+      "public_network_used": false
+    }
+  },
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.7",
+    "rustc": [
+      "rustc 1.92.0 (ded5c06cf 2025-12-08)"
+    ]
+  },
+  "build": {
+    "command": [
+      "cargo",
+      "test",
+      "--package",
+      "radiust-core",
+      "--test",
+      "download_batch",
+      "--no-run",
+      "--offline",
+      "--locked",
+      "--message-format=json-render-diagnostics"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 2.813626583003497,
+    "executable": "/Users/blizhan/data/code/github/radiust/target/debug/deps/download_batch-389d86b0725a5874",
+    "stdout_tail": [
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#opendal-http-transport-reqwest@0.59.2\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-http-transport-reqwest-0.59.2/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"opendal_http_transport_reqwest\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-http-transport-reqwest-0.59.2/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"rustls\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal_http_transport_reqwest-3188035d664fdbbe.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal_http_transport_reqwest-3188035d664fdbbe.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"build-script-executed\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#zarrs@0.23.14\",\"linked_libs\":[],\"linked_paths\":[],\"cfgs\":[],\"env\":[],\"out_dir\":\"/Users/blizhan/data/code/github/radiust/target/debug/build/zarrs-7920d723a55b1461/out\"}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#opendal-service-s3@0.59.2\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-service-s3-0.59.2/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"opendal_service_s3\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-service-s3-0.59.2/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal_service_s3-eb1f7cf0e8ae2475.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal_service_s3-eb1f7cf0e8ae2475.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#opendal-service-fs@0.59.2\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-service-fs-0.59.2/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"opendal_service_fs\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-service-fs-0.59.2/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal_service_fs-22e2b25c1ed556af.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal_service_fs-22e2b25c1ed556af.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#libsqlite3-sys@0.35.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.35.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"libsqlite3_sys\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.35.0/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"bundled\",\"bundled_bindings\",\"cc\",\"default\",\"min_sqlite_version_3_14_0\",\"pkg-config\",\"vcpkg\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/liblibsqlite3_sys-c52105092d5d0e6c.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/liblibsqlite3_sys-c52105092d5d0e6c.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#hashlink@0.10.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hashlink-0.10.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"hashlink\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hashlink-0.10.0/src/lib.rs\",\"edition\":\"2018\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libhashlink-c9d32add0f9f5bce.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libhashlink-c9d32add0f9f5bce.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#async-lock@3.4.2\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-lock-3.4.2/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"async_lock\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-lock-3.4.2/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"default\",\"std\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libasync_lock-b06a872d7ee92a1b.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libasync_lock-b06a872d7ee92a1b.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#futures-lite@2.6.1\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-lite-2.6.1/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"futures_lite\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-lite-2.6.1/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"alloc\",\"default\",\"fastrand\",\"futures-io\",\"parking\",\"race\",\"std\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libfutures_lite-cd7f26e62e4a4679.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libfutures_lite-cd7f26e62e4a4679.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#zarrs_chunk_key_encoding@0.2.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zarrs_chunk_key_encoding-0.2.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"zarrs_chunk_key_encoding\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zarrs_chunk_key_encoding-0.2.0/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libzarrs_chunk_key_encoding-3cf28ec45d81fa13.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libzarrs_chunk_key_encoding-3cf28ec45d81fa13.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#rayon_iter_concurrent_limit@0.2.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rayon_iter_concurrent_limit-0.2.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"rayon_iter_concurrent_limit\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rayon_iter_concurrent_limit-0.2.0/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/librayon_iter_concurrent_limit-67999741bc93f63b.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/librayon_iter_concurrent_limit-67999741bc93f63b.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#cpufeatures@0.2.17\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cpufeatures-0.2.17/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"cpufeatures\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cpufeatures-0.2.17/src/lib.rs\",\"edition\":\"2018\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libcpufeatures-cc8f88bcc3d5c5f5.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libcpufeatures-cc8f88bcc3d5c5f5.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#thread_local@1.1.10\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thread_local-1.1.10/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"thread_local\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thread_local-1.1.10/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libthread_local-cf9578e3cff48294.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libthread_local-cf9578e3cff48294.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#fallible-streaming-iterator@0.1.9\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fallible-streaming-iterator-0.1.9/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"fallible_streaming_iterator\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fallible-streaming-iterator-0.1.9/src/lib.rs\",\"edition\":\"2015\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libfallible_streaming_iterator-f6728d44231939b3.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libfallible_streaming_iterator-f6728d44231939b3.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#fallible-iterator@0.3.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fallible-iterator-0.3.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"fallible_iterator\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fallible-iterator-0.3.0/src/lib.rs\",\"edition\":\"2018\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"alloc\",\"default\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libfallible_iterator-9eb7cb49e00417e7.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libfallible_iterator-9eb7cb49e00417e7.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#unsafe-libyaml@0.2.11\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unsafe-libyaml-0.2.11/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"unsafe_libyaml\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unsafe-libyaml-0.2.11/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libunsafe_libyaml-66236ded463266df.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libunsafe_libyaml-66236ded463266df.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#image@0.25.10\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/image-0.25.10/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"image\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/image-0.25.10/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"gif\",\"png\",\"webp\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libimage-5d1401617d64da32.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libimage-5d1401617d64da32.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#opendal@0.59.2\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-0.59.2/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"opendal\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opendal-0.59.2/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"executors-tokio\",\"http-transport-reqwest\",\"http-transport-reqwest-rustls\",\"services-fs\",\"services-oss\",\"services-s3\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal-85397278d3eafa71.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libopendal-85397278d3eafa71.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#suppaftp@7.0.4\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/suppaftp-7.0.4/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"suppaftp\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/suppaftp-7.0.4/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"async-secure\",\"tokio\",\"tokio-rustls\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libsuppaftp-ba90d6a56de19359.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libsuppaftp-ba90d6a56de19359.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#netcdf@0.12.1\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/netcdf-0.12.1/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"netcdf\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/netcdf-0.12.1/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libnetcdf-f1f0fbe82be12f2e.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libnetcdf-f1f0fbe82be12f2e.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#tiff@0.11.3\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tiff-0.11.3/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"tiff\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tiff-0.11.3/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"deflate\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libtiff-190e14002b437874.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libtiff-190e14002b437874.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#tempfile@3.27.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"tempfile\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"default\",\"getrandom\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libtempfile-f15d828b90a8d65a.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libtempfile-f15d828b90a8d65a.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#reqwest@0.12.28\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.12.28/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"reqwest\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.12.28/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"__rustls\",\"__rustls-ring\",\"__tls\",\"rustls-tls\",\"rustls-tls-webpki-roots\",\"rustls-tls-webpki-roots-no-provider\",\"stream\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libreqwest-b2547b8e3f6af8d3.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libreqwest-b2547b8e3f6af8d3.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#rusqlite@0.37.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rusqlite-0.37.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"rusqlite\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rusqlite-0.37.0/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"bundled\",\"modern_sqlite\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/librusqlite-fdd910987a8c69c3.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/librusqlite-fdd910987a8c69c3.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#serde_yaml_ng@0.10.0\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_yaml_ng-0.10.0/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"serde_yaml_ng\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_yaml_ng-0.10.0/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libserde_yaml_ng-4e2e06b6a6eaa7e7.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libserde_yaml_ng-4e2e06b6a6eaa7e7.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#zarrs@0.23.14\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zarrs-0.23.14/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"zarrs\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zarrs-0.23.14/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"blosc\",\"filesystem\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libzarrs-075bc7ba67b9c8e0.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libzarrs-075bc7ba67b9c8e0.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#sha2@0.10.9\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sha2-0.10.9/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"sha2\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sha2-0.10.9/src/lib.rs\",\"edition\":\"2018\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[\"default\",\"std\"],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libsha2-2014e1dabe5ad7d2.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libsha2-2014e1dabe5ad7d2.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"registry+https://github.com/rust-lang/crates.io-index#webpki-roots@0.26.11\",\"manifest_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webpki-roots-0.26.11/Cargo.toml\",\"target\":{\"kind\":[\"lib\"],\"crate_types\":[\"lib\"],\"name\":\"webpki_roots\",\"src_path\":\"/Users/blizhan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webpki-roots-0.26.11/src/lib.rs\",\"edition\":\"2021\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libwebpki_roots-d9b761eed9a1f08f.rlib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libwebpki_roots-d9b761eed9a1f08f.rmeta\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"path+file:///Users/blizhan/data/code/github/radiust/crates/radiust-core#0.1.0\",\"manifest_path\":\"/Users/blizhan/data/code/github/radiust/crates/radiust-core/Cargo.toml\",\"target\":{\"kind\":[\"cdylib\",\"rlib\"],\"crate_types\":[\"cdylib\",\"rlib\"],\"name\":\"radiust_core\",\"src_path\":\"/Users/blizhan/data/code/github/radiust/crates/radiust-core/src/lib.rs\",\"edition\":\"2024\",\"doc\":true,\"doctest\":true,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":false},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libradiust_core.dylib\",\"/Users/blizhan/data/code/github/radiust/target/debug/deps/libradiust_core.rlib\"],\"executable\":null,\"fresh\":true}",
+      "{\"reason\":\"compiler-artifact\",\"package_id\":\"path+file:///Users/blizhan/data/code/github/radiust/crates/radiust-core#0.1.0\",\"manifest_path\":\"/Users/blizhan/data/code/github/radiust/crates/radiust-core/Cargo.toml\",\"target\":{\"kind\":[\"test\"],\"crate_types\":[\"bin\"],\"name\":\"download_batch\",\"src_path\":\"/Users/blizhan/data/code/github/radiust/crates/radiust-core/tests/download_batch.rs\",\"edition\":\"2024\",\"doc\":false,\"doctest\":false,\"test\":true},\"profile\":{\"opt_level\":\"0\",\"debuginfo\":2,\"debug_assertions\":true,\"overflow_checks\":true,\"test\":true},\"features\":[],\"filenames\":[\"/Users/blizhan/data/code/github/radiust/target/debug/deps/download_batch-389d86b0725a5874\"],\"executable\":\"/Users/blizhan/data/code/github/radiust/target/debug/deps/download_batch-389d86b0725a5874\",\"fresh\":false}",
+      "{\"reason\":\"build-finished\",\"success\":true}"
+    ],
+    "stderr_tail": [
+      "   Compiling radiust-core v0.1.0 (/Users/blizhan/data/code/github/radiust/crates/radiust-core)",
+      "    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.74s"
+    ]
+  },
+  "execution": {
+    "command": [
+      "/Users/blizhan/data/code/github/radiust/target/debug/deps/download_batch-389d86b0725a5874",
+      "--exact",
+      "batch_download_benchmark_loopback_raw_only_30_rounds",
+      "--ignored",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 23.869011124999815,
+    "stdout_sha256": "e2f5c0a0c0f8f54eb185b2b05af9eeef59429a45ba9831b21cb31893a4c5abdd",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_tail": [
+      "",
+      "running 1 test",
+      "BATCH_BENCHMARK_JSON={\"rounds\":[{\"round\":1,\"elapsed_seconds\":0.681797958,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":2,\"elapsed_seconds\":0.661795208,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":3,\"elapsed_seconds\":0.683916666,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":4,\"elapsed_seconds\":0.644763417,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":5,\"elapsed_seconds\":0.644936125,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":6,\"elapsed_seconds\":0.662459875,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":7,\"elapsed_seconds\":0.6626595,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":8,\"elapsed_seconds\":0.640446375,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":9,\"elapsed_seconds\":0.637762375,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":10,\"elapsed_seconds\":0.6847625,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":11,\"elapsed_seconds\":0.652824334,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":12,\"elapsed_seconds\":0.637288417,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":13,\"elapsed_seconds\":0.654759084,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":14,\"elapsed_seconds\":0.663941333,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":15,\"elapsed_seconds\":0.659454792,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":16,\"elapsed_seconds\":0.658250125,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":17,\"elapsed_seconds\":0.70975475,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":18,\"elapsed_seconds\":0.653246,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":19,\"elapsed_seconds\":0.6675715,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":20,\"elapsed_seconds\":0.665995791,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":21,\"elapsed_seconds\":0.654075334,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":22,\"elapsed_seconds\":0.669257583,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":23,\"elapsed_seconds\":0.68806925,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":24,\"elapsed_seconds\":0.675163875,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":25,\"elapsed_seconds\":0.663908333,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":26,\"elapsed_seconds\":0.66191675,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":27,\"elapsed_seconds\":0.666709167,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":28,\"elapsed_seconds\":0.6673845,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":29,\"elapsed_seconds\":0.674214416,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0},{\"round\":30,\"elapsed_seconds\":0.686160333,\"request_count\":16,\"observed_server_concurrency\":4,\"configured_concurrency_limit\":4,\"input_order_verified\":true,\"manifest_and_artifact_sha256_readback_verified\":true,\"temp_residue_count\":0}],\"frames_per_round\":16,\"body_bytes_per_artifact\":65536,\"configured_concurrency_limit\":4,\"listener_host\":\"127.0.0.1\",\"public_network_used\":false}",
+      "test batch_download_benchmark_loopback_raw_only_30_rounds ... ok",
+      "",
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 22.11s",
+      ""
+    ],
+    "stderr_tail": [],
+    "exactly_one_test_started": true,
+    "test_output": {
+      "rounds": [
+        {
+          "round": 1,
+          "elapsed_seconds": 0.681797958,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 2,
+          "elapsed_seconds": 0.661795208,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 3,
+          "elapsed_seconds": 0.683916666,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 4,
+          "elapsed_seconds": 0.644763417,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 5,
+          "elapsed_seconds": 0.644936125,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 6,
+          "elapsed_seconds": 0.662459875,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 7,
+          "elapsed_seconds": 0.6626595,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 8,
+          "elapsed_seconds": 0.640446375,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 9,
+          "elapsed_seconds": 0.637762375,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 10,
+          "elapsed_seconds": 0.6847625,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 11,
+          "elapsed_seconds": 0.652824334,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 12,
+          "elapsed_seconds": 0.637288417,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 13,
+          "elapsed_seconds": 0.654759084,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 14,
+          "elapsed_seconds": 0.663941333,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 15,
+          "elapsed_seconds": 0.659454792,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 16,
+          "elapsed_seconds": 0.658250125,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 17,
+          "elapsed_seconds": 0.70975475,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 18,
+          "elapsed_seconds": 0.653246,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 19,
+          "elapsed_seconds": 0.6675715,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 20,
+          "elapsed_seconds": 0.665995791,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 21,
+          "elapsed_seconds": 0.654075334,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 22,
+          "elapsed_seconds": 0.669257583,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 23,
+          "elapsed_seconds": 0.68806925,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 24,
+          "elapsed_seconds": 0.675163875,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 25,
+          "elapsed_seconds": 0.663908333,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 26,
+          "elapsed_seconds": 0.66191675,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 27,
+          "elapsed_seconds": 0.666709167,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 28,
+          "elapsed_seconds": 0.6673845,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 29,
+          "elapsed_seconds": 0.674214416,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        },
+        {
+          "round": 30,
+          "elapsed_seconds": 0.686160333,
+          "request_count": 16,
+          "observed_server_concurrency": 4,
+          "configured_concurrency_limit": 4,
+          "input_order_verified": true,
+          "manifest_and_artifact_sha256_readback_verified": true,
+          "temp_residue_count": 0
+        }
+      ],
+      "frames_per_round": 16,
+      "body_bytes_per_artifact": 65536,
+      "configured_concurrency_limit": 4,
+      "listener_host": "127.0.0.1",
+      "public_network_used": false
+    },
+    "direct_child_peak_rss_bytes": 23543808,
+    "process_tree_peak_rss_bytes": 23511040,
+    "process_tree_rss_measurement": {
+      "method": "sampled ps RSS sum for the test process and observed descendants",
+      "sample_interval_seconds": 0.05,
+      "status": "sampled_ps_process_tree",
+      "may_miss_short_lived_descendants": true,
+      "observed_descendant_pids": []
+    },
+    "temporary_directory_peak": {
+      "path_isolated": true,
+      "measurement": "maximum sampled logical bytes and regular-file count under TMPDIR",
+      "sample_interval_seconds": 0.02,
+      "sample_count": 950,
+      "peak_regular_file_bytes": 1217254,
+      "peak_regular_file_count": 52,
+      "remaining_entries_after_test": [],
+      "status": "sampled"
+    },
+    "process_group_cleanup": {
+      "method": "ps process-group scan after direct test process exit",
+      "remaining_members": [],
+      "status": "no_remaining_members"
+    }
+  },
+  "summary": {
+    "round_count": 30,
+    "all_rounds_passed": true,
+    "p50_download_and_commit_seconds": 0.6632839165,
+    "p95_download_and_commit_seconds": 0.68721023735,
+    "total_http_requests": 480,
+    "observed_server_concurrency_min": 4,
+    "observed_server_concurrency_max": 4,
+    "all_input_orders_verified": true,
+    "all_manifest_and_artifact_readbacks_verified": true,
+    "all_temp_roots_empty": true
+  },
+  "measurement_gaps": []
+}

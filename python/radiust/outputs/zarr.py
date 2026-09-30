@@ -7,15 +7,28 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import MissingDependencyError
-from ..field import RadarDataset, RadarField
+from ..science_adapters import to_xarray
 
 
-def write_zarr(value: RadarField | RadarDataset, path: str | Path, *, options: dict[str, Any] | None = None) -> list[Path]:
+def write_zarr(value: Any, path: str | Path, *, options: dict[str, Any] | None = None) -> list[Path]:
     if importlib.util.find_spec("zarr") is None:
         raise MissingDependencyError("Zarr output requires the 'zarr' extra; install radiust[zarr]")
+    try:
+        import xarray as xr
+    except ImportError as exc:
+        raise MissingDependencyError(
+            "Zarr output requires the 'zarr' extra; install radiust[zarr]"
+        ) from exc
+    try:
+        dataset = value.to_dataset() if callable(getattr(value, "to_dataset", None)) else to_xarray(value)
+    except ImportError as exc:
+        raise MissingDependencyError(
+            "Zarr output requires NumPy and xarray; install radiust[zarr]"
+        ) from exc
+    if isinstance(dataset, xr.DataArray):
+        dataset = dataset.to_dataset(name=dataset.name or "data")
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    dataset = value.to_dataset()
     encoding = {
         name: {
             "chunks": tuple(min(512, int(size)) for size in variable.shape),

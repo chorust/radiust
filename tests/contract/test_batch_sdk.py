@@ -1,148 +1,186 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from radiust import AsyncClient, BatchError, Client, FrameRef, ProductInfo, SourceInfo
-from radiust.models import Artifact
-from radiust.raw import RawFrame
+from radiust import AsyncClient, BatchError, Client, FrameRef
+
+from tests.support.native_raw_cache import seed_native_raw_cache
+from tests.support.native_science_fixture import (
+    seed_tw_grid_cache,
+    tw_grid_ref,
+    tw_offline_config,
+)
 
 
-class _BatchSource:
-    info = SourceInfo(
-        id="batch-test",
-        description="test source",
-        adapter_version="1",
-        products=(ProductInfo(id="reflectivity", variables=("reflectivity",), default=True),),
-    )
-
-    def __init__(self) -> None:
-        self.active = 0
-        self.max_active = 0
-        self.downloaded = 0
-        self.gates: dict[str, tuple[asyncio.Event, asyncio.Event]] = {}
-
-    async def discover(self, query, context):
-        return []
-
-    async def download(self, ref, context):
-        self.downloaded += 1
-        self.active += 1
-        self.max_active = max(self.max_active, self.active)
-        try:
-            gate = self.gates.get(ref.station or "")
-            if gate is None:
-                await asyncio.sleep(float(ref.metadata.get("delay", 0)))
-            else:
-                started, release = gate
-                started.set()
-                await release.wait()
-            if ref.metadata.get("error"):
-                raise RuntimeError(str(ref.metadata["error"]))
-            return RawFrame(ref, (Artifact("frame.bin", "data", "application/octet-stream", b"x"),))
-        finally:
-            self.active -= 1
-
-    def decode(self, raw, context):
-        raw._ensure_open()
-        return {"station": raw.ref.station}
-
-
-def _refs(*specs: tuple[str, float, str | None]) -> list[FrameRef]:
-    base = datetime(2025, 12, 29, 6, 50, tzinfo=timezone.utc)
+def _refs() -> list[FrameRef]:
+    valid_time = datetime(2026, 9, 24, tzinfo=timezone.utc)
     return [
-        FrameRef(
-            "batch-test",
-            "reflectivity",
-            base + timedelta(minutes=index),
-            station=station,
-            metadata={"delay": delay, **({"error": error} if error else {})},
-        )
-        for index, (station, delay, error) in enumerate(specs)
+        FrameRef("fr", "composite", valid_time, station="FRCOMP"),
+        FrameRef("my", "composite", valid_time, station="east"),
     ]
 
 
-def test_fetch_many_preserves_input_order_and_data(monkeypatch):
-    source = _BatchSource()
-    monkeypatch.setattr("radiust.pipeline.get_source", lambda _source_id: source)
-    refs = _refs(("a", 0.03, None), ("b", 0.0, None), ("c", 0.01, None))
+def test_fetch_many_rejects_duplicate_identity_before_native_io() -> None:
+    frame = _refs()[0]
+    with (
+        Client(config={"runtime": {"allow_network": False}}) as client,
+        pytest.raises(ValueError, match="duplicate"),
+    ):
+        client.fetch_many([frame, frame])
 
-    with Client() as client:
-        result = client.fetch_many(refs)
+def test_fetch_many_collects_native_acquisition_failures_in_input_order() -> None:
+    frames = _refs()
+    with Client(config={"runtime": {"allow_network": False}}) as client:
+        result = client.fetch_many(frames, on_error="collect", max_concurrency=2)
 
-    assert [item.ref.station for item in result.items] == ["a", "b", "c"]
-    assert [item.status for item in result.items] == ["success", "success", "success"]
-    assert [item.data["station"] for item in result.items] == ["a", "b", "c"]
-
-
-def test_fetch_many_rejects_duplicate_identity_before_acquisition(monkeypatch):
-    source = _BatchSource()
-    monkeypatch.setattr("radiust.pipeline.get_source", lambda _source_id: source)
-    ref = _refs(("a", 0.0, None))[0]
-
-    with Client() as client, pytest.raises(ValueError, match="duplicate"):
-        client.fetch_many([ref, ref])
-
-    assert source.downloaded == 0
+    assert [item.ref.logical_id for item in result.items] == [
+        frame.logical_id for frame in frames
+    ]
+    assert [item.status for item in result.items] == ["failed", "failed"]
+    assert all(item.data is None and item.error is not None for item in result.items)
 
 
-def test_fetch_many_collects_failures_without_reordering(monkeypatch):
-    source = _BatchSource()
-    monkeypatch.setattr("radiust.pipeline.get_source", lambda _source_id: source)
-    refs = _refs(("a", 0.01, None), ("b", 0.0, "bad frame"), ("c", 0.0, None))
+def test_fetch_many_preserves_structured_rust_decode_errors(tmp_path) -> None:
+    frame = FrameRef(
+        "my",
+        "composite",
+        datetime(2026, 9, 24, tzinfo=timezone.utc),
+        station="east",
+        locator={
+            "url": "https://www.met.gov.my/data/radar_east.gif",
+            "artifacts": [],
+            "station": "east",
+            "name": "my_east.png",
+            "media_type": "image/png",
+        },
+        locator_version="my-legacy-v1",
+        revision="unsupported-science-contract",
+    )
+    cache_root = tmp_path / "cache"
+    seed_native_raw_cache(cache_root, frame, [("my_east.png", "image/png", b"raw fixture")])
+    config = {
+        "runtime": {"allow_network": False},
+        "cache": {"enabled": True, "dir": str(cache_root)},
+    }
 
-    with Client() as client:
-        result = client.fetch_many(refs, on_error="collect")
+    with Client(config=config) as client:
+        result = client.fetch_many([frame])
 
-    assert [item.status for item in result.items] == ["success", "failed", "success"]
-    assert result.items[1].error is not None
-    assert "bad frame" in result.items[1].error["message"]
+    item = result.items[0]
+    assert item.status == "failed"
+    assert item.error is not None
+    assert item.error["code"] == "unsupported_query"
+    assert item.error["stage"] == "decode"
+    assert item.error["source"] == "my"
 
 
-def test_fetch_many_raise_contains_successful_partial_results(monkeypatch):
-    source = _BatchSource()
-    monkeypatch.setattr("radiust.pipeline.get_source", lambda _source_id: source)
-    refs = _refs(("a", 0.0, None), ("b", 0.02, "bad frame"), ("c", 1.0, None))
-
-    with Client() as client, pytest.raises(BatchError) as caught:
-        client.fetch_many(refs, on_error="raise")
+def test_fetch_many_stop_keeps_ordered_partial_result() -> None:
+    frames = _refs()
+    with (
+        Client(config={"runtime": {"allow_network": False}}) as client,
+        pytest.raises(BatchError) as caught,
+    ):
+        client.fetch_many(frames, on_error="stop", max_concurrency=1)
 
     partial = caught.value.partial_result
-    assert [item.ref.station for item in partial.items[:2]] == ["a", "b"]
-    assert any(item.status == "success" for item in partial.items)
-    assert any(item.status == "failed" for item in partial.items)
-    assert source.active == 0
+    assert [item.ref.logical_id for item in partial.items] == [
+        frame.logical_id for frame in frames
+    ]
+    assert [item.status for item in partial.items] == ["failed", "not_started"]
 
 
 @pytest.mark.asyncio
-async def test_async_fetch_many_and_stream_are_available(monkeypatch):
-    source = _BatchSource()
-    monkeypatch.setattr("radiust.pipeline.get_source", lambda _source_id: source)
-    refs = _refs(("a", 0.03, None), ("b", 0.0, None), ("c", 0.01, None))
+async def test_async_fetch_many_decodes_cached_frames_in_rust_and_preserves_order(
+    tmp_path, monkeypatch
+) -> None:
+    first = tw_grid_ref()
+    second = tw_grid_ref(first.valid_time + timedelta(minutes=5))
+    cache_root = tmp_path / "cache"
+    seed_tw_grid_cache(cache_root, first)
+    seed_tw_grid_cache(cache_root, second)
+    config = tw_offline_config(cache_root, tmp_path / "output", tmp_path / "temp")
 
-    async with AsyncClient() as client:
-        result = await client.fetch_many(refs)
-        started = {station: asyncio.Event() for station in ("a", "b", "c")}
-        releases = {station: asyncio.Event() for station in ("a", "b", "c")}
-        source.gates = {
-            station: (started[station], releases[station]) for station in started
-        }
-        stream = client.aiter_fetch(refs, max_prefetch=2)
-        first_pending = asyncio.create_task(stream.__anext__())
-        try:
-            await asyncio.gather(started["a"].wait(), started["b"].wait())
-            releases["b"].set()
-            first = await asyncio.wait_for(first_pending, timeout=1)
-            await started["c"].wait()
-            releases["c"].set()
-            second = await asyncio.wait_for(stream.__anext__(), timeout=1)
-            releases["a"].set()
-            third = await asyncio.wait_for(stream.__anext__(), timeout=1)
-        finally:
-            for release in releases.values():
-                release.set()
-            await stream.aclose()
+    async with AsyncClient(config=config) as client:
+        async def reject_python_decode(_raw):
+            raise AssertionError("batch decode must remain in the Rust Engine")
 
-    assert [item.status for item in result.items] == ["success"] * 3
-    assert [first.ref.station, second.ref.station, third.ref.station] == ["b", "c", "a"]
+        monkeypatch.setattr(client._session, "decode_science", reject_python_decode)
+        result = await client.fetch_many([second, first], max_concurrency=2)
+
+    assert [item.ref.logical_id for item in result.items] == [
+        second.logical_id,
+        first.logical_id,
+    ]
+    assert [item.status for item in result.items] == ["success", "success"]
+    assert all(item.data.name == "reflectivity" for item in result.items)
+    assert all(item.data.shape == [881, 921] for item in result.items)
+
+
+@pytest.mark.asyncio
+async def test_async_iter_fetch_uses_native_decode_and_honors_single_prefetch(
+    tmp_path, monkeypatch
+) -> None:
+    first = tw_grid_ref()
+    second = tw_grid_ref(first.valid_time + timedelta(minutes=5))
+    cache_root = tmp_path / "cache"
+    seed_tw_grid_cache(cache_root, first)
+    seed_tw_grid_cache(cache_root, second)
+    config = tw_offline_config(cache_root, tmp_path / "output", tmp_path / "temp")
+
+    async with AsyncClient(config=config) as client:
+        def reject_python_fetch(_ref):
+            raise AssertionError("stream fetch must remain in the Rust Engine")
+
+        async def reject_python_decode(_raw):
+            raise AssertionError("stream decode must remain in the Rust Engine")
+
+        monkeypatch.setattr(client, "acquire", reject_python_fetch)
+        monkeypatch.setattr(client, "decode", reject_python_decode)
+        stream = client.aiter_fetch([second, first], max_prefetch=1)
+        async with stream:
+            items = [item async for item in stream]
+        assert not client._streams
+
+    assert [item.ref.logical_id for item in items] == [
+        second.logical_id,
+        first.logical_id,
+    ]
+    assert [item.status for item in items] == ["success", "success"]
+    assert all(item.data.name == "reflectivity" for item in items)
+
+
+def test_sync_iter_fetch_uses_native_decode(tmp_path, monkeypatch) -> None:
+    frame = tw_grid_ref()
+    cache_root = tmp_path / "cache"
+    seed_tw_grid_cache(cache_root, frame)
+    config = tw_offline_config(cache_root, tmp_path / "output", tmp_path / "temp")
+
+    with Client(config=config) as client:
+        def reject_python_decode(_raw):
+            raise AssertionError("stream decode must remain in the Rust Engine")
+
+        monkeypatch.setattr(client, "decode", reject_python_decode)
+        with client.iter_fetch([frame], max_prefetch=1) as stream:
+            item = next(stream)
+
+    assert item.ref.logical_id == frame.logical_id
+    assert item.status == "success"
+    assert item.data.name == "reflectivity"
+
+
+@pytest.mark.asyncio
+async def test_async_iter_fetch_raise_returns_ordered_native_partial_result() -> None:
+    frames = _refs()
+    async with AsyncClient(config={"runtime": {"allow_network": False}}) as client:
+        stream = client.aiter_fetch(frames, on_error="raise", max_prefetch=1)
+        with pytest.raises(BatchError) as caught:
+            await anext(stream)
+
+        assert not client._streams
+
+    partial = caught.value.partial_result
+    assert [item.ref.logical_id for item in partial.items] == [
+        frame.logical_id for frame in frames
+    ]
+    assert [item.status for item in partial.items] == ["failed", "not_started"]

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import socket
 from pathlib import Path
 
 import pytest
 from PIL import Image
 from radiust.client import Client
-from radiust.models import ProductInfo, SourceInfo, StationInfo
 
 from tests.support.cli_experience import (
     CallCounts,
@@ -17,7 +15,6 @@ from tests.support.cli_experience import (
     fixture_metadata,
     forbid_network,
     image_bytes,
-    install_catalog,
     install_raw_source,
     multiple_frames,
 )
@@ -62,18 +59,27 @@ def test_synthetic_animated_gif_contains_distinct_frames():
     assert image_bytes().startswith(b"\x89PNG")
 
 
-def test_catalog_injection_and_network_call_counter(monkeypatch):
-    import radiust.discovery as discovery
+def test_native_cli_uses_rust_catalog_without_python_network_calls(monkeypatch):
+    import builtins
+    import json
 
-    catalog = (SourceInfo("stub", "Synthetic", "1", (ProductInfo("rain", variables=("reflectivity",)),),
-                          (StationInfo("station", "Station", 0, 0, product_ids=("rain",)),)),)
-    install_catalog(monkeypatch, catalog)
-    assert discovery.sources() == catalog
-    # The CLI imports sources into its module namespace, not the registry cache.
-    from radiust.cli.main import sources
-    assert sources() == catalog
+    from click.testing import CliRunner
+    from radiust.cli.main import main
+
+    original_import = builtins.__import__
+
+    def reject_legacy_source_runtime(name, *args, **kwargs):
+        if name == "radiust.discovery" or name.startswith("radiust.sources"):
+            raise AssertionError(f"native CLI imported legacy Python runtime module: {name}")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", reject_legacy_source_runtime)
     counter = CallCounts()
     forbid_network(monkeypatch, counter)
-    with pytest.raises(AssertionError, match="network"):
-        socket.socket().connect(("127.0.0.1", 9))
-    assert counter.network == 1
+    result = CliRunner().invoke(main, ["list", "sources", "--json"])
+    assert result.exit_code == 0, result.output
+    document = json.loads(result.output)
+    ids = {item["id"] for item in document["items"]}
+    assert len(ids) == 24
+    assert "stub" not in ids
+    assert counter.network == 0

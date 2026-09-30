@@ -1,9 +1,10 @@
 use radiust_core::errors::CoreError;
-use radiust_core::limits::Limits;
+use radiust_core::limits::{Limits, RequestBudget};
 use radiust_core::transport::FtpTransport;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::Arc;
 use std::time::Duration;
 
 struct FixtureServer {
@@ -99,6 +100,46 @@ fn fixture_bytes() -> &'static [u8] {
 }
 
 #[tokio::test]
+async fn ftp_transport_uses_shared_request_and_host_budgets() {
+    let mut limits = Limits::default();
+    limits.request_concurrency = 1;
+    limits.host_concurrency = 1;
+    let budget = Arc::new(RequestBudget::new(&limits));
+    let transport = Arc::new(FtpTransport::with_budget(limits.clone(), false, budget.clone()));
+    let address = "ftp://127.0.0.1:1/";
+
+    let request_permit = budget.acquire_request().await.unwrap();
+    let (started, started_rx) = tokio::sync::oneshot::channel();
+    let worker = transport.clone();
+    let request_task = tokio::spawn(async move {
+        let _ = started.send(());
+        worker.list(address, "anonymous", "anonymous").await
+    });
+    started_rx.await.unwrap();
+    tokio::time::sleep(Duration::from_millis(40)).await;
+    assert!(!request_task.is_finished(), "FTP must wait on the shared request permit");
+    drop(request_permit);
+    transport.cancel();
+    assert!(matches!(request_task.await.unwrap(), Err(CoreError::Cancelled)));
+
+    let budget = Arc::new(RequestBudget::new(&limits));
+    let transport = Arc::new(FtpTransport::with_budget(limits, false, budget.clone()));
+    let host_permit = budget.acquire_host("127.0.0.1").await.unwrap();
+    let (started, started_rx) = tokio::sync::oneshot::channel();
+    let worker = transport.clone();
+    let host_task = tokio::spawn(async move {
+        let _ = started.send(());
+        worker.list(address, "anonymous", "anonymous").await
+    });
+    started_rx.await.unwrap();
+    tokio::time::sleep(Duration::from_millis(40)).await;
+    assert!(!host_task.is_finished(), "FTP must wait on the shared host permit");
+    drop(host_permit);
+    transport.cancel();
+    assert!(matches!(host_task.await.unwrap(), Err(CoreError::Cancelled)));
+}
+
+#[tokio::test]
 async fn passive_plain_ftp_lists_stats_and_reads_with_receipt() {
     let server = FixtureServer::start(false, false);
     let transport = FtpTransport::new(Limits::default(), false);
@@ -123,6 +164,141 @@ async fn passive_plain_ftp_lists_stats_and_reads_with_receipt() {
     assert_eq!(object.bytes, fixture_bytes());
     assert_eq!(object.size_bytes, fixture_bytes().len() as u64);
     assert_eq!(object.sha256, "712202b73d2d16c5b27e85b649bb97f0242c4eb797cc871953153da1537b0455");
+}
+
+#[tokio::test]
+async fn ftp_streaming_download_writes_receipt_and_atomically_replaces_destination() {
+    let server = FixtureServer::start(false, false);
+    let transport = FtpTransport::new(Limits::default(), false);
+    let directory = tempfile::tempdir().expect("create destination directory");
+    let destination = directory.path().join("download.bin");
+    std::fs::write(&destination, b"previous contents").expect("seed destination");
+
+    let receipt = transport
+        .get_to_path_limited(
+            &server.url("ftp", "fixture.bin"),
+            "radiust",
+            "secret",
+            &destination,
+            fixture_bytes().len() as u64,
+        )
+        .await
+        .expect("streamed RETR succeeds");
+
+    assert_eq!(receipt.size_bytes, fixture_bytes().len() as u64);
+    assert_eq!(receipt.sha256, "712202b73d2d16c5b27e85b649bb97f0242c4eb797cc871953153da1537b0455");
+    assert_eq!(std::fs::read(&destination).expect("read published file"), fixture_bytes());
+    assert_eq!(
+        std::fs::read_dir(directory.path()).expect("list destination directory").count(),
+        1,
+        "successful publish leaves no staging file"
+    );
+}
+
+#[tokio::test]
+async fn ftp_streaming_download_enforces_remaining_limit_without_residue() {
+    let server = FixtureServer::start(false, false);
+    let transport = FtpTransport::new(Limits::default(), false);
+    let directory = tempfile::tempdir().expect("create destination directory");
+    let destination = directory.path().join("download.bin");
+    std::fs::write(&destination, b"old contents").expect("seed destination");
+
+    let error = transport
+        .get_to_path_limited(
+            &server.url("ftp", "fixture.bin"),
+            "radiust",
+            "secret",
+            &destination,
+            fixture_bytes().len() as u64 - 1,
+        )
+        .await
+        .expect_err("remaining byte limit must be enforced");
+
+    assert!(matches!(error, CoreError::ResourceLimit(_)));
+    assert_eq!(std::fs::read(&destination).unwrap(), b"old contents");
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    assert!(server.commands().lines().any(|command| command == "ABOR"));
+}
+
+#[tokio::test]
+async fn ftp_streaming_download_enforces_artifact_limit_without_residue() {
+    let server = FixtureServer::start(false, false);
+    let mut limits = Limits::default();
+    limits.max_artifact_bytes = fixture_bytes().len() as u64 - 1;
+    let transport = FtpTransport::new(limits, false);
+    let directory = tempfile::tempdir().expect("create destination directory");
+    let destination = directory.path().join("download.bin");
+    std::fs::write(&destination, b"old contents").expect("seed destination");
+
+    let error = transport
+        .get_to_path_limited(
+            &server.url("ftp", "fixture.bin"),
+            "radiust",
+            "secret",
+            &destination,
+            u64::MAX,
+        )
+        .await
+        .expect_err("artifact byte limit must be enforced");
+
+    assert!(matches!(error, CoreError::ResourceLimit(_)));
+    assert_eq!(std::fs::read(&destination).unwrap(), b"old contents");
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    assert!(server.commands().lines().any(|command| command == "ABOR"));
+}
+
+#[tokio::test]
+async fn ftp_streaming_download_timeout_removes_partial_files() {
+    let server = FixtureServer::start(false, true);
+    let mut limits = Limits::default();
+    limits.request_timeout_secs = 1;
+    let transport = FtpTransport::new(limits, false);
+    let directory = tempfile::tempdir().expect("create destination directory");
+    let destination = directory.path().join("download.bin");
+    std::fs::write(&destination, b"old contents").expect("seed destination");
+    let started = std::time::Instant::now();
+
+    let error = transport
+        .get_to_path_limited(
+            &server.url("ftp", "fixture.bin"),
+            "radiust",
+            "secret",
+            &destination,
+            u64::MAX,
+        )
+        .await
+        .expect_err("stalled RETR must time out");
+
+    assert!(matches!(error, CoreError::Transport(_)));
+    assert!(started.elapsed() < Duration::from_secs(6));
+    assert!(server.commands().lines().any(|command| command == "ABOR"));
+    assert_eq!(std::fs::read(&destination).unwrap(), b"old contents");
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+}
+
+#[tokio::test]
+async fn ftp_streaming_download_cancellation_removes_partial_files() {
+    let server = FixtureServer::start(false, true);
+    let mut limits = Limits::default();
+    limits.request_timeout_secs = 30;
+    let transport = FtpTransport::new(limits, false);
+    let worker = transport.clone();
+    let directory = tempfile::tempdir().expect("create destination directory");
+    let destination = directory.path().join("download.bin");
+    std::fs::write(&destination, b"old contents").expect("seed destination");
+    let task_destination = destination.clone();
+    let url = server.url("ftp", "fixture.bin");
+    let task = tokio::spawn(async move {
+        worker.get_to_path_limited(&url, "radiust", "secret", &task_destination, u64::MAX).await
+    });
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    transport.cancel();
+
+    let error = task.await.expect("join FTP task").expect_err("cancel must stop RETR");
+    assert!(matches!(error, CoreError::Cancelled));
+    assert!(server.commands().lines().any(|command| command == "ABOR"));
+    assert_eq!(std::fs::read(&destination).unwrap(), b"old contents");
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
 }
 
 #[tokio::test]

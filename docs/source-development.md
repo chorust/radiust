@@ -21,3 +21,9 @@ decoder 必须只读 RawFrame 和版本化资源。精确 palette 优先；近�
 4. 更新 `migration/sources/<id>.json`，说明旧实现去向、行为差异和历史错误修正。
 
 没有真实 raw 或可靠科学语义时，来源可以出现在目录中，但必须保持 `needs_configuration` 或迁移阻塞状态，不能用合成图、旧 display PNG 或简单的 merge 结果宣称迁移完成。
+
+## Rust core 迁移
+
+当前 Python `Source` 接口和 `radiust.sources` entry point 仍可用于现有 Python pipeline；它们不会作为运行时插件自动注入原生 Rust CLI。迁移后的内置 adapter 实现 `radiust_core::source::SourceAdapter` 并注册到编译期 `SourceRegistry`，通过共享 `SourceContext` 使用网络 opt-in、请求/主机预算、取消、deadline 和临时目录。适配器只负责该来源的发现与获取边界；科学解码、输出提交和报告由 Engine 管理。
+
+第三方扩展需把来源逻辑移植为 Rust adapter，声明并验证产品、站点、凭据和 capability，然后重新构建 wheel/应用。浏览器或 OCR 依赖应作为明确的可选系统能力探测；不可用时返回安全的受限状态，不绕过网络许可或回退执行任意 Python 插件。未通过原始样本、身份、科学像素/几何和独立读回的来源只能提供其已验证的发现/原始能力，不能宣称解码通过。

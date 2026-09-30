@@ -9,8 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image
-from radiust.models import Artifact, FrameRef, SourceInfo
-from radiust.raw import RawFrame
+from radiust.models import FrameRef
 
 from .fixtures import load_fixture
 
@@ -56,15 +55,6 @@ def fixture_metadata(path: Path) -> dict[str, Any]:
     return load_fixture(path)
 
 
-def install_catalog(monkeypatch: Any, catalog: tuple[SourceInfo, ...]) -> None:
-    """Inject a fixed listing at both existing CLI and discovery catalog boundaries."""
-    import radiust.cli.main as cli_main
-    import radiust.discovery as discovery
-
-    monkeypatch.setattr(discovery, "sources", lambda: catalog)
-    monkeypatch.setattr(cli_main, "sources", lambda: catalog)
-
-
 def forbid_network(monkeypatch: Any, counts: CallCounts) -> None:
     """Count and fail any accidental socket connection in a synthetic CLI test."""
     import socket
@@ -99,8 +89,7 @@ def install_raw_source(monkeypatch, *, refs: tuple[FrameRef, ...] | None = None,
 
     class Acquire:
         def __init__(self, selected: FrameRef):
-            suffix = format_name.lower()
-            self.raw = RawFrame(selected, (Artifact(f"frame.{suffix}", "data", f"image/{suffix}", payload),))
+            self.raw = _SyntheticRaw(selected, payload)
 
         def __enter__(self):
             return self.raw
@@ -120,3 +109,17 @@ def install_raw_source(monkeypatch, *, refs: tuple[FrameRef, ...] | None = None,
     monkeypatch.setattr(Client, "acquire", acquire)
     monkeypatch.setattr(Client, "fetch", forbid_science)
     return counts
+
+
+class _SyntheticRaw:
+    """Small test double for the Rust-bound acquisition object."""
+
+    def __init__(self, ref: FrameRef, payload: bytes) -> None:
+        self.ref = ref
+        self._payload = payload
+
+    def bytes(self) -> bytes:
+        return self._payload
+
+    def close(self) -> None:
+        return None

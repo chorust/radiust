@@ -71,9 +71,17 @@ jobs:
         run: echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> "$GITHUB_ENV"
       - run: uv sync --no-dev --group ci --locked
       - name: Build wheel for this matrix cell
-        run: uv run --no-sync maturin build --release --interpreter "$UV_PROJECT_ENVIRONMENT/bin/python" --out "$WHEEL_DIR"
+        run: |
+          mkdir -p "$WHEEL_DIR/raw"
+          uv run --no-sync maturin build --release --locked --interpreter "$UV_PROJECT_ENVIRONMENT/bin/python" --out "$WHEEL_DIR/raw"
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            uv run --no-sync delocate-wheel --require-archs "$ARCHITECTURE" --wheel-dir "$WHEEL_DIR" "$WHEEL_DIR"/raw/*.whl
+          else
+            cp "$WHEEL_DIR"/raw/*.whl "$WHEEL_DIR"/
+          fi
         env:
           WHEEL_DIR: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}
+          ARCHITECTURE: ${{ matrix.architecture }}
       - name: Select the wheel built for this matrix cell
         run: |
           python - <<'PY'
@@ -88,11 +96,34 @@ jobs:
           PY
         env:
           WHEEL_DIR: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}
+      - name: Audit installed macOS wheel and Mach-O dependencies
+        if: runner.os == 'macOS'
+        run: |
+          uv run --no-sync python scripts/validation/check_macos_release.py "$RADIUST_WHEEL" \
+            --expected-architecture "$ARCHITECTURE" \
+            --expected-macos-version "$MACOSX_DEPLOYMENT_TARGET" \
+            --report "$WHEEL_DIR/rust-migration-packaging.json"
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
+          WHEEL_DIR: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}
+      - name: Audit macOS arm64 format readback and PROJ data
+        if: runner.os == 'macOS' && matrix.architecture == 'arm64' && matrix.python == '3.12'
+        run: |
+          uv run --no-sync python scripts/validation/check_macos_release.py "$RADIUST_WHEEL" \
+            --expected-architecture "$ARCHITECTURE" \
+            --expected-macos-version "$MACOSX_DEPLOYMENT_TARGET" \
+            --with-format-readback \
+            --report "$WHEEL_DIR/rust-migration-packaging.json"
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
+          WHEEL_DIR: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}
       - run: uv run --no-sync pytest tests/packaging -v
       - uses: actions/upload-artifact@v4
         with:
           name: radiust-wheel-${{ matrix.python }}-${{ matrix.os }}-${{ matrix.architecture }}
-          path: validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}/*.whl
+          path: |
+            validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}/*.whl
+            validation-results/wheels/${{ matrix.os }}-${{ matrix.python }}-${{ matrix.architecture }}/*.json
 
   extras:
     name: wheel extra ${{ matrix.extra }} / CPython ${{ matrix.python }}

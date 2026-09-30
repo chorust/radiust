@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "task": "per-source Rust adapter performance evidence",
+  "task_status": "partial",
+  "mode": "offline",
+  "measured_at": "2026-09-30T00:42:00.621951+00:00",
+  "environment": {
+    "python": "3.12.7",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "architecture": "arm64"
+  },
+  "sources": {
+    "my": {
+      "status": "not_measured",
+      "reason": "source adapters now run inside the Rust Engine; the public binding has no deterministic transport replay injection, so this source-level timing would exercise the retired Python pipeline rather than production adapters",
+      "cold": null,
+      "warm": null
+    },
+    "id_sidarma": {
+      "status": "not_measured",
+      "reason": "source adapters now run inside the Rust Engine; the public binding has no deterministic transport replay injection, so this source-level timing would exercise the retired Python pipeline rather than production adapters",
+      "cold": null,
+      "warm": null
+    },
+    "rainviewer": {
+      "status": "not_measured",
+      "reason": "source adapters now run inside the Rust Engine; the public binding has no deterministic transport replay injection, so this source-level timing would exercise the retired Python pipeline rather than production adapters",
+      "cold": null,
+      "warm": null
+    },
+    "au": {
+      "status": "not_measured",
+      "reason": "source adapters now run inside the Rust Engine; the public binding has no deterministic transport replay injection, so this source-level timing would exercise the retired Python pipeline rather than production adapters",
+      "cold": null,
+      "warm": null
+    },
+    "ph": {
+      "status": "not_measured",
+      "reason": "source adapters now run inside the Rust Engine; the public binding has no deterministic transport replay injection, so this source-level timing would exercise the retired Python pipeline rather than production adapters",
+      "cold": null,
+      "warm": null
+    },
+    "fr": {
+      "status": "not_measured",
+      "reason": "source adapters now run inside the Rust Engine; the public binding has no deterministic transport replay injection, so this source-level timing would exercise the retired Python pipeline rather than production adapters",
+      "cold": null,
+      "warm": null
+    }
+  },
+  "native_cli_baseline": {
+    "status": "available",
+    "path": "validation-results/rust-migration-baseline.json",
+    "baseline_complete": true,
+    "scenarios": [
+      "cat_file",
+      "discover_all",
+      "download_dry_run",
+      "list_sources"
+    ],
+    "requested_repetitions": 30
+  },
+  "measurement_notes": [
+    "No source-specific Rust adapter timings, request counts, RSS, or temporary-byte peaks were collected for these six production adapters.",
+    "The completed T003 CLI comparison includes a separate four-source loopback scheduler replay; it does not claim canonical provider performance for these six adapters.",
+    "This report remains partial until the same permitted canonical source replays can be run through both legacy and Rust adapters."
+  ],
+  "old_chain_comparison": {
+    "status": "unavailable",
+    "reason": "no matched Rust adapter replay and legacy source fixture run under the same harness"
+  }
+}

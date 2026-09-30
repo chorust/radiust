@@ -1,0 +1,355 @@
+{
+  "check": "macos-wheel-release-audit",
+  "checks": {
+    "format_readback": {
+      "details": {
+        "output": "....                                                                     [100%]\n=============================== warnings summary ===============================\n../../../../../../private/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-macos-release-e9daok61/venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1474\n  /private/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-macos-release-e9daok61/venv/lib/python3.12/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n4 passed, 1 warning in 29.12s",
+        "tests": [
+          "test_rust_png_readback.py",
+          "test_rust_netcdf_readback.py",
+          "test_rust_geotiff_readback.py",
+          "test_rust_zarr_readback.py"
+        ]
+      },
+      "passed": true
+    },
+    "host": {
+      "details": {
+        "machine": "arm64",
+        "system": "Darwin"
+      },
+      "passed": true
+    },
+    "inspection_tools": {
+      "details": {
+        "delocate-listdeps": "/Users/blizhan/data/code/github/radiust/.venv/bin/delocate-listdeps",
+        "lipo": "/usr/bin/lipo",
+        "otool": "/usr/bin/otool"
+      },
+      "passed": true
+    },
+    "installed_macho_dependencies": {
+      "details": {
+        "delocate_dependencies": [
+          "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+          "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+          "/usr/lib/libSystem.B.dylib",
+          "/usr/lib/libc++.1.dylib",
+          "/usr/lib/libiconv.2.dylib"
+        ],
+        "files": [
+          {
+            "architectures": [
+              "arm64"
+            ],
+            "dependencies": [
+              "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+              "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+              "/usr/lib/libSystem.B.dylib",
+              "/usr/lib/libc++.1.dylib",
+              "/usr/lib/libiconv.2.dylib",
+              "@rpath/radiust._core.cpython-312-darwin.so"
+            ],
+            "path": "radiust/_core.cpython-312-darwin.so",
+            "rpaths": []
+          }
+        ]
+      },
+      "passed": true
+    },
+    "installed_wheel_smoke": {
+      "details": {
+        "cli_help_returncode": 0,
+        "cli_list_sources_report": {
+          "command": "list",
+          "counts": {
+            "items": 24
+          },
+          "error": null,
+          "interrupted": false,
+          "items": [
+            {
+              "availability": "needs_configuration",
+              "description": "Australia Bureau of Meteorology radar",
+              "id": "au",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Indonesia BMKG radar tiles",
+              "id": "bmkg",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Canada ECCC radar",
+              "id": "ca",
+              "products": [
+                "rain"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Cambodia radar slideshow",
+              "id": "cam",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Spain AEMET national radar",
+              "id": "es",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "France Meteo-France radar",
+              "id": "fr",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Indonesia BMKG legacy radar",
+              "id": "id",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Indonesia SIDARMA radar",
+              "id": "id_sidarma",
+              "products": [
+                "cmax"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Korea radar CGI",
+              "id": "kr",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Malaysia Met Department radar",
+              "id": "my",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "New Zealand rural mobile radar",
+              "id": "nz",
+              "products": [
+                "rain"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "OpenSnow radar tiles",
+              "id": "opensnow",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "PAGASA radar timeline",
+              "id": "ph",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Portugal IPMA radar rainfall-intensity categories",
+              "id": "pt",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "RainViewer radar tiles",
+              "id": "rainviewer",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Singapore radar rainfall-intensity display",
+              "id": "sg",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Thailand TMD radar",
+              "id": "th",
+              "products": [
+                "composite"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Thailand Royal Rain radar",
+              "id": "th_royalrain",
+              "products": [
+                "cappi"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Taiwan CWA anonymous S3 observation radar and numeric grid",
+              "id": "tw",
+              "products": [
+                "observation",
+                "grid"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Taiwan HTTP radar observation",
+              "id": "tw-http",
+              "products": [
+                "observation"
+              ]
+            },
+            {
+              "availability": "retired",
+              "description": "United Kingdom rainfall radar (retired)",
+              "id": "uk",
+              "products": [
+                "rain"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Vietnam Hymetnet CMAX radar",
+              "id": "vn",
+              "products": [
+                "cmax"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Windy radar tiles",
+              "id": "windy",
+              "products": [
+                "reflectivity"
+              ]
+            },
+            {
+              "availability": "needs_configuration",
+              "description": "Weather Underground radar mosaic",
+              "id": "wunderground",
+              "products": [
+                "composite"
+              ]
+            }
+          ],
+          "query": null,
+          "result": null,
+          "run_id": null,
+          "schema_version": 1
+        },
+        "cli_list_sources_returncode": 0,
+        "python_extension": {
+          "core_version": "0.1.0",
+          "package_version": "0.1.0"
+        }
+      },
+      "passed": true
+    },
+    "proj_data": {
+      "details": {
+        "directory": "/private/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-macos-release-e9daok61/venv/lib/python3.12/site-packages/pyproj/proj_dir/share/proj",
+        "proj_db": "/private/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-macos-release-e9daok61/venv/lib/python3.12/site-packages/pyproj/proj_dir/share/proj/proj.db"
+      },
+      "passed": true
+    },
+    "wheel": {
+      "details": {
+        "macho_files": 1,
+        "macos_deployment_versions": [
+          "11.0"
+        ],
+        "tag_architectures": [
+          "arm64"
+        ],
+        "tags": [
+          "cp312-cp312-macosx_11_0_arm64"
+        ]
+      },
+      "passed": true
+    },
+    "wheel_install": {
+      "details": {
+        "installer": "pip",
+        "output": "2-macosx_11_0_arm64.whl (10.1 MB)\n   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.1/10.1 MB 17.0 MB/s eta 0:00:00\nDownloading affine-3.0.1-py3-none-any.whl (10 kB)\nDownloading attrs-26.1.0-py3-none-any.whl (67 kB)\nDownloading click_plugins-1.1.1.2-py2.py3-none-any.whl (11 kB)\nDownloading deprecated-3.0.0-py3-none-any.whl (21 kB)\nDownloading fasteners-0.20-py3-none-any.whl (18 kB)\nDownloading pyparsing-3.3.3-py3-none-any.whl (126 kB)\nDownloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)\nDownloading wrapt-2.5.0-cp312-cp312-macosx_11_0_arm64.whl (105 kB)\nDownloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nBuilding wheels for collected packages: asciitree\n  Building wheel for asciitree (pyproject.toml): started\n  Building wheel for asciitree (pyproject.toml): finished with status 'done'\n  Created wheel for asciitree: filename=asciitree-0.3.3-py3-none-any.whl size=5097 sha256=0705170f55ebd01c7bfafa338135c4963b5553ef5805476fc7ef3c12375513fe\n  Stored in directory: /private/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-macos-release-e9daok61/tmp/pip-ephem-wheel-cache-8hoiq1ar/wheels/a5/d7/98/f56ae733748cd0fa577172bda0e73e0b1f1793c98e09b9e458\nSuccessfully built asciitree\nInstalling collected packages: asciitree, wrapt, six, radiust, pyparsing, pygments, pluggy, pillow, packaging, numpy, iniconfig, fasteners, click, certifi, attrs, python-dateutil, pytest, pyproj, h5py, h5netcdf, deprecated, cligj, click-plugins, cftime, affine, rasterio, pandas, numcodecs, netCDF4, zarr, xarray\nSuccessfully installed affine-3.0.1 asciitree-0.3.3 attrs-26.1.0 certifi-2026.7.22 cftime-1.6.6 click-8.5.0 click-plugins-1.1.1.2 cligj-0.7.2 deprecated-3.0.0 fasteners-0.20 h5netcdf-1.8.1 h5py-3.16.0 iniconfig-2.3.0 netCDF4-1.7.4 numcodecs-0.15.1 numpy-2.5.3 packaging-26.3 pandas-3.0.6 pillow-12.3.0 pluggy-1.6.0 pygments-2.21.0 pyparsing-3.3.3 pyproj-3.8.0 pytest-8.4.2 python-dateutil-2.9.0.post0 radiust-0.1.0 rasterio-1.4.4 six-1.17.0 wrapt-2.5.0 xarray-2025.12.0 zarr-2.18.7"
+      },
+      "passed": true
+    },
+    "wheel_macho_dependencies": {
+      "details": {
+        "delocate_dependencies": [
+          "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+          "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+          "/usr/lib/libSystem.B.dylib",
+          "/usr/lib/libc++.1.dylib",
+          "/usr/lib/libiconv.2.dylib"
+        ],
+        "files": [
+          {
+            "architectures": [
+              "arm64"
+            ],
+            "dependencies": [
+              "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+              "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+              "/usr/lib/libSystem.B.dylib",
+              "/usr/lib/libc++.1.dylib",
+              "/usr/lib/libiconv.2.dylib",
+              "@rpath/radiust._core.cpython-312-darwin.so"
+            ],
+            "path": "radiust/_core.cpython-312-darwin.so",
+            "rpaths": []
+          }
+        ]
+      },
+      "passed": true
+    }
+  },
+  "errors": [],
+  "expected_architecture": "arm64",
+  "expected_macos_version": "11.0",
+  "host": {
+    "machine": "arm64",
+    "system": "Darwin"
+  },
+  "schema_version": 1,
+  "scope": {
+    "format_readback": "performed_in_isolated_wheel_environment",
+    "installed_wheel_smoke": true,
+    "macho_dependency_audit": true
+  },
+  "status": "passed",
+  "wheel": {
+    "path": "/private/tmp/radiust-current-final-wheels/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "sha256": "e73409e0079ede97fda1b207a4d6c1aeb89f31583f8391c88c796e2c6b0d75c2"
+  }
+}

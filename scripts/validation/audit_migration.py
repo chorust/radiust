@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 TASK_RE = re.compile(r"^- \[([ Xx])\] (T\d+) (.+)$", re.MULTILINE)
+SHA256_RE = re.compile(r"[a-f0-9]{64}\Z")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -44,8 +45,6 @@ def _task_report(path: Path) -> tuple[dict[str, int], list[str], list[dict[str, 
 
 def _audit_display(root: Path) -> dict[str, Any]:
     """Check per-path display evidence without promoting scientific status."""
-    from radiust.display.rules import DisplayEvidence
-
     inventory = _read_json(root / "migration/legacy-display-inventory.json")
     schema = _read_json(root / "migration/legacy-display.schema.json")
     manifest = _read_json(root / "tests/fixtures/legacy-display/manifest.json")
@@ -57,6 +56,50 @@ def _audit_display(root: Path) -> dict[str, Any]:
     definitions = schema.get("$defs", {})
     required_inventory = set(definitions.get("inventoryPath", {}).get("required", []))
     required_evidence = set(definitions.get("evidence", {}).get("required", []))
+
+    def valid_evidence(record: dict[str, Any]) -> bool:
+        if record.get("scientific_status_unchanged") is not True:
+            return False
+        if record.get("status") not in {"passed", "difference_pending", "blocked"}:
+            return False
+        if not isinstance(record.get("input_hashes"), list) or any(
+            not isinstance(value, str) or SHA256_RE.fullmatch(value) is None
+            for value in record["input_hashes"]
+        ):
+            return False
+        for key in ("config_hash", "output_hash", "baseline_hash"):
+            value = record.get(key)
+            if value is not None and (not isinstance(value, str) or SHA256_RE.fullmatch(value) is None):
+                return False
+        crop = record.get("crop")
+        if crop is not None and (
+            not isinstance(crop, list)
+            or len(crop) != 4
+            or any(type(value) is not int or value < 0 for value in crop)
+        ):
+            return False
+        shape = record.get("shape")
+        if shape is not None and (
+            not isinstance(shape, list)
+            or len(shape) != 2
+            or any(type(value) is not int or value < 1 for value in shape)
+        ):
+            return False
+        differences = record.get("intentional_differences")
+        if not isinstance(differences, list):
+            return False
+        if record["status"] == "blocked" and not record.get("blocked_reasons"):
+            return False
+        if record["status"] == "passed":
+            if not record.get("rule_version") or not record.get("input_hashes"):
+                return False
+            if not record.get("output_hash") or not record.get("baseline_hash"):
+                return False
+            if record.get("blocked_reasons"):
+                return False
+            if not isinstance(record.get("review_conclusion"), str) or not record["review_conclusion"]:
+                return False
+        return True
 
     def index(items: object, label: str) -> dict[str, dict[str, Any]]:
         if not isinstance(items, list):
@@ -108,9 +151,7 @@ def _audit_display(root: Path) -> dict[str, Any]:
         record = per_source[source][path_id]
         if not required_evidence <= set(record):
             errors.append(f"source {source} display evidence lacks required fields: {path_id}")
-        try:
-            DisplayEvidence.from_mapping(record)
-        except (TypeError, ValueError):
+        if not valid_evidence(record):
             errors.append(f"source {source} has invalid display evidence: {path_id}")
         if record.get("status") != row.get("status") or record.get("scientific_status_unchanged") is not True:
             errors.append(f"source {source} display status differs from inventory: {path_id}")
@@ -162,9 +203,9 @@ def build_report(root: Path) -> dict[str, Any]:
         source_id = item["id"]
         module_name = source_id.replace("-", "_")
         paths = {
-            "adapter": root / "python/radiust/sources" / f"{module_name}.py",
+            "native_adapter": root / "crates/radiust-core/src/source" / f"{module_name}.rs",
             "resource": root / "python/radiust/resources/sources" / f"{source_id}.json",
-            "test": root / "tests/sources" / f"test_{module_name}.py",
+            "source_matrix_contract": root / "crates/radiust-core/tests/source_matrix.rs",
             "fixture": root / item["fixture"],
             "migration": root / item["migration"],
         }
@@ -183,9 +224,11 @@ def build_report(root: Path) -> dict[str, Any]:
                 missing.append({"source": source_id, "paths": ["fixture.source"]})
             if migration.get("source") != source_id:
                 missing.append({"source": source_id, "paths": ["migration.source"]})
-            expected_adapter = f"python/radiust/sources/{module_name}.py"
-            if migration.get("adapter") != expected_adapter:
-                missing.append({"source": source_id, "paths": ["migration.adapter"]})
+            legacy_adapter = f"python/radiust/sources/{module_name}.py"
+            if migration.get("adapter") != legacy_adapter:
+                missing.append({"source": source_id, "paths": ["migration.legacy_adapter_provenance"]})
+            row["native_adapter"] = paths["native_adapter"].relative_to(root).as_posix()
+            row["source_matrix_contract"] = paths["source_matrix_contract"].relative_to(root).as_posix()
             row["fixture_status"] = fixture.get("status", "available")
             row["migration_status"] = migration.get("status")
         source_rows.append(row)

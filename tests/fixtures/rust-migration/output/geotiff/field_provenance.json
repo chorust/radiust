@@ -1,0 +1,23 @@
+{
+  "coordinate_operation": "spherical_web_mercator",
+  "crs": "EPSG:3857",
+  "flip_y": true,
+  "grid": "projected",
+  "processing_history": [],
+  "provenance": [
+    "source=fixture"
+  ],
+  "schema_version": 2,
+  "source_crs": "EPSG:4326",
+  "transform": [
+    13330509.02249451,
+    55659.74539663829,
+    0.0,
+    2499999.999999999,
+    0.0,
+    -999999.9999999997
+  ],
+  "units": "dBZ",
+  "valid_time": "2026-09-26T01:02:03.123456789Z",
+  "variable": "reflectivity"
+}

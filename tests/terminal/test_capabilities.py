@@ -1,31 +1,51 @@
 from __future__ import annotations
 
-import io
+import os
+import subprocess
+from pathlib import Path
 
-from radiust.terminal.capabilities import capabilities
+import pytest
 
-
-class _TTY(io.StringIO):
-    def isatty(self) -> bool:
-        return True
-
-
-def test_non_tty_and_dumb_terminal_degrade_to_text(monkeypatch):
-    monkeypatch.delenv("KITTY_WINDOW_ID", raising=False)
-    monkeypatch.delenv("TERM_PROGRAM", raising=False)
-    assert capabilities(io.StringIO()).renderer == "text"
-
-    monkeypatch.setenv("TERM", "dumb")
-    assert capabilities(_TTY()).renderer == "text"
+ROOT = Path(__file__).parents[2]
+IMAGE = ROOT / "tests/fixtures/sources/au/raw/IDR021.T.202609180511.png"
 
 
-def test_capabilities_select_confirmed_protocols(monkeypatch):
-    monkeypatch.delenv("NO_COLOR", raising=False)
-    monkeypatch.delenv("COLORTERM", raising=False)
-    monkeypatch.setenv("TERM", "xterm-256color")
-    monkeypatch.setenv("KITTY_WINDOW_ID", "123")
-    assert capabilities(_TTY()).renderer == "kitty"
+def _native_command(*args: str) -> list[str]:
+    binary = ROOT / "target/debug/radiust"
+    if binary.is_file():
+        return [str(binary), *args]
+    return [
+        "cargo", "run", "--quiet", "--offline", "--package", "radiust-cli",
+        "--bin", "radiust", "--", *args,
+    ]
 
-    monkeypatch.delenv("KITTY_WINDOW_ID")
-    monkeypatch.setenv("TERM_PROGRAM", "iTerm.app")
-    assert capabilities(_TTY()).renderer == "iterm2"
+
+@pytest.mark.parametrize(
+    ("term", "extra"),
+    [
+        ("xterm-256color", {"KITTY_WINDOW_ID": "123", "TERM_PROGRAM": "iTerm.app"}),
+        ("dumb", {}),
+        ("xterm-256color", {"COLORTERM": "0"}),
+    ],
+)
+def test_native_auto_renderer_uses_plain_text_when_stdout_is_not_a_tty(term, extra):
+    env = os.environ.copy()
+    for name in ("NO_COLOR", "KITTY_WINDOW_ID", "TERM_PROGRAM", "COLORTERM"):
+        env.pop(name, None)
+    env["TERM"] = term
+    env.update(extra)
+
+    result = subprocess.run(
+        _native_command("cat", "--file", str(IMAGE), "--renderer", "auto"),
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "\x1b" not in result.stdout
+    assert "\x1b" not in result.stderr
+    assert "display=original" in result.stdout

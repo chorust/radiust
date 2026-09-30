@@ -1,51 +1,82 @@
-"""Progress callbacks describe completed work without requiring a terminal."""
+"""Progress callbacks report Rust Engine work through the public SDK."""
 
-from datetime import datetime, timezone
+from __future__ import annotations
 
-from radiust import Client, Query
+import json
+from pathlib import Path
 
-QUERY = Query("my", at=datetime(2025, 12, 29, 6, 50, 1, tzinfo=timezone.utc))
+from radiust import Client
+
+from tests.support.native_science_fixture import (
+    seed_tw_grid_cache,
+    tw_grid_ref,
+    tw_offline_config,
+)
 
 
-def test_download_progress_reflects_real_single_frame_stages(tmp_path):
+def _seeded(tmp_path: Path):
+    ref = tw_grid_ref()
+    cache_root = tmp_path / "cache"
+    seed_tw_grid_cache(cache_root, ref)
+    config = tw_offline_config(cache_root, tmp_path / "output", tmp_path / "temp")
+    return ref, config
+
+
+def test_download_progress_reflects_resolve_and_native_completion(tmp_path: Path) -> None:
+    ref, config = _seeded(tmp_path)
     events = []
-    with Client(config={"cache": {"enabled": False}}) as client:
+    with Client(config=config) as client:
         report = client.download(
-            QUERY, output=tmp_path, raw_only=True,
-            progress=lambda stage, completed, total: events.append((stage, completed, total)),
+            ref,
+            output=tmp_path / "output",
+            raw_only=True,
+            progress=lambda stage, completed, total: events.append(
+                (stage, completed, total)
+            ),
         )
     assert report.counts["written"] == 1
-    assert ("discover", 1, 1) in events
-    assert ("acquire", 1, 1) in events
-    assert ("commit", 1, 1) in events
+    assert ("resolve", 1, None) in events
+    assert ("download", 0, 1) in events
     assert ("download", 1, 1) in events
-    assert all(stage != "decode" for stage, _, _ in events)
-    assert events.index(("acquire", 1, 1)) < events.index(("commit", 1, 1))
+    assert all(stage != "decode" for stage, _completed, _total in events)
+    assert events.index(("download", 1, 1)) == len(events) - 1
 
 
-def test_scientific_fetch_emits_real_discover_acquire_decode_stages():
+def test_scientific_fetch_emits_native_acquire_and_decode_completion(
+    tmp_path: Path,
+) -> None:
+    ref, config = _seeded(tmp_path)
     events = []
-    with Client(config={"cache": {"enabled": False}}) as client:
-        field = client.fetch(QUERY, progress=lambda stage, completed, total: events.append((stage, completed, total)))
-    assert field is not None
-    assert [(stage, completed) for stage, completed, _ in events if completed == 1] == [
-        ("discover", 1), ("acquire", 1), ("decode", 1),
-    ]
+    with Client(config=config) as client:
+        field = client.fetch(
+            ref,
+            progress=lambda stage, completed, total: events.append(
+                (stage, completed, total)
+            ),
+        )
+    assert field.shape == [881, 921]
+    completed = [(stage, count) for stage, count, _ in events if count == 1]
+    assert completed == [("acquire", 1), ("decode", 1)]
 
 
-def test_unchanged_sdk_calls_without_callbacks_emit_no_progress(tmp_path, capsys):
-    with Client(config={"cache": {"enabled": False}}) as client:
-        report = client.download(QUERY, output=tmp_path, raw_only=True)
+def test_sdk_calls_without_callbacks_emit_no_progress(tmp_path: Path, capsys) -> None:
+    ref, config = _seeded(tmp_path)
+    with Client(config=config) as client:
+        report = client.download(ref, output=tmp_path / "output", raw_only=True)
     assert report.counts["written"] == 1
     captured = capsys.readouterr()
     assert captured.out == captured.err == ""
 
 
-def test_batch_fetch_progress_has_real_resolve_and_completion_counts():
+def test_batch_fetch_progress_counts_native_fetch_completions(tmp_path: Path) -> None:
+    ref, config = _seeded(tmp_path)
     events = []
-    with Client(config={"cache": {"enabled": False}}) as client:
+    with Client(config=config) as client:
         result = client.fetch_many(
-            QUERY, progress=lambda stage, completed, total: events.append((stage, completed, total)),
+            [ref],
+            progress=lambda stage, completed, total: events.append(
+                (stage, completed, total)
+            ),
         )
     assert len(result.succeeded) == 1
     assert ("resolve", 1, None) in events
@@ -53,38 +84,41 @@ def test_batch_fetch_progress_has_real_resolve_and_completion_counts():
     assert ("fetch", 1, 1) in events
 
 
-def test_cli_download_receives_real_pipeline_stages_before_report(monkeypatch, tmp_path):
+def test_batch_fetch_decodes_in_rust_and_preserves_input_order(
+    tmp_path: Path, monkeypatch
+) -> None:
+    first = tw_grid_ref()
+    second = tw_grid_ref(first.valid_time.replace(minute=35))
+    cache_root = tmp_path / "cache"
+    seed_tw_grid_cache(cache_root, first)
+    seed_tw_grid_cache(cache_root, second)
+    config = tw_offline_config(cache_root, tmp_path / "output", tmp_path / "temp")
+
+    with Client(config=config) as client:
+        async def reject_python_decode(_raw):
+            raise AssertionError("batch decode must remain in the Rust Engine")
+
+        monkeypatch.setattr(client._session, "decode_science", reject_python_decode)
+        report = client.fetch_many([second, first], max_concurrency=2)
+
+    assert [item.ref.logical_id for item in report.items] == [
+        second.logical_id,
+        first.logical_id,
+    ]
+    assert [item.status for item in report.items] == ["success", "success"]
+    assert [item.data.name for item in report.items] == ["reflectivity", "reflectivity"]
+    assert all(item.data.shape == [881, 921] for item in report.items)
+    assert [json.loads(item.data.to_json())["valid_time"] for item in report.items] == [
+        second.valid_time.isoformat(),
+        first.valid_time.isoformat(),
+    ]
+
+
+def test_native_cli_json_has_no_non_tty_progress_noise() -> None:
     from click.testing import CliRunner
     from radiust.cli.main import main
 
-    events = []
-    closed = []
-
-    class ProgressRecorder:
-        def __init__(self, **_kwargs):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            closed.append(True)
-
-        def update(self, event):
-            events.append((event.stage, event.completed, event.total))
-
-    monkeypatch.setattr("radiust.cli.progress.Progress", ProgressRecorder)
-    result = CliRunner().invoke(main, [
-        "download", "my", "--at", "2025-12-29T06:50:01Z", "--raw-only",
-        "--no-cache", "--output", str(tmp_path / "out"), "--json",
-    ])
+    result = CliRunner().invoke(main, ["list", "sources", "--json"])
     assert result.exit_code == 0, result.output
-    assert ("discover", 1, 1) in events
-    assert ("acquire", 1, 1) in events
-    assert ("commit", 1, 1) in events
-    assert events[-1] == ("download", 1, 1)
-    assert all(stage != "decode" for stage, _, _ in events)
-    assert closed == [True]
-    import json
-
-    assert json.loads(result.output)["counts"]["written"] == 1
+    assert json.loads(result.output)["schema_version"] == 1
+    assert "progress" not in result.output.lower()

@@ -1,116 +1,63 @@
 # radiust 当前架构
 
-本文描述仓库中**已实现的代码结构**，而非目标设计或所有上游来源均已验收的声明。入口是 Python SDK/CLI，Python 负责来源适配、数据语义与流程编排；Rust Core 提供部分受限 I/O 和基础能力，通过 PyO3 暴露给 Python。项目目前是可离线验证的 `0.1.0 alpha`，不需要自建服务端。
+本文描述当前 checkout 的实现。Python console command 转发到 Rust CLI，Python SDK 通过 PyO3 调用共享 Rust Engine；Rust 迁移尚处于部分实现状态。目录登记、模块存在、离线 fixture 或一次 raw 获取成功，都不等于来源科学解码或输出格式已验收。项目为 `0.1.0 alpha`。
 
-## 1. 系统边界与模块图
+## 原生 Rust 路径
 
 ```mermaid
 flowchart TB
-    User[使用者 / 应用程序] --> CLI[Click CLI<br/>python/radiust/cli]
-    User --> SDK[Python SDK<br/>api.py / Client / AsyncClient]
-    CLI --> SDK
-
-    subgraph Py[Python：编排与数据语义]
-      SDK --> Pipeline[pipeline.py<br/>discover / acquire / decode / fetch / download]
-      Pipeline --> Registry[registry.py<br/>catalog + adapter factories + entry points]
-      Registry --> Source[Source adapters<br/>sources/*]
-      Pipeline --> Model[models.py / raw.py / field.py<br/>Query · FrameRef · RawFrame · RadarField / RadarDataset]
-      Pipeline --> Processing[decoders/* · grids/*<br/>field.regrid · rendering/*]
-      Pipeline --> Encoder[outputs/registry.py<br/>NetCDF · PNG · GeoTIFF · Zarr]
-      Pipeline --> Identity[identity.py<br/>logical_id · revision · processing_hash · output_id]
-      Pipeline --> Cache[cache.py<br/>SQLite index + hashed-key files]
-      Pipeline --> Local[storage/local.py<br/>staging + local manifest]
-      Pipeline --> Remote[storage/commit.py<br/>generation + remote manifest]
-      Pipeline --> Context[config.py / context.py<br/>limits · network policy · cancellation · temp files]
-      Source --> HTTP[transport.py<br/>Python HTTP transport]
-      Source --> Bridge[_bridge.py / _core<br/>PyO3 boundary]
-      Remote --> Object[storage/object.py<br/>RustObjectBackend]
-      Object --> Bridge
-    end
-
-    subgraph Native[Rust：radiust-core]
-      Bridge --> PyO3[python.rs<br/>exported primitives]
-      PyO3 --> FTP[transport/ftp.rs]
-      PyO3 --> OSS[storage/object.rs<br/>OpenDAL S3 / OSS]
-      PyO3 --> Other[hash · size validation<br/>managed paths · async sleep]
-      Standalone[其他 Rust 模块<br/>cache · tiles · HTTP · local storage · runtime]
-    end
-
-    HTTP --> Upstream[雷达数据提供方 / HTTP]
-    FTP --> Upstream
-    OSS --> Buckets[对象存储 / S3 或 OSS]
-    Cache --> Disk[本地文件系统 + SQLite]
-    Local --> Disk
-    Encoder --> Local
-    Encoder --> Remote
+    User[命令行用户] --> CLI[radiust-cli<br/>Clap 参数与报告格式]
+    CLI --> Engine[Engine<br/>radiust-core]
+    CLI --> Config[CoreConfig / config show]
+    CLI --> Cache[Cache<br/>cache status]
+    Engine --> Query[Query / DiscoveryReport]
+    Engine --> Catalog[SourceCatalog<br/>24 个登记 ID]
+    Engine --> Registry[SourceRegistry<br/>当前 23 个 adapter]
+    Engine --> Budget[请求预算 / 网络许可 / 取消 / 限额]
+    Budget --> HTTP[共享 HTTP transport]
+    Budget --> FTP[FTP transport]
+    Registry --> Provider[来源发现及部分 raw 获取]
+    Engine --> Raw[RawFrame<br/>有界临时 artifacts]
+    CLI --> Preview[本地 PNG / WebP 原图预览]
+    Raw --> Preview
+    Desktop[未来 macOS 桌面入口] -. 复用 Rust API；尚未实现 .-> Engine
 ```
 
-**边界说明：**上图是依赖关系，不代表每条路径在一次调用中都会执行。`crates/radiust-core/src/lib.rs` 中存在缓存、瓦片、HTTP 等 Rust 模块，但当前 `python.rs` 并未把它们全部暴露为 SDK 的统一后端。例如 Python `CacheStore` 自己管理 SQLite 和文件；多数来源使用 Python `HTTPTransport`，`au` 来源使用 `_core` 的 Rust FTP；S3/OSS 的正式远端写入经 `_bridge.py` → `_core` → OpenDAL。`_bridge.py` 的哈希、校验等功能有源码开发回退，但远端对象存储要求已编译扩展。
+原生 CLI 的 `Engine` 由 [`crates/radiust-core/src/engine.rs`](../crates/radiust-core/src/engine.rs) 提供，命令解析与终端报告在 [`crates/radiust-cli/src/main.rs`](../crates/radiust-cli/src/main.rs)。Engine 当前可以校验配置、展开目录目标、运行有界且可取消的发现、获取单帧或批量原始 artifacts，并返回结构化 Rust 报告。`cat SOURCE` 将发现和 raw 获取接到原图预览；`cat --file` 直接调用图片预览器。`download --raw-only` 可正式提交原始输出；RainViewer composite 和 TW grid 支持 PNG+sidecar、NetCDF4、GeoTIFF 与 Zarr v2 正式提交。科学能力仍只对有保留样本验证的来源开放。
 
-## 2. 主要调用链
+目录包含 24 个 source ID、当前展开为 26 个 discovery target；编译进 `SourceRegistry` 的 24 个 adapter 包含 `au`、`bmkg`、`ca`、`cam`、`es`、`fr`、`id`、`id_sidarma`、`kr`、`my`、`nz`、`opensnow`、`ph`、`pt`、`rainviewer`、`sg`、`th`、`th_royalrain`、`tw`、`tw-http`、`uk`、`vn`、`windy` 和 `wunderground`。普通 `id` 与 `id_sidarma` 是独立来源。Windy 已有 latest HTTP 发现和四张原始 PNG 获取，时间为 5 分钟 cadence 假设，科学数值未验证；选择 `sources.windy.use_playwright` 时会以隔离 Chromium/CDP 捕获原始 tile 响应字节。PH 使用隔离 Chromium 的自动 CSRF 会话和站点签名模块获取 Hybrid Reflectivity timeline 与原始 data-image PNG；不再要求外部 timeline token，并拒绝 1×1 占位图。浏览器功能要求系统 Chromium 和显式网络 opt-in；它不会把浏览器路径升级成科学能力。RainViewer 的 Rust Universal Blue 科学解码已和保留 Python fixture 的整幅数值、质量摘要对齐，并可通过受并发/资源限额约束的 `Engine.decode_science()` 与 PyO3 异步绑定调用；TW grid 的 Rust 科学解码已按官方样本与 Python 值/质量数组精确对齐；`Engine.regrid()`/PyO3 提供受 worker 与像素预算约束的同 CRS 规则网格 nearest/bilinear（dBZ 按线性功率插值），并支持 EPSG:4326↔EPSG:3857 Web Mercator 坐标变换；其他 datum/projection 转换仍拒绝。TW observation 几何仍未验证。OpenSnow 在证据补齐前 fail-closed，UK 已退役，Weather Underground 需要外部 API key 且 raw 获取关闭。adapter 的发现、raw 获取和科学能力各有差异，不能把这些 ID 数量当作完整来源支持声明。实现见 [`source/mod.rs`](../crates/radiust-core/src/source/mod.rs) 和 [`source/catalog.rs`](../crates/radiust-core/src/source/catalog.rs)。
+
+### 可复用的 Rust Core 边界
+
+[`radiust-core`](../crates/radiust-core/README.md) 是普通 Rust library crate，同时提供 `rlib` 与 `cdylib`。桌面端或其他 Rust 调用方可依赖它，使用共享的 `Engine`、`CoreConfig`、`Query`、`FrameRef`、`DiscoveryReport`、`RawFrame`、错误、来源 adapter 接口、transport、限额和取消机制；报告数据不包含 provider locator 的 URL 或凭据。原始获取的临时文件由 `RawFrame` 持有，释放对象时清理。
+
+这个边界让未来 macOS 桌面应用可以复用发现、网络策略、资源限额、来源调度、科学处理和结构化结果，并由自己的 UI 层呈现进度和报告。当前没有桌面 UI、后台服务、IPC 协议或 Swift/Objective-C 绑定。Engine 已接入 RainViewer 与 TW grid 的已验证科学解码，以及 PNG、NetCDF4、GeoTIFF、Zarr v2 输出和本地/远端提交；其他来源科学解码和真实 S3/OSS provider 尚未验收。`CoreConfig` 接受若干输出设置只代表配置值校验，不代表输出路径可用。
+
+crate 的 PyO3 支持由可选 `extension-module` feature 打开；Python wheel 构建仍由 Maturin 配置驱动。Rust library API 当前处于迁移期，不应视为稳定桌面 SDK，也不提供供 Swift 直接调用的 ABI。相关代码见 [`lib.rs`](../crates/radiust-core/src/lib.rs)、[`model.rs`](../crates/radiust-core/src/model.rs) 和 [`config.rs`](../crates/radiust-core/src/config.rs)。
+
+## Python 路径与 Rust 的关系
 
 ```mermaid
 flowchart LR
-    Q[Query] --> D[Source.discover]
-    D --> R[FrameRef 列表]
-    R --> A[Source.download / 缓存命中]
-    A --> Raw[RawFrame + Artifacts]
-    Raw --> Decode[Source.decode]
-    Decode --> Field[RadarField / RadarDataset]
-    Field --> Transform[变量选择 / 重网格]
-    Transform --> Result{调用方式}
-    Result -->|fetch| Memory[返回内存数据]
-    Result -->|download| Encode[Encoder 编码]
-    Encode --> Commit[LocalStore 或 RemoteCommitter]
-    Raw -->|raw-only| Commit
-    Raw -->|raw=true| Commit
-    Commit --> Report[DownloadReport]
+    PyUser[Python 调用方] --> SDK[Python Client / API]
+    PyUser --> Click[Python console launcher]
+    Click --> RustCLI[原生 Rust CLI]
+    SDK --> Bridge[PyO3 _core]
+    Bridge --> Engine[共享 Rust Engine]
+    RustCLI --> Engine
+    Engine --> Sources[来源 adapters / transports]
+    Engine --> Science[科学解码 / 重网格 / 输出]
+    Engine --> Persistence[缓存 / 本地与远端提交]
+    SDK -. 显式互操作 .-> Xarray[xarray / Python Zarr]
 ```
 
-`discover` 只解析来源、产品、站点和时间等条件，得到 `FrameRef`；`acquire` 获取 `RawFrame` 并管理临时资源；`decode` 将原始资料转成带网格、质量标记和 provenance 的科学数据。`fetch` 返回独立加载的内存数据，**不进行正式输出提交**。`download` 才会选定 `ProcessingSpec`、执行编码并提交；`raw-only` 跳过科学解码，`raw=true` 同时保留原始资料。批量获取与有界预取分别由 `batch.py`、`streaming.py` 实现；同步 `Client` 使用私有事件循环，已有事件循环中的调用应使用 `AsyncClient`。
+Python 项目的 `radiust` console script 由 [`python/radiust/cli/main.py`](../python/radiust/cli/main.py) 转发到原生 Rust CLI；Python `Client`/`AsyncClient` 通过 [`rust_client.py`](../python/radiust/rust_client.py) 和 PyO3 扩展调用同一 Rust Engine。Python 保留 xarray 转换和 Zarr 互操作边界，命令和主要 SDK 操作不再经旧 Python source/processing pipeline 回退。
 
-重要模型与契约：
+## 共享规则与当前缺口
 
-| 对象 | 职责 | 定义位置 |
-| --- | --- | --- |
-| `Query` / `FrameRef` | 规范化查询及稳定的帧引用；区分有效时次、起报时次和来源定位信息 | `models.py`、`query.py` |
-| `Source` | 插件契约：`discover`、`download`、`decode`；来源适配器不负责正式输出 | `sources/base.py` |
-| `RawFrame` / `Artifact` | 原始文件、字节/路径载荷及临时资源的生命周期 | `raw.py`、`models.py` |
-| `RadarField` / `RadarDataset` / `Grid` | NumPy/xarray 数据、坐标系、质量与重网格 | `field.py`、`grids/models.py` |
-| `ProcessingSpec` / `DownloadReport` | 处理参数、格式和逐帧结果 | `models.py` |
+- 原生网络默认关闭，配置通过默认值、YAML、`RADIUST_` 环境变量合并。Core 的请求/帧并发、响应大小、像素和临时数据限制由配置控制；目录发现以逐目标状态保留失败、中断和未开始目标。
+- Rust 缓存默认根目录是 `~/.cache/radiust-rust`，与 Python 缓存隔离；revision-pinned raw artifact 以帧身份为键流式写入并增量校验 SHA-256，manifest 最后发布，完整 cache hit 可在禁网模式下读取。无可信 revision 的 latest 与瓦片来源不缓存。兼容代码可在显式复用旧根时识别旧 `entries` 布局，但 Python/Rust 并发访问尚未验收。Cache CLI 提供 status 与 clear。对象存储的 S3/OSS generation/pointer 提交流水线已接入 Engine，真实 provider 尚未验收。
+- Native image preview 通过 [`preview.rs`](../crates/radiust-core/src/preview.rs) 有界读取 PNG/WebP 并保留原始像素；不做科学解码或 legacy 显示映射。终端 renderer 由 CLI 实现，当前只支持 `auto` 和 `text`。
+- 原生 `download` 支持 dry-run、raw-only 和 RainViewer composite/TW grid 的 PNG、NetCDF4、GeoTIFF、Zarr 正式提交。获取、解码和四种格式编码按 frame concurrency 有界派发；解码与编码共用 CPU worker 池，结果按输入顺序报告并提交。四种格式共用 manifest-last 完整性边界；Zarr 将 store 内文件作为清单 artifact，GeoTIFF 将数据、quality 和 provenance 作为一个发布组。远端目标支持 `s3://`/`oss://` URI、generation 写入、逐 artifact SHA-256 读回和最终 pointer 发布；真实 AWS/阿里云环境的并发与故障验收仍缺。RainViewer/TW 之外的科学解码和干净机器 NetCDF/HDF5 动态库定位也未验收。
 
-## 3. 输出身份、存储与恢复
-
-`identity.py` 将帧稳定字段（排除 URL、token 等易变定位信息）计算成 `logical_id`；上游 revision 或原始 Artifact 的内容摘要得到 `resolved_revision`；处理选项计算 `processing_hash`，三者参与 `output_id`。相同身份及处理配置的重复下载可以走幂等判断；原始字节或处理配置改变会产生新的输出身份。
-
-```mermaid
-flowchart TB
-    Input[FrameRef + RawFrame + ProcessingSpec] --> ID[identity.py：output_id]
-    ID --> Staging[Encoder → 暂存 Artifact]
-    Staging --> Choice{输出目标}
-    Choice -->|本地路径| L[LocalStore.stage / commit]
-    L --> LCheck[锁 + 校验现有 manifest / 暂存 Artifact]
-    LCheck --> LPublish[移动输出并最后发布 manifest]
-    Choice -->|s3:// 或 oss://| R[RemoteCommitter]
-    R --> RWrite[写入独立 _generations/.../generation/ 下的 Artifact]
-    RWrite --> RVerify[回读并核对大小和 SHA-256]
-    RVerify --> RManifest[写入 generation manifest 并回读]
-    RManifest --> Pointer[最后发布逻辑输出的 pointer manifest]
-```
-
-本地输出由 `storage/local.py` 提供暂存、根目录锁、Manifest 完整性检查及重复提交处理；`storage/manifest.py` 定义 Artifact 的相对路径、大小、SHA-256、generation 与 raw-complete 等元数据。远端由 `storage/commit.py` 编排 generation 和最后发布 pointer；对象 `get/put` 经 `storage/object.py`、`_bridge.py` 调用 Rust OpenDAL。未显式覆盖的远端 Artifact 使用存储服务条件创建；已有 pointer 在跳过前会校验所引用的 Artifact，受损时只允许以 Manifest 所声明的相同内容修复。**Manifest-last 是发布协议，不等于跨多个对象的事务**；云端服务的真实并发及 provider 行为需要单独验证。
-
-## 4. 缓存、运行时与安全约束
-
-- `cache.py`：以缓存键的摘要命名原始 Artifact 文件，另记录内容 SHA-256 用于完整性校验；SQLite 管理索引、校验器、有效期和容量。`lease` 保护使用中的缓存项，文件锁协调写入、GC、clear 和启动修复。它与正式 output/manifest **不是同一存储层**。
-- `config.py` / `context.py`：合并配置、提供操作上下文、限制 Artifact/帧大小与像素、管理取消及临时目录；`transport.py` 另实施网络访问、重定向与 HTTP 读取限制。具体来源可能采用自己的获取协议。
-- `_bridge.py` / `crates/radiust-core/src/python.rs`：只公开有限的 Rust 接口（路径/大小/摘要、异步等待、FTP 与对象存储），不能假定所有 Rust 模块已经在 Python 调用链中使用。
-- `outputs/registry.py`：NetCDF/PNG 为基础编码器；GeoTIFF 和 Zarr 由对应 optional extras 启用。`rendering/*` 和 `terminal/*` 提供显示相关能力，不参与所有数据下载。
-
-## 5. 扩展点与验证状态
-
-新增来源：在 `sources/` 中实现 `Source`，提供 `SourceInfo`、产品/时次及 `RawFrame`/解码约定，再接入 `registry.py` 和 `resources/catalog.json`；第三方来源可通过 `radiust.sources` entry points 注册。新增输出格式则应接入 `outputs/registry.py`，不应让来源适配器直接写最终路径。
-
-仓库中的 fixture 测试验证离线获取、重放和处理契约，但**不自动证明上游在线可用、物理色标正确、原生地理定位或分发许可**。逐来源证据与阻塞项见 [`migration.md`](migration.md)、[`../migration/`](../migration/)；云端 Provider 与 live 测试需显式开启，见 [`live-provider-tests.md`](live-provider-tests.md)。
-
-核心导航：[`../python/radiust/pipeline.py`](../python/radiust/pipeline.py)、[`../python/radiust/registry.py`](../python/radiust/registry.py)、[`../python/radiust/storage/`](../python/radiust/storage/)、[`../python/radiust/_bridge.py`](../python/radiust/_bridge.py)、[`../crates/radiust-core/src/python.rs`](../crates/radiust-core/src/python.rs)。
+迁移规格明确批准的兼容变化包括提供无需 Python 的 Rust CLI、增加多来源 `discover`、将 Python source entry point 扩展迁至编译期 Rust adapter，以及让 `fetch()` 默认返回绑定对象并通过显式 `to_xarray()` 转换；这些入口变化已实施。科学值、质量标记、时间和地理语义、原图与科学解码的区别没有获准静默变化。具体 CLI 限制见[命令文档](cli.md#原生-rust-cli)，安装路径见[安装文档](installation.md#原生-rust-命令行程序)。

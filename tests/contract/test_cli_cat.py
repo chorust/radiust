@@ -7,11 +7,13 @@ import numpy as np
 import xarray as xr
 from click.testing import CliRunner
 from radiust.cli.main import main
-from radiust.field import RadarDataset
-from radiust.grids import GeographicGrid
-from radiust.outputs.netcdf import write_netcdf
 
 FIXTURE = Path("tests/fixtures/sources/my/raw/east.png")
+
+def _set_cf_time(dataset: xr.Dataset, values: np.ndarray) -> None:
+    dataset.coords["time"] = values
+    dataset["time"].attrs["units"] = "seconds since 1970-01-01 00:00:00 UTC"
+    dataset["time"].attrs["calendar"] = "proleptic_gregorian"
 
 
 def test_cat_requires_exactly_one_source_or_file():
@@ -37,12 +39,13 @@ def test_cat_file_text_is_redirectable_and_image_renderer_requires_tty():
     assert "requires a TTY" in ansi.output
 
 
-def test_cat_source_text_uses_fixture_without_writing_output():
+def test_cat_decoded_source_requires_a_native_science_product():
     runner = CliRunner()
-    result = runner.invoke(main, ["cat", "my", "--decoded", "--at", "2025-12-29T06:50:01Z", "--renderer", "text"])
+    result = runner.invoke(main, ["cat", "my", "--decoded", "--renderer", "text"])
 
-    assert result.exit_code == 0, result.output
-    assert "source=my" in result.output
+    assert result.exit_code == 2
+    assert "native --decoded preview supports only" in result.output
+    assert "selected my" in result.output
 
 
 def test_cat_file_allows_variable_selection_for_netcdf(tmp_path):
@@ -50,10 +53,12 @@ def test_cat_file_allows_variable_selection_for_netcdf(tmp_path):
         {
             "reflectivity": (("latitude", "longitude"), np.ones((2, 2), dtype="float32")),
             "rain_rate": (("latitude", "longitude"), np.full((2, 2), 3.0, dtype="float32")),
-        }
+        },
+        coords={"latitude": [1.0, 0.0], "longitude": [0.0, 1.0]},
     )
+    _set_cf_time(data, np.int64(1_767_225_600))
     path = tmp_path / "multi.nc"
-    write_netcdf(RadarDataset(data, GeographicGrid([0.0, 1.0], [1.0, 0.0])), path)
+    data.to_netcdf(path, engine="h5netcdf", format="NETCDF4")
 
     result = CliRunner().invoke(main, ["cat", "--file", str(path), "--renderer", "text", "--variable", "rain_rate"])
 
@@ -75,23 +80,35 @@ def test_cat_file_requires_at_to_select_a_multitime_netcdf(tmp_path):
             )
         },
         coords={
-            "time": np.array(["2025-01-01T00:00:00", "2025-01-01T01:00:00"], dtype="datetime64[ns]"),
+            "time": np.array([1_735_689_600, 1_735_693_200], dtype="int64"),
             "latitude": [1.0, 0.0],
             "longitude": [0.0, 1.0],
         },
         attrs={"radiust_provenance": json.dumps({"source": "test", "product": "composite"})},
     )
+    data["time"].attrs["units"] = "seconds since 1970-01-01 00:00:00 UTC"
+    data["time"].attrs["calendar"] = "proleptic_gregorian"
     path = tmp_path / "time.nc"
     data.to_netcdf(path, engine="h5netcdf", format="NETCDF4")
 
     result = CliRunner().invoke(
         main,
-        ["cat", "--file", str(path), "--renderer", "text", "--at", "2025-01-01T01:00:00Z"],
+        [
+            "cat",
+            "--file",
+            str(path),
+            "--renderer",
+            "text",
+            "--variable",
+            "reflectivity",
+            "--at",
+            "2025-01-01T01:00:00Z",
+        ],
     )
 
     assert result.exit_code == 0, result.output
     assert "time=2025-01-01T01:00:00Z" in result.output
-    assert "shape=(2, 2)" in result.output
+    assert "size=2x2" in result.output
 
 
 def test_cat_file_selection_errors_are_usage_errors(tmp_path):
@@ -108,21 +125,43 @@ def test_cat_file_selection_errors_are_usage_errors(tmp_path):
             )
         },
         coords={
-            "time": np.array(["2025-01-01T00:00:00", "2025-01-01T01:00:00"], dtype="datetime64[ns]"),
+            "time": np.array([1_735_689_600, 1_735_693_200], dtype="int64"),
             "latitude": [1.0, 0.0],
             "longitude": [0.0, 1.0],
         },
     )
+    data["time"].attrs["units"] = "seconds since 1970-01-01 00:00:00 UTC"
+    data["time"].attrs["calendar"] = "proleptic_gregorian"
     path = tmp_path / "time.nc"
     data.to_netcdf(path, engine="h5netcdf", format="NETCDF4")
 
     invalid_time = CliRunner().invoke(
         main,
-        ["cat", "--file", str(path), "--renderer", "text", "--at", "not-a-time"],
+        [
+            "cat",
+            "--file",
+            str(path),
+            "--renderer",
+            "text",
+            "--variable",
+            "reflectivity",
+            "--at",
+            "not-a-time",
+        ],
     )
     missing_frame = CliRunner().invoke(
         main,
-        ["cat", "--file", str(path), "--renderer", "text", "--at", "2025-01-01T02:00:00Z"],
+        [
+            "cat",
+            "--file",
+            str(path),
+            "--renderer",
+            "text",
+            "--variable",
+            "reflectivity",
+            "--at",
+            "2025-01-01T02:00:00Z",
+        ],
     )
 
     assert invalid_time.exit_code == 2
@@ -136,6 +175,7 @@ def test_cat_file_missing_variable_is_a_usage_error(tmp_path):
         {"reflectivity": (("latitude", "longitude"), np.ones((2, 2), dtype="float32"))},
         coords={"latitude": [1.0, 0.0], "longitude": [0.0, 1.0]},
     )
+    _set_cf_time(data, np.int64(1_735_689_600))
     path = tmp_path / "single.nc"
     data.to_netcdf(path, engine="h5netcdf", format="NETCDF4")
 

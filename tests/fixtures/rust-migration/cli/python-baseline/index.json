@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "cases": [
+    "cache-status",
+    "cat-file-text",
+    "config-show",
+    "discover-all",
+    "discover-single",
+    "discover-single-empty",
+    "doctor",
+    "download-dry-run",
+    "download-dry-run-network-disabled",
+    "download-interrupt",
+    "download-stop",
+    "list-sources"
+  ]
+}

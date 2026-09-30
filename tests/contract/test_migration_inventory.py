@@ -1,56 +1,11 @@
+import hashlib
 import json
 from pathlib import Path
 
-import pytest
+from radiust._bridge import native_source_catalog
 from radiust.registry import registry, sources
 
 ROOT = Path(__file__).parents[2]
-
-
-def test_display_migration_inventory_keeps_all_current_source_statuses_and_paths_separate():
-    """Structural coverage is necessary but never equivalent to golden acceptance."""
-    display = json.loads((ROOT / "migration/legacy-display-inventory.json").read_text(encoding="utf-8"))
-    acquisition = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
-    catalog = json.loads((ROOT / "python/radiust/resources/catalog.json").read_text(encoding="utf-8"))
-    products = {source["id"]: {product["id"] for product in source["products"]}
-                for source in catalog["sources"]}
-    baseline_status = {item["id"]: item["status"] for item in acquisition["sources"]}
-    assert display["coverage_status"].startswith("partial:")
-    assert sum(item["status"] == "passed" for item in display["paths"]) == 15
-    assert sum(item["status"] == "difference_pending" for item in display["paths"]) == 0
-    assert sum(item["status"] == "blocked" for item in display["paths"]) == 8
-    assert "WU" not in display["source_aliases"]
-    assert set(display["excluded_display_sources"]) == {"opensnow", "wunderground"}
-    assert len(display["paths"]) == 23
-    assert len({entry["path_id"] for entry in display["paths"]}) == 23
-    assert len({entry["source"] for entry in display["paths"]}) == 20
-    for row in display["paths"]:
-        source, product, path_id = row["source"], row["product"], row["path_id"]
-        assert source in baseline_status and product in products[source]
-        assert path_id == f"{source}/{product}" or path_id.startswith(f"{source}/{product}/")
-        assert row["status"] in {"passed", "difference_pending", "blocked"}
-        assert row["scientific_status_unchanged"] is True
-        migration = json.loads((ROOT / "migration/sources" / f"{source}.json").read_text(encoding="utf-8"))
-        # The inventory summary can lag independently updated source records;
-        # do not conflate either acquisition/science status with display status.
-        assert migration["source"] == source
-        assert isinstance(migration["status"], str) and migration["status"]
-        related = {entry["path_id"]: entry for entry in migration["display_migration"]["paths"]}
-        assert related[path_id]["status"] == row["status"]
-        assert related[path_id]["scientific_status_unchanged"] is True
-        if row["status"] == "passed":
-            assert not row["blocked_reasons"]
-            assert row["old_config_verified"] and row["source_baseline_verified"]
-            assert related[path_id]["input_hashes"] and related[path_id]["baseline_hash"]
-        elif row["status"] == "blocked":
-            assert row["blocked_reasons"]
-            assert related[path_id]["input_hashes"] == []
-            assert related[path_id]["baseline_hash"] is None
-        else:
-            assert not row["blocked_reasons"]
-            assert related[path_id]["input_hashes"]
-            assert related[path_id]["baseline_hash"]
-            assert not row["source_baseline_verified"]
 
 HEAD_HISTORICAL_CAPABILITY = {
     "au": True,
@@ -80,32 +35,106 @@ HEAD_HISTORICAL_CAPABILITY = {
 }
 
 
-def test_head_inventory_and_catalog_have_the_same_source_ids():
-    inventory = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
-    catalog_ids = {item.id for item in sources()}
+def _json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _assert_fixture_hashes(manifest_path: Path, fixture: dict) -> None:
+    for frame in fixture.get("frames", []):
+        for artifact in frame.get("artifacts", []):
+            raw_path = manifest_path.parent / artifact["path"]
+            payload = raw_path.read_bytes()
+            if "size_bytes" in artifact:
+                assert len(payload) == artifact["size_bytes"]
+            assert hashlib.sha256(payload).hexdigest() == artifact["sha256"]
+
+
+def test_display_migration_inventory_keeps_all_current_source_statuses_and_paths_separate():
+    """Structural coverage is necessary but never equivalent to golden acceptance."""
+    display = _json(ROOT / "migration/legacy-display-inventory.json")
+    acquisition = _json(ROOT / "migration/inventory.json")
+    catalog = _json(ROOT / "python/radiust/resources/catalog.json")
+    products = {
+        source["id"]: {product["id"] for product in source["products"]}
+        for source in catalog["sources"]
+    }
+    baseline_status = {item["id"]: item["status"] for item in acquisition["sources"]}
+    assert display["coverage_status"].startswith("partial:")
+    assert sum(item["status"] == "passed" for item in display["paths"]) == 15
+    assert sum(item["status"] == "difference_pending" for item in display["paths"]) == 0
+    assert sum(item["status"] == "blocked" for item in display["paths"]) == 8
+    assert "WU" not in display["source_aliases"]
+    assert set(display["excluded_display_sources"]) == {"opensnow", "wunderground"}
+    assert len(display["paths"]) == 23
+    assert len({entry["path_id"] for entry in display["paths"]}) == 23
+    assert len({entry["source"] for entry in display["paths"]}) == 20
+    for row in display["paths"]:
+        source, product, path_id = row["source"], row["product"], row["path_id"]
+        assert source in baseline_status and product in products[source]
+        assert path_id == f"{source}/{product}" or path_id.startswith(f"{source}/{product}/")
+        assert row["status"] in {"passed", "difference_pending", "blocked"}
+        assert row["scientific_status_unchanged"] is True
+        migration = _json(ROOT / "migration/sources" / f"{source}.json")
+        related = {entry["path_id"]: entry for entry in migration["display_migration"]["paths"]}
+        assert migration["source"] == source
+        assert isinstance(migration["status"], str) and migration["status"]
+        assert related[path_id]["status"] == row["status"]
+        assert related[path_id]["scientific_status_unchanged"] is True
+        if row["status"] == "passed":
+            assert not row["blocked_reasons"]
+            assert row["old_config_verified"] and row["source_baseline_verified"]
+            assert related[path_id]["input_hashes"] and related[path_id]["baseline_hash"]
+        elif row["status"] == "blocked":
+            assert row["blocked_reasons"]
+            assert related[path_id]["input_hashes"] == []
+            assert related[path_id]["baseline_hash"] is None
+        else:
+            assert not row["blocked_reasons"]
+            assert related[path_id]["input_hashes"]
+            assert related[path_id]["baseline_hash"]
+            assert not row["source_baseline_verified"]
+
+
+def test_head_inventory_is_backed_by_the_rust_catalog_and_python_metadata_facade():
+    inventory = _json(ROOT / "migration/inventory.json")
+    native = native_source_catalog()
+    native_sources = {item["id"]: item for item in native["sources"]}
+    facade_sources = {item.id: item for item in sources()}
     inventory_ids = {item["id"] for item in inventory["sources"]}
 
     assert len(inventory["sources"]) == 24
-    assert inventory_ids == catalog_ids
-    for item in inventory["sources"]:
-        assert (ROOT / item["fixture"]).is_file()
-        assert (ROOT / item["migration"]).is_file()
-
-
-def test_every_head_source_has_a_registered_adapter_resource_and_source_contract():
-    inventory = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
+    assert inventory_ids == set(native_sources) == set(facade_sources)
     for item in inventory["sources"]:
         source_id = item["id"]
-        module_name = source_id.replace("-", "_")
-        assert (ROOT / "python/radiust/sources" / f"{module_name}.py").is_file(), source_id
+        native_info = native_sources[source_id]
+        facade_info = registry.get_info(source_id)
         resource_path = ROOT / "python/radiust/resources/sources" / f"{source_id}.json"
-        assert resource_path.is_file(), source_id
-        resource = json.loads(resource_path.read_text(encoding="utf-8"))
-        assert resource.get("schema_version") == 1, source_id
-        assert resource.get("source") == source_id, source_id
-        assert resource.get("adapter_version") == registry.get_info(source_id).adapter_version, source_id
-        assert (ROOT / "tests/sources" / f"test_{module_name}.py").is_file(), source_id
-        assert registry.get(source_id).info.id == source_id
+        fixture_path = ROOT / item["fixture"]
+        migration_path = ROOT / item["migration"]
+        resource = _json(resource_path)
+        fixture = _json(fixture_path)
+        migration = _json(migration_path)
+
+        assert resource.get("schema_version") == 1
+        assert resource.get("source") == source_id
+        assert resource.get("adapter_version") == native_info.get("adapter_version")
+        assert facade_info.adapter_version == native_info.get("adapter_version")
+        assert fixture.get("source") == source_id
+        assert migration.get("source") == source_id
+        assert migration.get("adapter") == f"python/radiust/sources/{source_id.replace('-', '_')}.py"
+        assert not (ROOT / migration["adapter"]).exists(), source_id
+        assert facade_info.availability == native_info["availability"]
+
+
+def test_catalog_resources_keep_historical_capability_without_python_adapter_classes():
+    native = {item["id"]: item for item in native_source_catalog()["sources"]}
+    assert set(native) == set(HEAD_HISTORICAL_CAPABILITY)
+    for source_id, expected in HEAD_HISTORICAL_CAPABILITY.items():
+        resource = _json(ROOT / "python/radiust/resources/sources" / f"{source_id}.json")
+        assert resource.get("historical") is expected, source_id
+        products = {item["id"]: item for item in native[source_id]["products"]}
+        assert products
+        assert all(product["historical"] is expected for product in products.values()), source_id
 
 
 def test_source_resources_have_unique_json_keys():
@@ -124,67 +153,11 @@ def test_source_resources_have_unique_json_keys():
         assert not duplicate_keys, f"{path.name} repeats resource keys: {duplicate_keys}"
 
 
-@pytest.mark.source_adapter
-def test_catalog_and_resource_declare_each_source_historical_capability():
-    catalog = {item.id: item for item in sources()}
-    assert set(catalog) == set(HEAD_HISTORICAL_CAPABILITY)
-    for source_id, expected in HEAD_HISTORICAL_CAPABILITY.items():
-        resource = json.loads(
-            (ROOT / "python/radiust/resources/sources" / f"{source_id}.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        adapter_historical = bool(getattr(registry.get(source_id), "historical", True))
-        assert resource.get("historical") is adapter_historical, source_id
-        assert all(product.historical is expected for product in catalog[source_id].products), source_id
-
-
-@pytest.mark.source_adapter
-def test_source_resource_historical_capability_matches_adapter():
-    inventory = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
+def test_fixture_manifests_are_hashed_or_explicitly_blocked():
+    inventory = _json(ROOT / "migration/inventory.json")
     for item in inventory["sources"]:
-        source_id = item["id"]
-        resource = json.loads(
-            (ROOT / "python/radiust/resources/sources" / f"{source_id}.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        adapter = registry.get(source_id)
-        assert bool(resource.get("historical", True)) == bool(
-            getattr(adapter, "historical", True)
-        ), source_id
-
-
-def test_every_head_source_manifest_and_migration_record_bind_to_inventory_id():
-    inventory = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
-    for item in inventory["sources"]:
-        source_id = item["id"]
-        fixture = json.loads((ROOT / item["fixture"]).read_text(encoding="utf-8"))
-        migration = json.loads((ROOT / item["migration"]).read_text(encoding="utf-8"))
-        assert fixture["source"] == source_id
-        assert migration["source"] == source_id
-        assert migration["adapter"] == f"python/radiust/sources/{source_id.replace('-', '_')}.py"
-
-
-def test_historical_inventory_records_keep_adapter_resource_fixture_and_test_links():
-    inventory = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
-    for item in inventory["historical"]:
-        source_id = item["id"]
-        history = json.loads((ROOT / item["evidence"]).read_text(encoding="utf-8"))
-        for key in ("source", "adapter", "resource", "fixture", "migration", "test"):
-            assert key in history, f"{source_id} history has no {key} link"
-        assert history["source"] == source_id
-        assert (ROOT / history["adapter"]).is_file()
-        assert (ROOT / history["resource"]).is_file()
-        assert (ROOT / history["fixture"]).is_file()
-        assert (ROOT / history["migration"]).is_file()
-        assert (ROOT / history["test"]).is_file()
-
-
-def test_each_inventory_fixture_is_either_hashed_or_explicitly_blocked():
-    inventory = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
-    for item in inventory["sources"]:
-        fixture = json.loads((ROOT / item["fixture"]).read_text(encoding="utf-8"))
+        fixture_path = ROOT / item["fixture"]
+        fixture = _json(fixture_path)
         assert fixture.get("schema_version") == 1
         assert fixture.get("source") == item["id"]
         if fixture.get("status") == "blocked":
@@ -193,44 +166,46 @@ def test_each_inventory_fixture_is_either_hashed_or_explicitly_blocked():
             assert fixture.get("frames") == []
         else:
             assert fixture.get("frames")
+            _assert_fixture_hashes(fixture_path, fixture)
 
 
-def test_blocked_source_migration_records_have_explicit_blockers_and_evidence():
-    for path in sorted((ROOT / "migration/sources").glob("*.json")):
-        record = json.loads(path.read_text(encoding="utf-8"))
-        if "blocked" in str(record.get("status", "")):
-            assert record.get("blockers"), f"{record.get('source')} has no blocker detail"
-            assert record.get("evidence"), f"{record.get('source')} has no evidence links"
+def test_historical_provenance_survives_without_requiring_python_adapters():
+    inventory = _json(ROOT / "migration/inventory.json")
+    catalog_ids = {item["id"] for item in native_source_catalog()["sources"]}
+    for item in inventory["historical"]:
+        source_id = item["id"]
+        history_path = ROOT / item["evidence"]
+        history = _json(history_path)
+        fixture_path = ROOT / item["fixture"]
+        fixture = _json(fixture_path)
+        migration = _json(ROOT / item["migration"])
+        assert item["status"] == "adapter-acquisition-verified-science-geometry-blocked"
+        assert source_id not in catalog_ids
+        assert history["source"] == source_id == fixture["source"] == migration["source"]
+        assert history["fixture"] == item["fixture"]
+        assert history["migration"] == item["migration"]
+        assert history["adapter"] == migration["adapter"]
+        assert history["resource"] == migration["resource"]
+        assert isinstance(history.get("evidence"), list) and history["evidence"]
+        assert not (ROOT / history["adapter"]).exists()
+        assert (ROOT / history["resource"]).is_file()
+        assert (ROOT / history["test"]).is_file()
+        assert fixture.get("frames")
+        _assert_fixture_hashes(fixture_path, fixture)
 
 
 def test_unverified_sources_are_not_advertised_as_available():
-    inventory = json.loads((ROOT / "migration/inventory.json").read_text(encoding="utf-8"))
-    catalog = {item.id: item for item in sources()}
+    inventory = _json(ROOT / "migration/inventory.json")
+    catalog = {item["id"]: item for item in native_source_catalog()["sources"]}
 
     for item in inventory["sources"]:
         if item["status"] != "contract_passed":
-            assert catalog[item["id"]].availability != "available"
+            assert catalog[item["id"]]["availability"] != "available"
     assert (ROOT / "migration/blockers/my.md").exists()
     for item in inventory["historical"]:
-        assert item["status"] in {
-            "product-confirmed-adapter-pending",
-            "adapter-acquisition-verified-science-geometry-blocked",
-            "adapter-implemented-upstream-data-blocked",
-        }
+        assert item["status"] == "adapter-acquisition-verified-science-geometry-blocked"
         assert (ROOT / item["evidence"]).is_file()
-        if item["status"] in {
-            "adapter-acquisition-verified-science-geometry-blocked",
-            "adapter-implemented-upstream-data-blocked",
-        }:
-            assert (ROOT / item["fixture"]).is_file()
-            assert (ROOT / item["adapter"]).is_file()
-            assert item.get("migration"), f"{item['id']} has no source migration record"
-            assert (ROOT / item["migration"]).is_file()
-            if "resource" in item:
-                assert (ROOT / item["resource"]).is_file()
-            fixture = json.loads((ROOT / item["fixture"]).read_text(encoding="utf-8"))
-            assert fixture.get("source") == item["id"]
-            if fixture.get("status") == "blocked":
-                assert fixture.get("blockers")
-                assert fixture.get("evidence")
-                assert fixture.get("frames") == []
+        assert (ROOT / item["fixture"]).is_file()
+        fixture = _json(ROOT / item["fixture"])
+        assert fixture.get("source") == item["id"]
+        assert fixture.get("frames")

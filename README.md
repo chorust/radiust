@@ -58,12 +58,12 @@ PNG/GIF preview uses original image pixels (first GIF frame); no scientific deco
 | `es` | 西班牙 AEMET | 已实测 | 原始资料；色标与原生几何待验证 |
 | `fr` | 法国 Météo-France WMS | 已实测 | 原始图像；颜色到 dBZ 的映射待验证 |
 | `id` | 印尼 BMKG 雷达 | 需有效授权，未完成在线验收 | 原始获取受限；科学解码未验收 |
-| `id_sidarma` | 印尼 SIDARMA CMAX | 需授权；现有探测返回 HTTP 403 | 原始获取受限；科学解码未验收 |
+| `id_sidarma` | 印尼 SIDARMA CMAX | 需 API Key；新 archive 接口与 JAK 原图已实测成功 | 支持 latest 原图；科学解码与像素几何未验收 |
 | `kr` | 韩国 KMA | 已实测 | 原始资料；色标与原生几何待验证 |
 | `my` | 马来西亚气象局 | 已实测 | 原始图像；时次、色标、几何与再利用许可待验证 |
 | `nz` | 新西兰 MetService | 已实测 | 原始资料；色标与原生几何待验证 |
 | `opensnow` | OpenSnow 瓦片 | 上游 HTTP 403；需授权访问 | 原始获取受阻；科学解码未验收 |
-| `ph` | 菲律宾 PAGASA | 需外部凭据 / 浏览器获取条件 | 在线原始获取与科学解码未验收 |
+| `ph` | 菲律宾 PAGASA | 自动会话 / 系统 Chromium | timeline 已恢复；原始图返回占位 PNG，科学解码未验收 |
 | `pt` | 葡萄牙 IPMA | 已实测 | **支持有序降雨强度类别**；不提供逐像素数值雨强 |
 | `rainviewer` | RainViewer 瓦片 | 已实测 | **支持经提供方色表验证的 dBZ 解码** |
 | `sg` | 新加坡 NEA | 已实测并对照官方 API | **支持有序降雨强度类别**；不提供定量 mm/h |
@@ -100,7 +100,7 @@ with radiust.Client() as client:
 
 ## 安装和可选能力
 
-核心安装包含 NumPy、xarray、pyproj、Pillow、h5netcdf、h5py、Click 和 PyYAML，并默认支持 NetCDF。可按需要安装：
+基础安装包含 Rust 扩展；YAML 配置由 Rust 解析，因此运行时不依赖 PyYAML。科学互操作等能力按需安装：
 
 ```bash
 pip install radiust

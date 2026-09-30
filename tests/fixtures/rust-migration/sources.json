@@ -1,0 +1,703 @@
+{
+  "builtin_source_count": 24,
+  "catalog_source": "python/radiust/resources/catalog.json",
+  "expanded_target_count": 26,
+  "non_catalog_adapter_modules": [
+    "br_cptec",
+    "br_sipam"
+  ],
+  "schema_version": 1,
+  "sources": [
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "IDR021.T.202609180511.png",
+              "present": true,
+              "sha256": "4ab60f3c01df485d6d5bf24417733425a4900e160c43b4543b51bc124d7a0c8c"
+            }
+          ],
+          "product": "composite",
+          "revision": "IDR021-202609180511",
+          "scientific_reference_status": "blocked: palette and native grid not verified",
+          "station": "AU02",
+          "valid_time": "2026-09-18T05:11:00Z"
+        }
+      ],
+      "id": "au",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [],
+      "id": "bmkg",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "CASFT.gif",
+              "present": true,
+              "sha256": "90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0"
+            }
+          ],
+          "product": "rain",
+          "revision": "202609180354_CASFT_CAPPI_1.5_RAIN.gif",
+          "scientific_reference_status": "blocked: palette/units not verified",
+          "station": "CASFT",
+          "valid_time": "2026-09-18T03:54:00Z"
+        }
+      ],
+      "id": "ca",
+      "products": [
+        "rain"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "rain",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [],
+      "id": "cam",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "ESCOMP.png",
+              "present": true,
+              "sha256": "baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f"
+            }
+          ],
+          "product": "composite",
+          "revision": "radw202609171440_3857",
+          "scientific_reference_status": "blocked: palette not verified",
+          "station": "ESCOMP",
+          "valid_time": "2026-09-17T14:40:00Z"
+        }
+      ],
+      "id": "es",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "FRCOMP.png",
+              "present": true,
+              "sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248"
+            }
+          ],
+          "product": "composite",
+          "revision": "20260918T024500Z",
+          "scientific_reference_status": "blocked: provider color-to-dBZ mapping not yet verified",
+          "station": "FRCOMP",
+          "valid_time": "2026-09-18T02:45:00Z"
+        }
+      ],
+      "id": "fr",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [],
+      "id": "id",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [],
+      "id": "id_sidarma",
+      "products": [
+        "cmax"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "cmax",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "KWK.png",
+              "present": true,
+              "sha256": "7a8c77b24859eefdaf6208c4a288850980c0260f7d3b5caf2c50578bc09b59bc"
+            }
+          ],
+          "product": "composite",
+          "revision": "KWK-202609181250",
+          "scientific_reference_status": "blocked: palette not verified",
+          "station": "KWK",
+          "valid_time": "2026-09-18T03:50:00Z"
+        }
+      ],
+      "id": "kr",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "peninsular.png",
+              "present": true,
+              "sha256": "a60936811a91ae5f776759fc4072965c321eebc73431b78d3fba7fb1ebd7e68f"
+            }
+          ],
+          "product": "composite",
+          "revision": "legacy-output-a60936811a91",
+          "scientific_reference_status": "blocked: canonical upstream bytes, reuse permission, palette and native geometry not verified",
+          "station": "peninsular",
+          "valid_time": "2025-12-29T06:50:01Z"
+        },
+        {
+          "artifacts": [
+            {
+              "name": "east.png",
+              "present": true,
+              "sha256": "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a"
+            }
+          ],
+          "product": "composite",
+          "revision": "legacy-output-c2e7cb2293de",
+          "scientific_reference_status": "blocked: canonical upstream bytes, reuse permission, palette and native geometry not verified",
+          "station": "east",
+          "valid_time": "2025-12-29T06:52:01Z"
+        }
+      ],
+      "id": "my",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": "peninsular"
+        },
+        {
+          "product": "composite",
+          "station": "east"
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "NZAU2.gif",
+              "present": true,
+              "sha256": "0d98e9bc3ac0cd1b25d303a1b40db3641e316fc85db75554b0b8053c9607f85e"
+            }
+          ],
+          "product": "rain",
+          "revision": "NZAU2-1789703400",
+          "scientific_reference_status": "blocked: palette/units not verified",
+          "station": "NZAU2",
+          "valid_time": "2026-09-18T03:50:00Z"
+        }
+      ],
+      "id": "nz",
+      "products": [
+        "rain"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "rain",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [],
+      "id": "opensnow",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [],
+      "id": "ph",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [
+        "playwright",
+        "scraping"
+      ],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "PTST2.png",
+              "present": true,
+              "sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa"
+            }
+          ],
+          "product": "composite",
+          "revision": "pcr_pst-2026-09-18T0250",
+          "scientific_reference_status": "verified: ordinal rainfall-intensity intervals; continuous mm/h values are not recovered",
+          "station": "PTST2",
+          "valid_time": "2026-09-18T02:50:00Z"
+        }
+      ],
+      "id": "pt",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "tile-z1-x0-y0.png",
+              "present": true,
+              "sha256": "29025cadd9a2cbfef81ce8fe9d3f58ed47bd6aa3877496c791002be0c023d340"
+            },
+            {
+              "name": "tile-z1-x1-y0.png",
+              "present": true,
+              "sha256": "1eca7e75aadc665aea9c256095f6ea6e5236049840394aece05400bef1638320"
+            },
+            {
+              "name": "tile-z1-x0-y1.png",
+              "present": true,
+              "sha256": "06309c726b1436418452576b9e037df6f2919e529ed226c47dfef4da93b9f665"
+            },
+            {
+              "name": "tile-z1-x1-y1.png",
+              "present": true,
+              "sha256": "d2c25c8fe2260621e88572196a48163807e20069f428dfd48e43f329c803075f"
+            }
+          ],
+          "product": "composite",
+          "revision": "7cc4a10f8d53",
+          "scientific_reference_status": "verified: official Universal Blue RGBA table mapped to dBZ",
+          "station": null,
+          "valid_time": "2026-09-18T02:00:00Z"
+        }
+      ],
+      "id": "rainviewer",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "SGCOMP.png",
+              "present": true,
+              "sha256": "154722ed6221d6d634de24006eaab0e5a48fcee75ef6147569186a56bf731b2c"
+            }
+          ],
+          "product": "composite",
+          "revision": "2026091810450000",
+          "scientific_reference_status": "verified: official five-category palette; transparent pixels are no visible return, not quantitative zero rainfall",
+          "station": "SGCOMP",
+          "valid_time": "2026-09-18T02:45:00Z"
+        }
+      ],
+      "id": "sg",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "cmp1.gif",
+              "present": true,
+              "sha256": "95f482870e0d6cf2ed2d360dbf12101f39d456b810891bc0fe03c81a1c2a3e13"
+            }
+          ],
+          "product": "composite",
+          "revision": "95f482870e0d6cf2ed2d360dbf12101f39d456b810891bc0fe03c81a1c2a3e13",
+          "scientific_reference_status": "blocked: palette not verified",
+          "station": "cmp1",
+          "valid_time": "2023-04-22T14:45:00Z"
+        },
+        {
+          "artifacts": [
+            {
+              "name": "kkn240Loop.gif",
+              "present": true,
+              "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd"
+            }
+          ],
+          "product": "composite",
+          "revision": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+          "scientific_reference_status": "blocked: exact source-matched palette and native geometry are unverified",
+          "station": "kkn240Loop",
+          "valid_time": "2023-04-22T16:00:05Z"
+        }
+      ],
+      "id": "th",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "takhli.png",
+              "present": true,
+              "sha256": "8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd"
+            }
+          ],
+          "product": "cappi",
+          "revision": "2026091803420400dBZ.cappi",
+          "scientific_reference_status": "blocked: palette not verified",
+          "station": "takhli",
+          "valid_time": "2026-09-18T03:42:00Z"
+        }
+      ],
+      "id": "th_royalrain",
+      "products": [
+        "cappi"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "cappi",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "O-A0058-005.png",
+              "present": true,
+              "sha256": "abfb1f72fa191d154e942b8be3bdab61610ae70f07cc137d41f557b4597be293"
+            },
+            {
+              "name": "O-A0058-005.json",
+              "present": true,
+              "sha256": "9e1d6622d31e4b4614f3aeb90b253344472bdc775490f3e1f51cfe0ba4fa5226"
+            }
+          ],
+          "product": "observation",
+          "revision": "O-A0058-005-1789702800",
+          "scientific_reference_status": "blocked: pixel registration and physical palette not verified",
+          "station": "CV1_3600",
+          "valid_time": "2026-09-18T03:40:00Z"
+        },
+        {
+          "artifacts": [
+            {
+              "name": "O-A0059-001.json",
+              "present": true,
+              "sha256": "96f97544d0e2f3795b69cb2cbfe3f906a03bb4232d1eb62f15d5740445c56c90"
+            }
+          ],
+          "product": "grid",
+          "revision": "O-A0059-001-1789878600",
+          "scientific_reference_status": "verified: CWA provider native numeric reflectivity grid",
+          "station": "CV1_3600",
+          "valid_time": "2026-09-20T04:30:00Z"
+        }
+      ],
+      "id": "tw",
+      "products": [
+        "observation",
+        "grid"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "observation",
+          "station": null
+        },
+        {
+          "product": "grid",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "CV1_3600.png",
+              "present": true,
+              "sha256": "dd314e2cc79fbe9272162ef94972714310be31eb5eaf584ae2a80d4b839e95f7"
+            }
+          ],
+          "product": "observation",
+          "revision": "CV1_3600_202609181050",
+          "scientific_reference_status": "blocked: palette not verified",
+          "station": "CV1_3600",
+          "valid_time": "2026-09-18T02:50:00Z"
+        }
+      ],
+      "id": "tw-http",
+      "products": [
+        "observation"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "observation",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "retired",
+      "fixtures": [],
+      "id": "uk",
+      "products": [
+        "rain"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "rain",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "PLI.png",
+              "present": true,
+              "sha256": "c6e6f1cffec92a519a1e9f6db8f84ae81e5825538aa8f2ac2286814802324832"
+            }
+          ],
+          "product": "cmax",
+          "revision": "PLI-202609180350",
+          "scientific_reference_status": "blocked: palette not verified",
+          "station": "PLI",
+          "valid_time": "2026-09-18T03:50:00Z"
+        }
+      ],
+      "id": "vn",
+      "products": [
+        "cmax"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "cmax",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [
+        {
+          "artifacts": [
+            {
+              "name": "tile-z1-x0-y0.png",
+              "present": true,
+              "sha256": "a3367ba4fa0aa5130690232fe91ec74dd42bda20e2818dee402bf1a80173a915"
+            },
+            {
+              "name": "tile-z1-x1-y0.png",
+              "present": true,
+              "sha256": "b7b7a6193388a6d00835cff7d274406c34b2f638d1f19a11cb0c1f5d45f4506c"
+            },
+            {
+              "name": "tile-z1-x0-y1.png",
+              "present": true,
+              "sha256": "717363470ca028030e1fbde003527145097367bd26ce75f959ea67f09d7edb7c"
+            },
+            {
+              "name": "tile-z1-x1-y1.png",
+              "present": true,
+              "sha256": "9052bae7ccf8af41e8046c0c2f1abe69f30803861bded455424ce9c9d3acef09"
+            }
+          ],
+          "product": "reflectivity",
+          "revision": "windy-1789704600",
+          "scientific_reference_status": "blocked: green-channel physical semantics unverified",
+          "station": "global",
+          "valid_time": "2026-09-18T04:10:00Z"
+        }
+      ],
+      "id": "windy",
+      "products": [
+        "reflectivity"
+      ],
+      "required_extras": [
+        "playwright"
+      ],
+      "targets": [
+        {
+          "product": "reflectivity",
+          "station": null
+        }
+      ]
+    },
+    {
+      "availability": "needs_configuration",
+      "fixtures": [],
+      "id": "wunderground",
+      "products": [
+        "composite"
+      ],
+      "required_extras": [],
+      "targets": [
+        {
+          "product": "composite",
+          "station": null
+        }
+      ]
+    }
+  ]
+}

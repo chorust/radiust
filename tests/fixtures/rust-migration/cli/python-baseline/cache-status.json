@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "radiust",
+    "cache",
+    "status",
+    "--cache-dir",
+    "<TEMP>/cache",
+    "--output-root",
+    "<TEMP>/output",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": {
+    "bytes": 0,
+    "enabled": true,
+    "entries": 0,
+    "leases": 0,
+    "mosaics": 0,
+    "objects": 0,
+    "root": "/private<TEMP>/cache",
+    "schema_version": 1,
+    "tmp": 0
+  }
+}

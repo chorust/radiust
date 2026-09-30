@@ -1,6 +1,6 @@
 """Untrusted provider strings cannot become terminal commands or credentials."""
 
-from radiust.cli.safety import safe_text, safe_value
+from radiust.safety import safe_text, safe_value
 
 
 def test_nested_value_preserves_types_and_removes_credentials():
@@ -29,37 +29,17 @@ def test_discovery_status_fields_remain_numeric():
     assert value["secret_key"] == "[REDACTED]"
 
 
-def test_provider_error_sanitizes_control_ranges_and_assignment_credentials(capsys):
-    from radiust.cli.reporting import emit_error
-
+def test_safe_text_sanitizes_control_ranges_and_assignment_credentials():
     message = "token=hidden api_key:opaque \x00\x1f\x7f\x80\x9f\x1b]2;poison\x07"
-    assert all(char not in safe_text(message) for char in ("\x00", "\x1f", "\x7f", "\x80", "\x9f", "\x1b", "\x07"))
-    emit_error(ValueError(message))
-    output = capsys.readouterr().err
-    assert "hidden" not in output and "opaque" not in output
-    assert "\x1b" not in output and "\x07" not in output
+    clean = safe_text(message)
+    assert all(char not in clean for char in ("\x00", "\x1f", "\x7f", "\x80", "\x9f", "\x1b", "\x07"))
+    assert "hidden" not in clean and "opaque" not in clean
 
 
 def test_provider_supplied_line_breaks_and_tabs_cannot_spoof_report_rows():
     clean = safe_text("station=TH\nstatus=success\r\tcredential=hidden")
     assert not any(char in clean for char in ("\r", "\n", "\t"))
     assert "station=TH" in clean and "hidden" not in clean
-
-
-def test_json_errors_preserve_safe_types_and_hide_credentials(capsys):
-    import json
-
-    from radiust.cli.reporting import emit_error
-
-    emit_error(ValueError("https://name:password@example.com/?token=hidden&station=TH"), as_json=True)
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["schema_version"] == 1
-    assert payload["interrupted"] is False
-    assert payload["error"]["retryable"] is False
-    assert "station=TH" in payload["error"]["message"]
-    assert "name" not in payload["error"]["message"]
-    assert "password" not in payload["error"]["message"]
-    assert "hidden" not in payload["error"]["message"]
 
 
 def test_common_provider_secret_variants_and_query_keys_are_redacted():
@@ -87,41 +67,12 @@ def test_nested_secret_aliases_do_not_change_nonsecret_json_types():
     assert all(clean["metadata"][key] == "[REDACTED]" for key in ("access_token", "x-api-key", "refresh_token"))
 
 
-def test_single_report_json_and_human_output_sanitize_nested_provider_data(capsys):
-    from radiust.cli.reporting import emit
+def test_public_discovery_item_sanitizes_without_legacy_cli_module():
+    from radiust.models import DiscoveryItem, DiscoveryTarget
 
-    payload = {
-        "schema_version": 1, "command": "discover", "run_id": None, "query": {"source": "TH"},
-        "counts": {"success": 1}, "items": [{"source": "TH", "status": "success", "metadata": "token=xyz\x1b]2;bad\x07"}],
-        "error": None, "interrupted": False,
-    }
-    emit(payload, as_json=True)
-    machine = __import__("json").loads(capsys.readouterr().out)
-    assert machine["schema_version"] == 1 and machine["counts"]["success"] == 1
-    assert "xyz" not in repr(machine) and "\x1b" not in repr(machine)
-    emit(payload)
-    human = capsys.readouterr().out
-    assert "TH" in human and "xyz" not in human and "\x1b" not in human
-
-
-def test_quiet_preserves_json_and_errors(capsys):
-    from radiust.cli.reporting import emit, emit_error
-
-    emit([{"id": "th"}], quiet=True)
-    assert capsys.readouterr().out == ""
-    emit([{"id": "th"}], quiet=True, as_json=True)
-    assert __import__("json").loads(capsys.readouterr().out)["items"] == [{"id": "th"}]
-    emit_error(ValueError("token=hidden"))
-    assert "error:" in capsys.readouterr().err
-
-
-def test_unexpected_provider_exception_does_not_publish_arbitrary_response_body(capsys):
-    from radiust.cli.reporting import emit_error
-
-    # Unexpected exceptions may contain entire upstream response bodies whose
-    # unlabelled secrets cannot be reliably identified by a regex.
-    emit_error(RuntimeError("upstream body: unlabelled-private-material"), as_json=True)
-    machine = __import__("json").loads(capsys.readouterr().out)
-    assert machine["error"]["code"] == "error"
-    assert "unlabelled-private-material" not in repr(machine)
-    assert machine["error"]["message"]
+    item = DiscoveryItem(
+        DiscoveryTarget("ph", "composite", None),
+        "missing_credentials",
+        error={"message": "token=private-value"},
+    )
+    assert item.as_dict()["error"]["message"] == "token=[REDACTED]"

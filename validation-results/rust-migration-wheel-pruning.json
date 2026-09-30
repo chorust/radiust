@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "check": "python-wheel-module-pruning",
+  "date": "2026-09-30",
+  "status": "passed_with_remaining_sdk_facades",
+  "wheel": {
+    "path": "/private/tmp/radiust-wheel-check/t083-current/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "sha256": "a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c",
+    "python_module_count": 21,
+    "platform_tag": "macosx_11_0_arm64",
+    "source_python_file_count": 95,
+    "excluded_python_file_count": 74,
+    "build_profile": "release"
+  },
+  "release_wheels": [
+    {
+      "path": "/private/tmp/radiust-wheel-check/t083-current/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+      "sha256": "a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c",
+      "platform_tag": "macosx_11_0_arm64",
+      "python_module_count": 21,
+      "radiust_batch_absent": true,
+      "status": "base_cli_smoke_macho_audit_clean_extras_and_four_format_plus_raw_manifest_readback_passed",
+      "format_readback": "4 passed in fresh isolated wheel audit; 5 passed including raw-manifest binding after exact wheel reinstall into clean extras venv",
+      "audit_report": "validation-results/rust-migration-packaging-macos11.json"
+    },
+    {
+      "path": "/private/tmp/radiust-wheel-check/t083-current/radiust-0.1.0-cp312-cp312-macosx_15_0_arm64.whl",
+      "sha256": "3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0",
+      "platform_tag": "macosx_15_0_arm64",
+      "python_module_count": 21,
+      "radiust_batch_absent": true,
+      "status": "base_cli_smoke_macho_audit_clean_extras_and_four_format_plus_raw_manifest_readback_passed",
+      "format_readback": "4 passed in fresh isolated wheel audit; 5 passed including raw-manifest binding after exact wheel reinstall into clean extras venv",
+      "audit_report": "validation-results/rust-migration-packaging.json"
+    }
+  ],
+  "dev_wheel": {
+    "path": "/private/tmp/radiust-wheel-check/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "sha256": "b8e9642e2787eff85d864ad1178a764f1ba86117a2efb40da75c7b6f629d5a0d",
+    "build_profile": "dev",
+    "radiust_batch_absent": true
+  },
+  "retained_python_modules": [
+    "radiust/__init__.py",
+    "radiust/__main__.py",
+    "radiust/_bridge.py",
+    "radiust/api.py",
+    "radiust/sdk_inputs.py",
+    "radiust/cli/__init__.py",
+    "radiust/cli/main.py",
+    "radiust/client.py",
+    "radiust/config.py",
+    "radiust/errors.py",
+    "radiust/grids/__init__.py",
+    "radiust/grids/models.py",
+    "radiust/identity.py",
+    "radiust/logging.py",
+    "radiust/models.py",
+    "radiust/outputs/zarr.py",
+    "radiust/resources/__init__.py",
+    "radiust/rust_client.py",
+    "radiust/safety.py",
+    "radiust/science_adapters.py",
+    "radiust/streaming.py"
+  ],
+  "checks": {
+    "legacy_business_module_absence": "passed; wheel omits legacy CLI handlers and compatibility re-exports, Python output writers except Zarr, local storage adapter, pipeline, and batch modules",
+    "isolated_core_wheel_install_and_rust_cli_smoke": "passed",
+    "installed_rust_fetch_many_decoded_binding": "passed",
+    "isolated_zarr_extra_data_and_uint16_quality_readback": "passed",
+    "current_source_wheel_macos_release_audit_and_four_format_readback": "passed",
+    "ruff": "passed",
+    "cargo_fmt": "passed",
+    "git_diff_check": "passed",
+    "installed_wheel_discovery_item_safety_without_legacy_cli_module": "passed for current macOS 11.0 and 15.0 static-NetCDF wheels",
+    "static_netcdf_base_install_and_macho_audit": "passed for current macOS 11.0 and 15.0 wheels; only system libraries, no Homebrew references",
+    "current_static_wheel_four_format_readback": "passed; 4 tests on macOS 15.0 wheel with repository test dependencies shared into the temporary venv",
+    "source_dev_wheel_batch_pruning": "passed; isolated base install with repository runtime dependencies shared; radiust.batch absent, sdk_inputs/streaming/rust_client present",
+    "current_source_release_wheel_macos_11_base_smoke_and_macho_audit": "passed for a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c; 21-module package, 24-source CLI smoke, arm64 tag/minos match; only system libraries",
+    "current_source_release_wheel_macos_15_base_smoke_and_macho_audit": "passed for 3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0; 21-module package, 24-source CLI smoke, arm64 tag/minos match; only system libraries",
+    "current_source_release_wheel_module_audit": "passed; both wheels contain 21 Python modules, retain sdk_inputs/streaming/rust_client/radiust.safety and outputs.zarr, and omit Python CLI cat/query/doctor/cache/progress/safety helpers, pipeline/batch, local store, and non-Zarr writers",
+    "previous_static_netcdf_release_wheels_four_format_readback": "passed; 4 formats per wheel for SHA-256 128e8f5786e4e82ea1ddce095c6a5f62963c7d92351074118384c1199615dedf and 94b99bc7f3de7a393f48bd84ca765578323f49ba8ca034d057c6221375dbd935",
+    "current_source_release_wheels_four_format_readback": "passed for exact hashes a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c and 3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0; fresh audit install ran four readers per wheel and each hash then passed five tests including raw-manifest binding in its clean extras venv",
+    "proj_db_location_in_readback_venvs": "passed for both final wheels with PROJ_DATA/PROJ_LIB unset; pyproj and proj.db resolved from each matching clean extras venv, with no Homebrew path",
+    "native_rust_stream_contract": "passed; 7 targeted tests cover bounded concurrency, pre-yield refill, completion order, cancellation, and partial reports",
+    "native_rust_raw_manifest_replay_contract": "passed; 7 Rust Engine tests cover verified fixture replay, hash/size mismatch, incomplete/empty manifests, traversal/symlink, invalid manifest name/JSON, and cancellation cleanup",
+    "python_raw_replay_facade": "removed; manifest validation and replay are implemented by Rust Engine bindings",
+    "rust_raw_manifest_loading_binding": "passed for both final clean-extras release wheels; verified receipt/byte access and Rust staging cleanup",
+    "post_t083_python_module_pruning": "passed; removed Python pipeline/batch, CLI cat/query/doctor/cache/progress/safety re-export, LocalStore/naming, and PNG/NetCDF/GeoTIFF output implementations; outputs.zarr is the only Python output adapter",
+    "post_t083_macos11_clean_extras_readback": "passed for a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c; five exact-wheel readbacks and proj.db resolved inside the clean pyproj environment with PROJ_DATA/PROJ_LIB unset",
+    "both_final_macos_tags_clean_extras_readback": "passed; both exact final wheel hashes passed four-format and raw-manifest readback; proj.db resolved from the matching pyproj venv with PROJ_DATA/PROJ_LIB unset",
+    "native_local_output_commit_contract_after_python_adapter_removal": "passed; 10 Rust local commit unit tests, 5 commit_faults tests, and 3 Python flock compatibility tests",
+    "native_cli_helper_pruning": "passed; removed orphaned Python CLI doctor/cache handlers and source-only cat/query/progress/safety helpers; Rust CLI process/PTy contracts remain passing",
+    "post_t083_macos15_clean_extras_readback": "passed for 3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0; five exact-wheel readbacks and proj.db resolved inside the clean pyproj environment with PROJ_DATA/PROJ_LIB unset"
+  },
+  "remaining": [
+    "Legacy Python discovery, source, display, manifest/object-storage, transport, and CLI layout/reporting implementations plus related tests remain in the source tree; T083 remains open.",
+    "The GitHub macOS source-build matrix and execution on an actual macOS 11 host have not run."
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-28",
+  "environment": {
+    "platform": "macOS-26-arm64 (Darwin 25.6.0)",
+    "rustc": "1.92.0",
+    "python": "3.12.7",
+    "git_revision": "34e4cb4",
+    "git_worktree_dirty": true,
+    "network": "disabled"
+  },
+  "catalog_discover_all": {
+    "scenario": "offline native/Python CLI comparison",
+    "targets": 26,
+    "samples_per_runtime": 30,
+    "semantic_fingerprints_match": true,
+    "python": {
+      "p50_seconds": 0.680241562,
+      "p95_seconds": 0.69372942225,
+      "direct_child_rss_p50_bytes": 95690752
+    },
+    "rust": {
+      "p50_seconds": 0.017421896,
+      "p95_seconds": 0.01763165435,
+      "direct_child_rss_p50_bytes": 9969664
+    },
+    "possible_provider_requests": 0,
+    "request_count_method": "network was disabled; per-transport request instrumentation is not implemented"
+  },
+  "four_delayed_fixture_sources": {
+    "scenario": "four in-process adapters delayed by 35, 5, 25, and 12 ms",
+    "samples_per_path": 30,
+    "configured_workers": 4,
+    "serial_fixture_baseline": {
+      "p50_ms": 86.176187,
+      "p95_ms": 88.08796235,
+      "method": "the same four fixture delays awaited one at a time"
+    },
+    "rust_scheduler": {
+      "p50_ms": 38.6444375,
+      "p95_ms": 39.8677792,
+      "maximum_active_targets": 4,
+      "fixture_http_requests": 0
+    },
+    "p95_ratio_to_serial_fixture": 0.45259054854275443,
+    "all_four_targets_have_one_terminal_result": true,
+    "semantic_results_stable_across_seeds": true,
+    "reruns": [
+      {
+        "date": "2026-09-29",
+        "samples_per_path": 30,
+        "serial_fixture_baseline": {
+          "p50_ms": 87.046708,
+          "p95_ms": 89.17540435,
+          "method": "the same four fixture delays awaited one at a time"
+        },
+        "rust_scheduler": {
+          "p50_ms": 38.672792,
+          "p95_ms": 40.32675275,
+          "maximum_active_targets": 4,
+          "fixture_http_requests": 0
+        },
+        "p95_ratio_to_serial_fixture": 0.45221833356340707,
+        "all_four_targets_have_one_terminal_result": true,
+        "semantic_results_stable_across_seeds": true
+      },
+      {
+        "date": "2026-09-29",
+        "samples_per_path": 30,
+        "serial_fixture_baseline": {
+          "p50_ms": 84.161208,
+          "p95_ms": 85.1200519,
+          "method": "the same four fixture delays awaited one at a time"
+        },
+        "rust_scheduler": {
+          "p50_ms": 37.6389165,
+          "p95_ms": 39.0394125,
+          "maximum_active_targets": 4,
+          "fixture_http_requests": 0
+        },
+        "p95_ratio_to_serial_fixture": 0.4586394348756265,
+        "all_four_targets_have_one_terminal_result": true,
+        "semantic_results_stable_across_seeds": true
+      }
+    ]
+  },
+  "assessment": {
+    "fixture_scheduler_p95_at_most_two_thirds_of_serial_delay_control": true,
+    "t053_fixture_scope_complete": true,
+    "provider_backed_acceptance": false,
+    "limitations": [
+      "The four-delay control is a deterministic in-process serial-delay model, not a capture of the historical Python provider pipeline.",
+      "The fixture makes no HTTP requests, so this result cannot establish upstream request counts or provider latency.",
+      "The catalog benchmark is offline startup/command latency and direct-child RSS, not process-tree RSS or a cold/warm source-data matrix.",
+      "The process-tree RSS sampler now uses ps snapshots, but this workspace denied process enumeration with PermissionError; no tree RSS result was collected here.",
+      "The full T003 cold/warm, source-backed, batch, process-tree RSS, and temporary-disk performance matrix remains open."
+    ]
+  },
+  "source_test": "cargo test -p radiust-core --test discovery_scheduler four_delayed_sources_emit_paired_scheduler_measurements --offline --locked -- --ignored --nocapture",
+  "catalog_comparison": "python3 scripts/validation/benchmark_rust_migration.py --repetitions 30 --output validation-results/rust-migration-comparison.json"
+}

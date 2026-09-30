@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "check": "real-chromium-cdp-runtime",
+  "status": "blocked_before_cdp",
+  "captured_at": "2026-09-30",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "macos_version": "26.6.2"
+  },
+  "test": "source::browser::tests::real_chromium_cdp_handshake_and_private_profile_cleanup",
+  "scope": "Launch the configured browser with a fresh temporary profile, complete the CDP setup handshake, then verify profile cleanup. The test does not navigate to an external source or make provider requests.",
+  "browsers": [
+    {
+      "name": "Google Chrome",
+      "version": "154.0.8037.58",
+      "version_command": "passed",
+      "cdp_startup": "failed",
+      "detail": "Chromium exited before CDP was ready (signal 6 / SIGABRT)."
+    },
+    {
+      "name": "Chromium",
+      "version": "151.0.7882.0",
+      "version_command": "passed",
+      "cdp_startup": "failed",
+      "detail": "Chromium exited before CDP was ready (signal 6 / SIGABRT)."
+    }
+  ],
+  "diagnostic": "Direct headless startup with the same isolation/CDP arguments also terminated with shell status 134 and emitted no stderr, including with Chromium stderr logging enabled. Root cause is not established.",
+  "likely_cause": {
+    "assessment": "The command sandbox's macOS app-registration or Mach-bootstrap restriction is the leading explanation.",
+    "confidence": "medium",
+    "supporting_evidence": [
+      "validation-results/release-checks.md records Chromium MachPort rendezvous denied with Permission denied (1100) before the first local HTTP request.",
+      "validation-results/live.json records the same default-sandbox denial and a successful localhost-only replay through managed review on 2026-09-21."
+    ],
+    "limitation": "Those earlier Playwright observations do not prove that the current Rust test's SIGABRT has the same cause; no current crash report or OS log ties signal 6 to the denial."
+  },
+  "remaining": [
+    "Run the opt-in CDP startup/cleanup test outside the command sandbox or inspect its crash/OS log there, without weakening browser sandboxing or host controls.",
+    "Verify PH/Windy against authorized provider credentials and retained provider responses."
+  ]
+}

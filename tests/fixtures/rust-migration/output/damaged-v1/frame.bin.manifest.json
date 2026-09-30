@@ -1,0 +1,35 @@
+{
+  "artifacts": [
+    {
+      "media_type": "application/octet-stream",
+      "name": "frame.bin",
+      "relative_uri": "frame.bin",
+      "role": "data",
+      "sha256": "611c635b55c04cd422b40a417519c96eb92c13c2496e0b0f06c8874fcb5e0edc",
+      "size_bytes": 16
+    }
+  ],
+  "created_at": "2025-01-01T00:00:00Z",
+  "generation": "legacy-generation",
+  "logical_id": "c5f3d209f57a286204135614de04cebb6c831324f4d01184811ff7d816fa4819",
+  "output_id": "56c1a0ee010ff6bf61ddb35838d6dae6aa6dd8309871f22ac73c567c2de95977",
+  "processing_hash": "f0343de5aad89037f5f4533dd817b0706013cb0105606459563fd9cfd2762c96",
+  "processing_spec": {
+    "bbox": null,
+    "decoder_version": "1",
+    "encoder_version": "1",
+    "format": "netcdf",
+    "grid": "native",
+    "identity_schema": 1,
+    "options": {},
+    "output_kind": "decoded",
+    "resampling": "nearest",
+    "resolution": null,
+    "resource_version": "1",
+    "variable": null
+  },
+  "raw_complete": false,
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "schema_version": 1,
+  "supersedes": null
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "source": "tw",
+  "product": "grid",
+  "validated_at": "2026-09-30T07:00:25.298255+00:00",
+  "upstream": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0059-001.json",
+  "upstream_time": "2026-09-30T06:50:00.000000Z",
+  "raw_sha256": "212f12324044ca0bb22db5d98cd804eef31219de147903d734c16d4327c919c2",
+  "raw_size_bytes": 8926784,
+  "request_timeout_seconds": 30,
+  "frame_deadline_seconds": 300,
+  "acquisition": {
+    "discovery_header_bytes": 65536,
+    "range_chunk_bytes": 262144,
+    "max_concurrent_ranges": 4,
+    "strong_etag_if_match": true
+  },
+  "result": {
+    "written": 1,
+    "failed": 0,
+    "format": "netcdf",
+    "shape": [
+      881,
+      921
+    ],
+    "native_crs": "EPSG:3821",
+    "units": "dBZ",
+    "finite_cells": 743,
+    "invalid_minus_99": 569858,
+    "outside_or_removed_minus_999": 240800,
+    "all_values_match_raw": true,
+    "all_quality_flags_match_raw": true,
+    "raw_sha256_verified": true
+  },
+  "tests": {
+    "tw_unit_tests_passed": 10,
+    "range_tests_passed": 2,
+    "http_metadata_integration_tests_passed": 12,
+    "unit_test_environment": "Isolated copy of current source, with an unrelated config test typo ConfigError::UnknownField corrected to UnknownConfigField in the copy only; shared checkout was not changed."
+  }
+}

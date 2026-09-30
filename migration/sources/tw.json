@@ -10,7 +10,8 @@
     "O-A0058-005 PNG is bound to its official companion JSON DateTime; product ID, ProductURL, time, coverage and downloaded image dimensions are verified against discovery metadata before RawFrame is returned.",
     "The companion JSON states longitude 115.00-126.50, latitude 17.75-29.25 and image size 3600x3600, but does not independently establish pixel registration, native datum or physical palette.",
     "The separate grid product reads O-A0059-001 JSON and decodes native TWD67 (EPSG:3821) 921x881 dBZ values, southwest-first then east/north, with -99 invalid and -999 outside/removed flags.",
-    "The PNG product retains its own metadata and remains blocked for scientific decoding until its pixel geometry and RGB-to-dBZ mapping are independently established; O-A0059-001 has a different shape and datum."
+    "The PNG product retains its own metadata and remains blocked for scientific decoding until its pixel geometry and RGB-to-dBZ mapping are independently established; O-A0059-001 has a different shape and datum.",
+    "The O-A0059-001 S3 JSON URL remains live. Full-body discovery could time out on its approximately 8.9 MB response; grid discovery now reads a bounded header, and acquisition streams ordered 256 KiB ranges with at most four concurrent requests, strong ETag/If-Match binding, exact Content-Range checks, byte limits and automatic staging cleanup."
   ],
   "evidence": [
     "tests/fixtures/sources/tw/fixture.json",
@@ -24,7 +25,8 @@
     "2026-09-20 retained upstream JSON replay: pixel, grid, 610042 missing and 200303 outside flags verified offline",
     "https://opendata.cwa.gov.tw/dataset/observation/O-A0059-001",
     "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-005",
-    "https://www.cwa.gov.tw/Data/data_catalog/3-6-5.pdf"
+    "https://www.cwa.gov.tw/Data/data_catalog/3-6-5.pdf",
+    "validation-results/live-cli-tw-grid-range.json"
   ],
   "official_image_metadata_audit": {
     "checked_at": "2026-09-21",

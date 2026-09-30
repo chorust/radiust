@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "radiust",
+    "cat",
+    "--file",
+    "<REPO>/tests/fixtures/sources/au/raw/IDR021.T.202609180511.png",
+    "--renderer",
+    "text"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": "image path=IDR021.T.202609180511.png raw source=unknown product=unknown station=unknown time=unknown units=unknown format=PNG size=512x512 sha256=4ab60f3c01df485d6d5bf24417733425a4900e160c43b4543b51bc124d7a0c8c display=original rule=unknown; original source pixels preserved"
+}

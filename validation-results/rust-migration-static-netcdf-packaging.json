@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "check": "static-netcdf-macos-wheel-audit",
+  "status": "passed_with_scope_notes",
+  "captured_at": "2026-09-29",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "macos_version": "26.6.2"
+  },
+  "dependency_change": "netcdf 0.12.1 static feature bundles NetCDF/HDF5; native CLI and wheel extension have no NetCDF/HDF5/Homebrew dynamic dependency.",
+  "wheels": [
+    {
+      "path": "/private/tmp/radiust-static-wheel11-v2/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+      "sha256": "128e8f5786e4e82ea1ddce095c6a5f62963c7d92351074118384c1199615dedf",
+      "architecture": "arm64",
+      "minimum_macos": "11.0",
+      "audit_status": "passed",
+      "checks": {
+        "host": true,
+        "inspection_tools": true,
+        "installed_macho_dependencies": true,
+        "installed_wheel_smoke": true,
+        "wheel": true,
+        "wheel_install": true,
+        "wheel_macho_dependencies": true
+      },
+      "scope": {
+        "format_readback": "passed (4/4)",
+        "installed_wheel_smoke": true,
+        "macho_dependency_audit": true
+      }
+    },
+    {
+      "path": "/private/tmp/radiust-static-wheel15-v2/radiust-0.1.0-cp312-cp312-macosx_15_0_arm64.whl",
+      "sha256": "94b99bc7f3de7a393f48bd84ca765578323f49ba8ca034d057c6221375dbd935",
+      "architecture": "arm64",
+      "minimum_macos": "15.0",
+      "audit_status": "passed",
+      "checks": {
+        "host": true,
+        "inspection_tools": true,
+        "installed_macho_dependencies": true,
+        "installed_wheel_smoke": true,
+        "wheel": true,
+        "wheel_install": true,
+        "wheel_macho_dependencies": true
+      },
+      "scope": {
+        "format_readback": "passed (4/4)",
+        "installed_wheel_smoke": true,
+        "macho_dependency_audit": true
+      }
+    }
+  ],
+  "format_readback": {
+    "status": "passed",
+    "wheel_sha256": [
+      "128e8f5786e4e82ea1ddce095c6a5f62963c7d92351074118384c1199615dedf",
+      "94b99bc7f3de7a393f48bd84ca765578323f49ba8ca034d057c6221375dbd935"
+    ],
+    "per_wheel_result": "macOS 11.0: 4 passed in 1.29s; macOS 15.0: 4 passed in 1.08s",
+    "tests": [
+      "test_rust_png_readback.py",
+      "test_rust_netcdf_readback.py",
+      "test_rust_geotiff_readback.py",
+      "test_rust_zarr_readback.py"
+    ],
+    "result": "4 passed per wheel; per-wheel timings are listed separately",
+    "installed_packages": [
+      "/tmp/radiust-static-wheel11/readback-venv/lib/python3.12/site-packages/radiust/__init__.py",
+      "/tmp/radiust-static-wheel15/readback-venv/lib/python3.12/site-packages/radiust/__init__.py"
+    ],
+    "dependency_environment": "Each temporary venv installed the wheel with --no-deps; a .pth shared already-installed repository test dependencies. This verifies installed-wheel outputs but is not a clean optional-extras installation."
+  },
+  "clean_extras_install_attempt": {
+    "wheel_sha256": "128e8f5786e4e82ea1ddce095c6a5f62963c7d92351074118384c1199615dedf",
+    "status": "timed_out",
+    "timeout_seconds": 600,
+    "stage": "isolated pip install of science, geotiff, and zarr extras plus readback dependencies",
+    "result": "The audit reached wheel tag and host checks, then pip dependency installation exceeded its 600 second limit. No dependency or wheel compatibility error was reported before timeout; format readback was not reached."
+  },
+  "wheel_public_model_smoke": {
+    "status": "passed",
+    "result": "installed-wheel test passed for macOS 11.0 and 15.0 wheels",
+    "coverage": "DiscoveryItem.as_dict() redacts an error value using radiust.safety while radiust.cli.safety is excluded from the wheel."
+  },
+  "remaining": [
+    "macOS 11.0 execution on an actual macOS 11 host and the GitHub source-build workflow have not run.",
+    "A fully isolated installation of science/geotiff/zarr extras was attempted for the 11.0 wheel but pip timed out after 600 seconds; both wheel format readbacks reused installed test dependencies.",
+    "proj.db resource lookup was not exercised because these pure-Rust writers do not load PROJ."
+  ]
+}

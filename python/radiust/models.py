@@ -12,6 +12,7 @@ from types import MappingProxyType
 from typing import Any
 
 from .errors import UnsupportedQueryError
+from .safety import safe_value
 
 UTC = timezone.utc
 ALLOWED_AVAILABILITY = {
@@ -42,7 +43,12 @@ def utc_datetime(value: datetime) -> datetime:
     return value.astimezone(UTC).replace(tzinfo=UTC)
 
 
-def format_time(value: datetime) -> str:
+def format_time(value: datetime | str) -> str:
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("time must be an ISO-8601 timestamp") from exc
     value = utc_datetime(value)
     return value.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -449,8 +455,6 @@ class DiscoveryItem:
     def as_dict(self) -> dict[str, Any]:
         # Never serialize FrameRef locator, metadata, signed URI or provider
         # credentials, even if a worker sends those fields by mistake.
-        from .cli.safety import safe_value
-
         frame = None if self.frame is None else {
             key: self.frame.get(key)
             for key in ("source", "product", "station", "valid_time", "base_time")

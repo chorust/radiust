@@ -10,14 +10,16 @@
     "Provider local timestamps are bound in Asia/Taipei and normalized to UTC.",
     "The legacy Brotli workaround is unnecessary because the adapter does not request br explicitly.",
     "The source regression now asserts the Observe_radar.js and image requests do not send an Accept-Encoding value containing br; the public raw-only CLI acquired CV1_3600 at 2026-09-21T06:00:00Z and verified its PNG hash before temporary cleanup.",
-    "No scientific field is emitted until native geometry and the color-to-reflectivity mapping are verified."
+    "No scientific field is emitted until native geometry and the color-to-reflectivity mapping are verified.",
+    "The HTTP index and PNG requests now use https://www.cwa.gov.tw/V8/C/W/OBS_Radar.html as Referer. On 2026-09-30 the current page still declares /Data/js/obs_img/Observe_radar.js and /Data/radar/; the Rust CLI latest raw-only download was reverified after updating the page entry."
   ],
   "evidence": [
     "tests/fixtures/sources/tw-http/fixture.json",
     "tests/sources/test_tw_http.py",
     "validation-results/live-cli-public.json",
     "live CWA HTTP acquisition on 2026-09-18",
-    "validation-results/live-cli-public.json"
+    "validation-results/live-cli-public.json",
+    "validation-results/live-cli-tw-http.json"
   ],
   "blockers": [
     "Native grid control points and palette semantics remain unverified."

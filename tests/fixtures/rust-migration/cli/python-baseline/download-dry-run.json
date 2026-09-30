@@ -1,0 +1,43 @@
+{
+  "argv": [
+    "radiust",
+    "download",
+    "au",
+    "--latest",
+    "--dry-run",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": {
+    "command": "download",
+    "counts": {
+      "cancelled": 0,
+      "failed": 0,
+      "not_started": 0,
+      "planned": 1,
+      "skipped": 0,
+      "written": 0
+    },
+    "error": null,
+    "interrupted": false,
+    "items": [
+      {
+        "error": null,
+        "logical_id": "00a2797e4381843fb89554fc30e6e1f13e3a9357bbb98c4fc71593d0e36dba8a",
+        "output_uri": null,
+        "product": "composite",
+        "source": "au",
+        "station": "Sydney",
+        "status": "planned",
+        "valid_time": "2026-09-18T05:11:00.000000Z"
+      }
+    ],
+    "query": {
+      "source": "au"
+    },
+    "run_id": "dry-run",
+    "schema_version": 1
+  },
+  "trigger": "synthetic discovery returned one fixture frame; dry-run must not fetch or write"
+}

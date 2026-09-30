@@ -1,114 +1,148 @@
 from __future__ import annotations
 
 import asyncio
-import gc
-import time
+import json
 from datetime import datetime, timezone
 from pathlib import Path
-from types import SimpleNamespace
-from urllib.request import Request
+from typing import Any
 
 import numpy as np
 import pytest
-import radiust.pipeline as pipeline
+import radiust._core as core
 import xarray as xr
 from pyproj import Transformer
-from radiust import AsyncClient, Client, FrameRef, ProductInfo, SourceInfo
-from radiust.errors import TransportError
-from radiust.field import RadarDataset, RadarField
-from radiust.grids import CartesianGrid, GeographicGrid
-from radiust.models import Artifact
-from radiust.raw import RawFrame
-from radiust.transport import HTTPTransport, _CheckedRedirectHandler
+from radiust import AsyncClient, Client, FrameRef
+
+from tests.support.native_science_fixture import (
+    read_tw_grid_raw,
+    seed_tw_grid_cache,
+    tw_grid_ref,
+    tw_offline_config,
+)
 
 
 def _ref(source: str = "review-test") -> FrameRef:
     return FrameRef(source, "reflectivity", datetime(2026, 1, 1, tzinfo=timezone.utc), station="s0")
 
 
-def _field(value: float = 1.0) -> RadarField:
-    grid = GeographicGrid([100.0, 101.0], [20.0, 21.0])
-    data = xr.DataArray(
-        np.full((2, 2), value, dtype="float32"),
-        dims=("latitude", "longitude"),
-        name="reflectivity",
-    )
-    return RadarField(data, grid)
+def _field_document(value: float = 1.0, *, name: str = "reflectivity") -> dict[str, object]:
+    return {
+        "name": name,
+        "values": [value] * 4,
+        "shape": [2, 2],
+        "quality": [0, 0, 0, 0],
+        "units": "dBZ",
+        "valid_time": "2026-01-01T00:00:00Z",
+        "grid": {
+            "shape": [2, 2],
+            "crs": "EPSG:4326",
+            "x": [100.0, 101.0],
+            "y": [20.0, 21.0],
+            "affine": None,
+        },
+        "provenance": ["review-regression"],
+    }
 
 
-def test_cartesian_to_geographic_transforms_target_coordinates_before_sampling() -> None:
+def _field(value: float = 1.0) -> core.RadarField:
+    return core.RadarField(json.dumps(_field_document(value)))
+
+
+def _tw_cached(tmp_path: Path) -> tuple[FrameRef, dict[str, object]]:
+    ref = tw_grid_ref()
+    cache_root = tmp_path / "cache"
+    seed_tw_grid_cache(cache_root, ref)
+    config = tw_offline_config(cache_root, tmp_path / "output", tmp_path / "temp")
+    return ref, config
+
+
+async def _wait_for_engine_operation(receiver: Any, operation: str) -> None:
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 10.0
+    while loop.time() < deadline:
+        for event in json.loads(receiver.drain_json()):
+            if event["operation"] == operation and event["stage"] == "started":
+                return
+        await asyncio.sleep(0.001)
+    pytest.fail(f"Rust Engine did not start {operation!r} within 10 seconds")
+
+
+@pytest.mark.asyncio
+async def test_projected_target_coordinates_are_transformed_before_rust_sampling() -> None:
     to_mercator = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
     x0, y0 = to_mercator.transform(10.0, 50.0)
     x1, y1 = to_mercator.transform(11.0, 51.0)
-    grid = CartesianGrid([x0, x1], [y0, y1], crs="EPSG:3857")
-    data = xr.DataArray(
-        np.array([[1.0, 2.0], [3.0, 4.0]], dtype="float32"),
-        dims=("y", "x"),
-        name="reflectivity",
-    )
+    field_document = {
+        **_field_document(),
+        "values": [1.0, 2.0, 3.0, 4.0],
+        "grid": {
+            "shape": [2, 2],
+            "crs": "EPSG:3857",
+            "x": [x0, x1],
+            "y": [y0, y1],
+            "affine": None,
+        },
+    }
+    field = core.RadarField(json.dumps(field_document))
+    # Rust regridding accepts matching CRS values; project the requested
+    # geographic target coordinates before handing the grid to the binding.
+    target_x0, target_y0 = to_mercator.transform(10.0, 50.0)
+    target_x1, target_y1 = to_mercator.transform(11.0, 51.0)
+    target = {
+        "shape": [2, 2],
+        "crs": "EPSG:3857",
+        "x": [target_x0, target_x1],
+        "y": [target_y0, target_y1],
+        "affine": None,
+    }
+    engine = core.Engine(json.dumps({"runtime": {"allow_network": False}}))
 
-    result = RadarField(data, grid).to_geographic(bbox=(10.0, 50.0, 11.0, 51.0), resolution=1.0)
+    result = await engine.regrid(field, json.dumps(target), "nearest")
 
-    np.testing.assert_allclose(result.data.values, [[1.0, 2.0], [3.0, 4.0]])
-
-
-class _TempFileSource:
-    info = SourceInfo(
-        id="temp-review-test",
-        description="temporary file source",
-        adapter_version="1",
-        products=(ProductInfo(id="reflectivity", variables=("reflectivity",), default=True),),
-    )
-
-    async def discover(self, query, context):
-        return []
-
-    async def download(self, ref, context):
-        path = context.temp_root / "payload.bin"
-        path.write_bytes(b"payload")
-        return RawFrame(ref, (Artifact("payload.bin", "data", "application/octet-stream", path),))
-
-    def decode(self, raw, context):
-        return raw.bytes()
+    values = np.frombuffer(result.values_le_bytes(), dtype="<f4").reshape((2, 2))
+    np.testing.assert_allclose(values, [[1.0, 2.0], [3.0, 4.0]])
 
 
-def test_acquire_keeps_context_temporary_files_until_rawframe_closes(monkeypatch) -> None:
-    source = _TempFileSource()
-    monkeypatch.setattr(pipeline, "get_source", lambda _source_id: source)
-    ref = _ref(source.info.id)
+def test_acquire_keeps_native_temporary_files_until_rawframe_closes(tmp_path: Path) -> None:
+    ref, config = _tw_cached(tmp_path)
+    expected = read_tw_grid_raw(ref)
 
-    with Client() as client:
+    with Client(config=config) as client:
         with client.acquire(ref) as raw:
-            path = Path(raw.artifacts[0].payload)
-            assert path.exists()
-            assert raw.bytes() == b"payload"
+            path = Path(raw.artifact_path(0))
+            assert path.is_file()
+            assert raw.artifact_count == 1
+            assert raw.artifact_bytes(0) == expected
         assert not path.exists()
 
 
 @pytest.mark.asyncio
-async def test_async_acquire_keeps_context_temporary_files_until_rawframe_closes(monkeypatch) -> None:
-    source = _TempFileSource()
-    monkeypatch.setattr(pipeline, "get_source", lambda _source_id: source)
-    ref = _ref(source.info.id)
+async def test_async_acquire_keeps_native_temporary_files_until_rawframe_closes(
+    tmp_path: Path,
+) -> None:
+    ref, config = _tw_cached(tmp_path)
+    expected = read_tw_grid_raw(ref)
 
-    async with AsyncClient() as client:
+    async with AsyncClient(config=config) as client:
         async with client.acquire(ref) as raw:
-            path = Path(raw.artifacts[0].payload)
-            assert path.exists()
-            assert raw.bytes() == b"payload"
+            path = Path(raw.artifact_path(0))
+            assert path.is_file()
+            assert raw.artifact_count == 1
+            assert raw.artifact_bytes(0) == expected
         assert not path.exists()
 
 
 def test_write_applies_variable_selection_before_encoding(tmp_path: Path) -> None:
-    grid = GeographicGrid([100.0, 101.0], [20.0, 21.0])
-    dataset = RadarDataset(
-        xr.Dataset(
+    first = _field_document(1.0, name="a")
+    second = _field_document(2.0, name="b")
+    dataset = core.RadarDataset(
+        json.dumps(
             {
-                "a": (("latitude", "longitude"), np.ones((2, 2), dtype="float32")),
-                "b": (("latitude", "longitude"), np.full((2, 2), 2.0, dtype="float32")),
+                "fields": [first, second],
+                "valid_time": first["valid_time"],
+                "source": "review-regression",
             }
-        ),
-        grid,
+        )
     )
 
     with Client() as client:
@@ -132,99 +166,76 @@ def test_write_overwrite_replaces_same_identity_output(tmp_path: Path) -> None:
         np.testing.assert_allclose(stored["reflectivity"].values, 9.0)
 
 
-class _StreamSource(_TempFileSource):
-    info = SourceInfo(
-        id="stream-review-test",
-        description="stream source",
-        adapter_version="1",
-        products=(ProductInfo(id="reflectivity", variables=("reflectivity",), default=True),),
+@pytest.mark.asyncio
+async def test_stream_facade_does_not_retain_returned_native_payload(tmp_path: Path) -> None:
+    ref, config = _tw_cached(tmp_path)
+    async with AsyncClient(config=config) as client:
+        stream = client.aiter_fetch([ref], max_prefetch=1)
+        try:
+            result = await anext(stream)
+            assert isinstance(result.data, core.RadarField)
+            assert result.data.shape == [881, 921]
+            assert not any(value is result.data for value in vars(stream).values())
+        finally:
+            await stream.aclose()
+        assert stream._native is None
+        assert result.data.shape == [881, 921]
+
+
+@pytest.mark.asyncio
+async def test_cancelled_async_download_never_commits_late_output(tmp_path: Path) -> None:
+    ref, config = _tw_cached(tmp_path)
+    output = tmp_path / "cancelled-download"
+    progress_events: list[tuple[str, int, int | None]] = []
+    cancellation_requested = False
+
+    async with AsyncClient(config=config) as client:
+        def cancel_after_rust_starts(stage: str, completed: int, total: int | None) -> None:
+            nonlocal cancellation_requested
+            progress_events.append((stage, completed, total))
+            if stage == "download" and completed == 0 and not cancellation_requested:
+                cancellation_requested = True
+                client.cancel()
+
+        report = await client.download(
+            [ref], output=output, format="netcdf", progress=cancel_after_rust_starts
+        )
+
+    assert cancellation_requested
+    assert ("download", 0, 1) in progress_events
+    assert report.counts["cancelled"] + report.counts["not_started"] == 1
+    assert not list(output.rglob("*.manifest.json"))
+
+
+@pytest.mark.asyncio
+async def test_cancelled_async_write_never_commits_late_output(tmp_path: Path) -> None:
+    side = 1024
+    pixel_count = side * side
+    field = core.RadarField(
+        json.dumps(
+            {
+                **_field_document(),
+                "values": [float(index % 251) for index in range(pixel_count)],
+                "shape": [side, side],
+                "quality": [0] * pixel_count,
+                "grid": {
+                    "shape": [side, side],
+                    "crs": "EPSG:4326",
+                    "x": [100.0 + index / (side - 1) for index in range(side)],
+                    "y": [20.0 + index / (side - 1) for index in range(side)],
+                    "affine": None,
+                },
+            }
+        )
     )
+    output = tmp_path / "cancelled-write"
 
-    async def download(self, ref, context):
-        return RawFrame(ref, (Artifact("payload.bin", "data", "application/octet-stream", b"payload"),))
+    async with AsyncClient(config={"runtime": {"allow_network": False}}) as client:
+        events = client._session.subscribe_events()
+        task = asyncio.create_task(client.write(field, output=output, ref=_ref()))
+        await _wait_for_engine_operation(events, "download_netcdf")
+        client.cancel()
+        report = await task
 
-    def decode(self, raw, context):
-        return bytearray(1024 * 1024)
-
-
-@pytest.mark.asyncio
-async def test_stream_does_not_retain_emitted_payloads(monkeypatch) -> None:
-    source = _StreamSource()
-    monkeypatch.setattr(pipeline, "get_source", lambda _source_id: source)
-    stream = AsyncClient().aiter_fetch([_ref(source.info.id)], max_prefetch=1)
-    try:
-        result = await anext(stream)
-        assert result.data is not None
-        assert stream._emitted[0].data is None
-        del result
-        gc.collect()
-    finally:
-        client = stream.client
-        await stream.aclose()
-        assert stream._emitted == {}
-        await client.aclose()
-
-
-class _DelayedSource(_StreamSource):
-    info = SourceInfo(
-        id="delayed-review-test",
-        description="delayed source",
-        adapter_version="1",
-        products=(ProductInfo(id="reflectivity", variables=("reflectivity",), default=True),),
-    )
-
-    async def download(self, ref, context):
-        await asyncio.sleep(0.15)
-        return RawFrame(ref, (Artifact("payload.bin", "data", "application/octet-stream", b"payload"),))
-
-
-@pytest.mark.asyncio
-async def test_cancelled_async_download_never_commits_late_output(monkeypatch, tmp_path: Path) -> None:
-    source = _DelayedSource()
-    monkeypatch.setattr(pipeline, "get_source", lambda _source_id: source)
-    client = AsyncClient()
-    task = asyncio.create_task(client.download([_ref(source.info.id)], output=tmp_path, raw_only=True))
-    await asyncio.sleep(0.03)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
-    await client.aclose()
-    await asyncio.sleep(0.2)
-    assert not list(tmp_path.rglob("*.manifest.json"))
-
-
-@pytest.mark.asyncio
-async def test_cancelled_async_write_never_commits_late_output(monkeypatch, tmp_path: Path) -> None:
-    original = pipeline.encoder_for("netcdf")
-
-    def slow_writer(value, path, *, options=None):
-        time.sleep(0.15)
-        return original.writer(value, path, options=options)
-
-    monkeypatch.setattr(pipeline, "encoder_for", lambda _format: SimpleNamespace(writer=slow_writer))
-    client = AsyncClient()
-    task = asyncio.create_task(client.write(_field(), output=tmp_path, ref=_ref()))
-    await asyncio.sleep(0.03)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
-    await client.aclose()
-    await asyncio.sleep(0.2)
-    assert not list(tmp_path.rglob("*.manifest.json"))
-
-
-def test_redirect_destination_is_checked_against_network_policy() -> None:
-    transport = HTTPTransport(max_attempts=1, timeout=0.2)
-    old_slot = transport._host_slot("127.0.0.1")
-    assert old_slot.acquire(blocking=False)
-    transport._host_local.current = ("127.0.0.1", old_slot)
-    handler = _CheckedRedirectHandler(transport._check, transport._redirect_host)
-    try:
-        with pytest.raises(TransportError, match="public network"):
-            handler.redirect_request(
-                Request("http://127.0.0.1/redirect"), None, 302, "Found", {},
-                "http://0.0.0.0:9/blocked",
-            )
-        assert transport._host_local.current[0] == "127.0.0.1"
-    finally:
-        transport._release_host_lease()
+    assert report.counts["cancelled"] == 1
+    assert not list(output.rglob("*.manifest.json"))

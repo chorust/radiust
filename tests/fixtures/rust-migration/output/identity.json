@@ -1,0 +1,81 @@
+{
+  "artifact_receipts": [
+    {
+      "name": "image.png",
+      "sha256": "14a815d7d433118e805214e0ae972c88b9a23288a0c4564e222fe5fe7ffcf608",
+      "size_bytes": 18,
+      "source_revision": "upstream-42"
+    },
+    {
+      "name": "metadata.json",
+      "sha256": "2430f1a2ad2982d0067885488a4c89e21ad1d7c83b115ba8f1b20acc88dfaea8",
+      "size_bytes": 13,
+      "source_revision": "upstream-42"
+    }
+  ],
+  "cache_key": "f8d7a81a03d2aa64281cf69652eb0c3970a5736cea8cb4c6b180f8d8d7dc3b7e",
+  "frame_identity": {
+    "base_time": "2024-12-31T23:55:00.000000Z",
+    "identity_schema": 1,
+    "locator": {
+      "auth": {
+        "scope": "image"
+      },
+      "path": {
+        "name": "radar/雪.png",
+        "sequence": 7
+      }
+    },
+    "locator_version": "2",
+    "product": "composite",
+    "source": "my",
+    "station": "east",
+    "valid_time": "2025-01-01T00:00:00.000000Z"
+  },
+  "logical_id": "cb4cfbb8e3df4e9b8ffcae8d2ef474154ef6f89c163f277b502bee8fe1f784f5",
+  "output_id": "8983eb64e790406bdc243288b3e039995993b7575ce36a72ff2beea4a207cdae",
+  "processing_hash": "ebff417bf02b8c9df736208699a8d7508214e3392475f5a751ea583a719d5690",
+  "processing_identity": {
+    "bbox": null,
+    "decoder_version": "1",
+    "encoder_version": "1",
+    "format": "netcdf",
+    "grid": "native",
+    "identity_schema": 1,
+    "options": {
+      "levels": [
+        0,
+        10,
+        20
+      ],
+      "palette": "rainbow"
+    },
+    "output_kind": "decoded",
+    "resampling": "nearest",
+    "resolution": null,
+    "resource_version": "1",
+    "variable": null
+  },
+  "resolved_revision_from_artifacts": "52ec299cb419f4687f138496acdaf408665cc551b4bfdb828b993df3e84dc058",
+  "resolved_revision_upstream": "165305491c6472a64b6d9b8732bf96b928889d066c6deb922d4616811689ceb8",
+  "safe_ref": {
+    "base_time": "2024-12-31T23:55:00.000000Z",
+    "locator": {
+      "auth": {
+        "scope": "image"
+      },
+      "path": {
+        "name": "radar/雪.png",
+        "sequence": 7
+      }
+    },
+    "locator_version": "2",
+    "logical_id": "cb4cfbb8e3df4e9b8ffcae8d2ef474154ef6f89c163f277b502bee8fe1f784f5",
+    "product": "composite",
+    "revision": "upstream-42",
+    "source": "my",
+    "station": "east",
+    "valid_time": "2025-01-01T00:00:00.000000Z"
+  },
+  "schema_version": 1
+}

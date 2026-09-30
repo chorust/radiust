@@ -1,0 +1,17 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "latitude",
+    "longitude"
+  ],
+  "flag_masks": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32
+  ],
+  "flag_meanings": "missing outside_coverage unknown_color recovered interpolated below_detection",
+  "long_name": "quality flags",
+  "coordinates": "crs time"
+}

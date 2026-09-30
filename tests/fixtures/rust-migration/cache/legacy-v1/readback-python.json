@@ -1,0 +1,11 @@
+{
+  "bytes_hex": "6c656761637920636163686564207261646172206672616d650a",
+  "expires_at": "2030-01-01T00:00:00+00:00",
+  "key": "legacy-frame-key",
+  "kind": "object",
+  "reader": "python/radiust/cache.py",
+  "relative_object": "objects/5afe0d5b5da99dfbb98159a7e34d72ba005c5b782dbc372e53238d536ee47308.bin",
+  "sha256": "fb5cead4c4c4ceb66c9e840548c53a87b133865e0810eb2fe8f9ab5cf5c1dacc",
+  "size_bytes": 26,
+  "validator": "\"fixture-etag\""
+}

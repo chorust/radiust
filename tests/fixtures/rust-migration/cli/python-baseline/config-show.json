@@ -1,0 +1,67 @@
+{
+  "argv": [
+    "radiust",
+    "config",
+    "show",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": {
+    "command": "config",
+    "counts": {},
+    "error": null,
+    "interrupted": false,
+    "items": [],
+    "query": null,
+    "result": {
+      "_origins": {
+        "cache": "environment",
+        "cache.dir": "environment",
+        "output": "default",
+        "runtime": "environment",
+        "runtime.allow_network": "environment",
+        "sources": "default",
+        "storage": "environment",
+        "storage.output": "environment"
+      },
+      "cache": {
+        "dir": "/private<TEMP>/cache",
+        "enabled": true,
+        "gc_interval_hours": 24,
+        "max_age_days": 30,
+        "max_bytes": 20000000000
+      },
+      "output": {
+        "format": "netcdf",
+        "grid": "native"
+      },
+      "runtime": {
+        "allow_network": false,
+        "decode_workers": 2,
+        "discovery_deadline": 300.0,
+        "frame_concurrency": 2,
+        "frame_deadline": 300.0,
+        "host_concurrency": 4,
+        "max_artifact_bytes": 536870912,
+        "max_frame_bytes": 2147483648,
+        "max_pixels": 100000000,
+        "max_temp_bytes": 10737418240,
+        "request_concurrency": 16,
+        "request_timeout": 30.0,
+        "temp_root": null
+      },
+      "sources": {},
+      "storage": {
+        "access_key": "[REDACTED]",
+        "anonymous": false,
+        "endpoint": null,
+        "output": "/private<TEMP>/output",
+        "region": null,
+        "secret_key": "[REDACTED]"
+      }
+    },
+    "run_id": null,
+    "schema_version": 1
+  }
+}

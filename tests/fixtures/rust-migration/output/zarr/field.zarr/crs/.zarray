@@ -1,0 +1,10 @@
+{
+  "filters": null,
+  "zarr_format": 2,
+  "shape": [],
+  "chunks": [],
+  "dtype": "<i8",
+  "compressor": null,
+  "fill_value": null,
+  "order": "C"
+}

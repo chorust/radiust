@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 import xarray as xr
 from radiust.errors import GridError
-from radiust.field import RadarField
 from radiust.grids import CurvilinearGrid, GeographicGrid, PolarGrid
 
 
@@ -28,12 +27,13 @@ def test_polar_and_curvilinear_grids_are_explicit_types():
 
 def test_curvilinear_coordinates_remain_two_dimensional_and_read_only():
     grid = CurvilinearGrid([[100, 101], [100.1, 101.1]], [[4, 4], [3, 3]])
-    field = RadarField(
-        xr.DataArray(np.zeros((2, 2), dtype="float32"), dims=("y", "x"), name="reflectivity"),
-        grid,
+    dataset = xr.Dataset(
+        {"reflectivity": (("y", "x"), np.zeros((2, 2), dtype="float32"))},
+        coords={
+            "latitude": (("y", "x"), grid.latitude),
+            "longitude": (("y", "x"), grid.longitude),
+        },
     )
-
-    dataset = field.to_dataset()
 
     assert dataset.latitude.dims == ("y", "x")
     assert dataset.longitude.dims == ("y", "x")

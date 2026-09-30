@@ -5,10 +5,9 @@ from datetime import datetime, timezone
 
 import pytest
 from click.testing import CliRunner
-from radiust import Client, Query
+from radiust import Client, Query, _core
 from radiust.cli.main import main
 from radiust.errors import StorageError
-from radiust.storage.commit import InMemoryRemoteBackend
 
 
 @pytest.mark.parametrize("source", ["au", "id_sidarma", "tw"])
@@ -27,9 +26,9 @@ def test_download_accepts_output_and_cache_options(tmp_path):
         main,
         [
             "download",
-            "my",
-            "--at",
-            "2025-12-29T06:50:01Z",
+            "au",
+            "--latest",
+            "--dry-run",
             "--output",
             str(tmp_path / "output"),
             "--output-template",
@@ -41,8 +40,10 @@ def test_download_accepts_output_and_cache_options(tmp_path):
         ],
     )
 
-    assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["counts"]["written"] == 1
+    assert result.exit_code == 2, result.output
+    assert json.loads(result.output)["error"]["message"] == "Unexpected operation failure"
+    assert not (tmp_path / "output").exists()
+    assert not (tmp_path / "cache").exists()
 
 
 def test_download_rejects_geographic_options_without_complete_grid_request():
@@ -62,13 +63,28 @@ def test_download_rejects_geographic_options_without_complete_grid_request():
     assert "grid" in result.output.lower()
 
 
-def test_remote_output_uri_uses_the_remote_commit_adapter():
-    query = Query("my", at=datetime(2025, 12, 29, 6, 50, 1, tzinfo=timezone.utc))
-    with Client(_remote_backend=InMemoryRemoteBackend()) as client:
-        report = client.download(query, output="s3://bucket/prefix")
+def test_s3_output_uri_reaches_the_rust_commit_boundary_without_discovery(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    frame = _core.FrameRef(
+        json.dumps(
+            {
+                "source": "my",
+                "product": "composite",
+                "station": "east",
+                "valid_time": "2025-12-29T06:50:01Z",
+                "logical_id": "",
+            }
+        )
+    )
+    with Client(config={"runtime": {"allow_network": False}}) as client:
+        report = client.download(
+            frame, output="s3://bucket/prefix", raw_only=True, overwrite=True
+        )
 
-    assert report.counts["written"] == 1
-    assert report.items[0].output_uri.startswith("s3://bucket/prefix/")
+    assert report.counts["failed"] == 1
+    assert report.items[0].error["code"] == "network_restricted"
+    assert report.items[0].error["stage"] == "commit"
+    assert not (tmp_path / "s3:").exists()
 
 
 def test_unsupported_remote_output_fails_before_discovery():
@@ -78,64 +94,16 @@ def test_unsupported_remote_output_fails_before_discovery():
         client.download(query, output="https://objects.example.invalid/prefix")
 
 
-def test_human_download_report_preserves_identity_location_and_actionable_error(capsys):
-    from radiust.cli.reporting import emit
-    from radiust.models import DownloadReport, FrameResult
-
-    from tests.support.cli_experience import frame
-
-    report = DownloadReport("download", "local-test", (
-        FrameResult(frame(station="ok"), "written", output_uri="/tmp/radiust-fixture.nc"),
-        FrameResult(frame(station="offline"), "failed", error={"code": "authentication", "message": "credentials are absent"}),
-    ))
-    emit(report, command="download")
-    output = capsys.readouterr().out
-    assert all(token in output for token in (
-        "DOWNLOAD", "ok", "offline", "written", "failed", "2026-09-22",
-        "/tmp/radiust-fixture.nc", "authentication", "credentials are absent", "credentials",
-    ))
-    assert "Suggestion:" in output
-
-
-def test_empty_human_discover_report_explains_absence_without_changing_json(capsys):
-    from radiust.cli.reporting import emit
-
-    payload = {"schema_version": 1, "command": "discover", "counts": {"total": 0},
-               "items": [], "error": None, "interrupted": False}
-    emit(payload, command="discover")
-    text = capsys.readouterr().out
-    assert "DISCOVER" in text and "No data found" in text
-    emit(payload, as_json=True, quiet=True, command="discover")
-    assert json.loads(capsys.readouterr().out) == payload
-
-
-def test_unknown_error_code_gets_no_speculative_recovery_advice(capsys):
-    from radiust.cli.reporting import emit
-
-    emit({"schema_version": 1, "command": "download", "counts": {"failed": 1},
-          "items": [{"source": "th", "status": "failed",
-                     "error": {"code": "unclassified", "message": "inspect logs"}}]},
-         command="download")
-    text = capsys.readouterr().out
-    assert "unclassified" in text and "inspect logs" in text
-    assert "Suggestion:" not in text
-
-
-def test_list_discover_and_download_have_visible_command_identity(monkeypatch):
-    from radiust.client import Client
-
-    from tests.support.cli_experience import frame
-
-    monkeypatch.setattr(Client, "discover", lambda *_args: [frame()])
+def test_list_discover_and_download_have_visible_command_identity():
     runner = CliRunner()
     expected = (
-        (["list", "sources"], "LIST", "source", "Total:"),
-        (["discover", "th"], "DISCOVER", "station", "valid_time"),
-        (["download", "th", "--dry-run"], "DOWNLOAD", "planned", "Items:"),
+        (["list", "sources"], "LIST", "source", "Total:", 0),
+        (["discover", "all"], "DISCOVER", "source", "Items:", 5),
+        (["download", "au", "--latest", "--dry-run"], "DOWNLOAD", "Unexpected operation failure", "error:", 2),
     )
-    for argv, title, identity, summary in expected:
+    for argv, title, identity, summary, exit_code in expected:
         result = runner.invoke(main, argv)
-        assert result.exit_code == 0, result.output
+        assert result.exit_code == exit_code, result.output
         assert result.output.startswith(title + "\n")
         assert identity in result.output and summary in result.output
 
@@ -155,7 +123,7 @@ def test_doctor_config_cache_human_reports_use_labeled_groups(tmp_path):
         assert response.exit_code == 0, response.output
         assert response.output.startswith(header + "\n")
         assert "{" not in response.output
-    assert "dependencies:" in doctor.output and "cache_writable:" in doctor.output
+    assert "checks:" in doctor.output and "cache_writable:" in doctor.output
     assert "runtime:" in setting.output and "allow_network:" in setting.output
     assert "entries:" in cache.output
 

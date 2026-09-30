@@ -9,7 +9,7 @@
     {"id":"ph","old_path":"core/scrapers/ph_scraper.py","status":"credential-and-scientific-evidence-blocked","fixture":"tests/fixtures/sources/ph/fixture.json","migration":"migration/sources/ph.json"},
     {"id":"vn","old_path":"core/scrapers/vn_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/vn/fixture.json","migration":"migration/sources/vn.json"},
     {"id":"my","old_path":"core/scrapers/my_scraper.py","status":"acquisition-implemented-evidence-blocked","fixture":"tests/fixtures/sources/my/fixture.json","migration":"migration/sources/my.json"},
-    {"id":"id_sidarma","old_path":"core/scrapers/id_sidarma_scraper.py","status":"acquisition-implemented-evidence-blocked","fixture":"tests/fixtures/sources/id_sidarma/fixture.json","migration":"migration/sources/id_sidarma.json"},
+    {"id":"id_sidarma","old_path":"core/scrapers/id_sidarma_scraper.py","status":"raw-acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/id_sidarma/fixture.json","migration":"migration/sources/id_sidarma.json"},
     {"id":"es","old_path":"core/scrapers/es_aemet_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/es/fixture.json","migration":"migration/sources/es.json"},
     {"id":"ca","old_path":"core/scrapers/ca_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/ca/fixture.json","migration":"migration/sources/ca.json"},
     {"id":"th_royalrain","old_path":"core/scrapers/th_royalrain_scraper.py","status":"acquisition-verified-science-geometry-blocked","fixture":"tests/fixtures/sources/th_royalrain/fixture.json","migration":"migration/sources/th_royalrain.json"},

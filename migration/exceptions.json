@@ -13,7 +13,7 @@
       "type": "raw-acquired-but-palette-or-native-geometry-unverified",
       "status": "blocking",
       "accepted": false,
-      "sources": ["au", "ca", "es", "fr", "kr", "nz", "pt", "sg", "th", "th_royalrain", "tw", "tw-http", "vn", "windy"],
+      "sources": ["au", "ca", "es", "fr", "id_sidarma", "kr", "nz", "pt", "sg", "th", "th_royalrain", "tw", "tw-http", "vn", "windy"],
       "evidence": ["migration/geometry-audit.json", "migration/inventory.json", "migration/sources"]
     },
     {
@@ -21,7 +21,7 @@
       "type": "provider-credential-or-upstream-error-prevents-canonical-raw-capture",
       "status": "blocking",
       "accepted": false,
-      "sources": ["bmkg", "cam", "id", "id_sidarma", "opensnow", "ph", "wunderground"],
+      "sources": ["bmkg", "cam", "id", "opensnow", "ph", "wunderground"],
       "evidence": ["migration/inventory.json", "migration/sources", "tests/sources/test_external_credentials.py"]
     },
     {

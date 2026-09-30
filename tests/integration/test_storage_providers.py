@@ -6,19 +6,16 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
-import numpy as np
 import pytest
-import xarray as xr
-from radiust import Client
+from radiust import Client, _bridge
 from radiust.config import load_config
-from radiust.field import RadarField
-from radiust.grids import GeographicGrid
 from radiust.models import FrameRef
-from radiust.storage.manifest import inspect_manifest
-from radiust.storage.object import RustObjectBackend, parse_object_uri
 
 from tests.support.providers import provider_matrix
+
+core = pytest.importorskip("radiust._core")
 
 _REMOTE_TARGETS = tuple(target for target in provider_matrix() if target.provider in {"s3", "oss"})
 _REF = FrameRef(
@@ -30,16 +27,27 @@ _REF = FrameRef(
 )
 
 
-def _field() -> RadarField:
-    values = np.array([[10.0, 20.0], [30.0, 40.0]], dtype="float32")
-    data = xr.DataArray(
-        values,
-        dims=("latitude", "longitude"),
-        coords={"latitude": [20.0, 21.0], "longitude": [100.0, 101.0]},
-        name="reflectivity",
-        attrs={"units": "dBZ"},
+def _field() -> core.RadarField:
+    return core.RadarField(
+        json.dumps(
+            {
+                "name": "reflectivity",
+                "values": [10.0, 20.0, 30.0, 40.0],
+                "shape": [2, 2],
+                "quality": [0, 0, 0, 0],
+                "units": "dBZ",
+                "valid_time": "2026-01-01T00:00:00Z",
+                "grid": {
+                    "shape": [2, 2],
+                    "crs": "EPSG:4326",
+                    "x": [100.0, 101.0],
+                    "y": [20.0, 21.0],
+                    "affine": None,
+                },
+                "provenance": ["provider-contract-test"],
+            }
+        )
     )
-    return RadarField(data, GeographicGrid([100.0, 101.0], [20.0, 21.0]))
 
 
 def test_provider_matrix_is_explicit_and_redacted() -> None:
@@ -96,13 +104,18 @@ def test_local_provider_roundtrip_uses_the_same_manifest_contract(tmp_path: Path
 
     assert first.counts["written"] == 1
     assert second.counts["skipped"] == 1
-    manifest_path = Path(first.items[0].output_uri).with_name(Path(first.items[0].output_uri).name + ".manifest.json")
-    assert inspect_manifest(manifest_path) == "complete"
+    output_path = Path(first.items[0].output_uri)
+    manifest_path = output_path.with_name(output_path.name + ".manifest.json")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for artifact in manifest["artifacts"]:
+        payload = (output / artifact["relative_uri"]).read_bytes()
+        assert len(payload) == artifact["size_bytes"]
+        assert hashlib.sha256(payload).hexdigest() == artifact["sha256"]
 
 
 @pytest.mark.provider
 @pytest.mark.parametrize("target", _REMOTE_TARGETS, ids=lambda target: target.name)
-def test_remote_provider_write_readback_and_idempotence(target, record_property) -> None:
+def test_remote_provider_manifest_commit_readback_and_idempotence(target, record_property) -> None:
     environment = os.environ
     if not target.configured(environment):
         pytest.skip(f"{target.name} status=unverified: configure an isolated URI and a complete credential pair")
@@ -116,9 +129,12 @@ def test_remote_provider_write_readback_and_idempotence(target, record_property)
     access_key = environment.get(target.access_key_env or "") or None
     secret_key = environment.get(target.secret_key_env or "") or None
     anonymous = target.name != "aws-s3" and target.credential_state(environment) == "anonymous"
+    location = urlsplit(root_uri)
+    bucket = location.netloc
+    prefix = unquote(location.path).strip("/")
     config = load_config(
         {
-            "runtime": {"allow_network": False},
+            "runtime": {"allow_network": True},
             "cache": {"enabled": False},
             "storage": {
                 "endpoint": endpoint,
@@ -137,29 +153,51 @@ def test_remote_provider_write_readback_and_idempotence(target, record_property)
 
     assert first.counts["written"] == 1
     assert second.counts["skipped"] == 1
-    location = parse_object_uri(first.items[0].output_uri, provider=target.provider, endpoint=endpoint, region=region)
-    backend = RustObjectBackend(
-        root_uri,
-        endpoint=endpoint,
-        region=region,
-        access_key_id=access_key,
-        secret_access_key=secret_key,
-        anonymous=anonymous,
-    )
+    pointer_uri = first.items[0].output_uri
+    assert pointer_uri is not None
+    pointer = urlsplit(pointer_uri)
+    assert pointer.scheme == target.provider and pointer.netloc == bucket
+    pointer_key = unquote(pointer.path).lstrip("/")
 
     async def verify_objects() -> None:
-        pointer_bytes = await backend.get(f"{location.key}.manifest.json")
-        assert pointer_bytes is not None
-        manifest = json.loads(pointer_bytes)
+        pointer_readback = await _bridge.object_read(
+            target.provider,
+            bucket,
+            "",
+            pointer_key,
+            endpoint=endpoint,
+            region=region,
+            access_key_id=access_key,
+            secret_access_key=secret_key,
+            anonymous=anonymous,
+        )
+        assert pointer_readback is not None
+        manifest_bytes, manifest_size, manifest_sha256 = pointer_readback
+        assert manifest_size == len(manifest_bytes)
+        assert manifest_sha256 == hashlib.sha256(manifest_bytes).hexdigest()
+        manifest = json.loads(manifest_bytes)
         assert manifest["output_id"]
         assert manifest["generation"]
+        assert manifest["artifacts"]
         for artifact in manifest["artifacts"]:
-            payload = await backend.get(artifact["relative_uri"])
-            assert payload is not None
-            assert len(payload) == artifact["size_bytes"]
-            assert hashlib.sha256(payload).hexdigest() == artifact["sha256"]
+            readback = await _bridge.object_read(
+                target.provider,
+                bucket,
+                prefix,
+                artifact["relative_uri"],
+                endpoint=endpoint,
+                region=region,
+                access_key_id=access_key,
+                secret_access_key=secret_key,
+                anonymous=anonymous,
+            )
+            assert readback is not None
+            payload, size_bytes, sha256 = readback
+            assert size_bytes == artifact["size_bytes"]
+            assert size_bytes == len(payload)
+            assert sha256 == artifact["sha256"] == hashlib.sha256(payload).hexdigest()
 
     asyncio.run(verify_objects())
     record_property("provider", target.name)
-    record_property("status", "passed")
+    record_property("status", "passed: Rust remote manifest commit, idempotence and artifact readback")
     record_property("credential_state", target.credential_state(environment))

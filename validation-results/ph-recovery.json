@@ -1,0 +1,85 @@
+{
+  "date": "2026-09-30",
+  "proxy": "http://127.0.0.1:7897",
+  "discovery": {
+    "schema_version": 1,
+    "command": "discover",
+    "run_id": null,
+    "query": null,
+    "counts": {
+      "items": 1
+    },
+    "items": [
+      {
+        "source": "ph",
+        "product": "composite",
+        "station": "PHCOMP4",
+        "valid_time": "2026-09-30T08:20:00.000000Z",
+        "logical_id": "d2bcd0e09a9456d240e922aae3ab53d02d4594486a54dde18d0c5e9a596012cf",
+        "source_urls": [
+          "https://www.panahon.gov.ph/api/v1/radar-data-image"
+        ]
+      }
+    ],
+    "result": null,
+    "error": null,
+    "interrupted": false
+  },
+  "download": {
+    "schema_version": 1,
+    "command": "download",
+    "run_id": "native-download-51798-1790757918902860000",
+    "query": {
+      "source": "ph",
+      "product": null,
+      "stations": [],
+      "latest": true,
+      "max_age": null,
+      "base_time": null
+    },
+    "counts": {
+      "written": 0,
+      "skipped": 0,
+      "failed": 1,
+      "cancelled": 0,
+      "not_started": 0,
+      "planned": 0
+    },
+    "items": [
+      {
+        "source": "ph",
+        "product": "composite",
+        "station": "PHCOMP4",
+        "valid_time": "2026-09-30T08:20:00.000000Z",
+        "logical_id": "d2bcd0e09a9456d240e922aae3ab53d02d4594486a54dde18d0c5e9a596012cf",
+        "status": "failed",
+        "output_uri": null,
+        "error": {
+          "code": "transport",
+          "message": "source ph returned a placeholder data image",
+          "stage": "acquire",
+          "retryable": true
+        }
+      }
+    ],
+    "error": null,
+    "interrupted": false
+  },
+  "orca_browser_probe": {
+    "bytes": 89,
+    "height": 1,
+    "image_status": 200,
+    "observed_at": "2026-09-30 16:20:00",
+    "timeline_status": 200,
+    "width": 1
+  },
+  "verification": {
+    "ph_unit_tests": "4 passed",
+    "source_matrix": "10 passed",
+    "browser_unit_tests": "10 passed, 1 optional live test ignored",
+    "cli_discover_multi": "6 passed",
+    "cli_doctor": "3 passed",
+    "offline_engine_preflight": "1 passed"
+  },
+  "outcome": "discovery restored; valid raw acquisition and science remain unverified"
+}

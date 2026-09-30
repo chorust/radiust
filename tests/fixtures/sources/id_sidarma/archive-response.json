@@ -1,0 +1,24 @@
+{
+  "listURL": [
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0601.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0609.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0617.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0625.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0633.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0641.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0649.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0657.png",
+    "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0705.png"
+  ],
+  "listTime": [
+    "2026-09-30 06:01 UTC",
+    "2026-09-30 06:09 UTC",
+    "2026-09-30 06:17 UTC",
+    "2026-09-30 06:25 UTC",
+    "2026-09-30 06:33 UTC",
+    "2026-09-30 06:41 UTC",
+    "2026-09-30 06:49 UTC",
+    "2026-09-30 06:57 UTC",
+    "2026-09-30 07:05 UTC"
+  ]
+}

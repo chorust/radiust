@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "check": "current-source-release-wheel-format-and-raw-manifest-readback",
+  "status": "passed_clean_science_geotiff_zarr_extras_for_both_macos_tags",
+  "date": "2026-09-30",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "macos_version": "26.6.2",
+    "python": "CPython 3.12"
+  },
+  "dependency_environment": "Each current exact wheel passed fresh isolated install with science, geotiff, and zarr extras, four-format readback, CLI smoke, and Mach-O audit. Each exact wheel was also reinstalled into its clean extras venv (no .pth or repository site-packages injection) and passed the four format readers plus Rust raw-manifest binding. pytest, pytest-asyncio, and netCDF4 are test-only.",
+  "wheels": [
+    {
+      "path": "/private/tmp/radiust-wheel-check/t083-current/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+      "sha256": "a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c",
+      "installed_package": "/private/tmp/radiust-wheel-check/clean-extras-final11/lib/python3.12/site-packages/radiust/__init__.py",
+      "result": "5 passed after exact wheel reinstall in a clean extras venv (1.72s)",
+      "environment": "/private/tmp/radiust-wheel-check/clean-extras-final11"
+    },
+    {
+      "path": "/private/tmp/radiust-wheel-check/t083-current/radiust-0.1.0-cp312-cp312-macosx_15_0_arm64.whl",
+      "sha256": "3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0",
+      "installed_package": "/private/tmp/radiust-wheel-check/clean-extras-final15/lib/python3.12/site-packages/radiust/__init__.py",
+      "result": "5 passed after exact wheel reinstall in a clean extras venv (2.42s)",
+      "environment": "/private/tmp/radiust-wheel-check/clean-extras-final15"
+    }
+  ],
+  "tests": [
+    "tests/contract/test_rust_png_readback.py",
+    "tests/contract/test_rust_netcdf_readback.py",
+    "tests/contract/test_rust_geotiff_readback.py",
+    "tests/contract/test_rust_zarr_readback.py",
+    "tests/contract/test_raw_replay.py"
+  ],
+  "checks": {
+    "wheel_install_and_import_from_isolated_venv": "passed for both final rebuilt macOS wheels in fresh extras environments",
+    "png_readback": "passed for both wheels",
+    "netcdf4_readback": "passed for both wheels",
+    "geotiff_readback": "passed for both wheels",
+    "zarr_v2_readback": "passed for both wheels",
+    "proj_db_location": "passed for both exact wheels with PROJ_DATA/PROJ_LIB unset; pyproj and proj.db resolved inside each venv",
+    "rust_raw_manifest_binding": "passed for both installed wheels; verified manifest loading returns bound PyRawFrame receipts and bytes, and close removes Rust-owned staging files",
+    "isolated_current_release_wheel_audit": "passed for a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c and 3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0; fresh extras installs, Rust CLI smoke, tag/minos, Mach-O system-library audit, and four independent format readbacks per wheel",
+    "exact_current_wheel_clean_extras_readback": "passed for a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c and 3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0; each exact wheel was installed in its clean extras venv and passed PNG, NetCDF, GeoTIFF, Zarr, and Rust raw-manifest binding tests"
+  },
+  "proj_data": [
+    {
+      "wheel_tag": "macosx_11_0_arm64",
+      "directory": "/private/tmp/radiust-wheel-check/clean-extras-final11/lib/python3.12/site-packages/pyproj/proj_dir/share/proj",
+      "proj_db_exists": true
+    },
+    {
+      "wheel_tag": "macosx_15_0_arm64",
+      "directory": "/private/tmp/radiust-wheel-check/clean-extras-final15/lib/python3.12/site-packages/pyproj/proj_dir/share/proj",
+      "proj_db_exists": true
+    }
+  ],
+  "remaining": [
+    "The macOS 11.0 wheel has not been executed on a macOS 11 host, and the GitHub source-build workflow has not run."
+  ],
+  "post_t083_macos11_wheel": {
+    "wheel_tag": "macosx_11_0_arm64",
+    "wheel_sha256": "a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c",
+    "wheel_path": "/private/tmp/radiust-wheel-check/t083-current/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "source_modules": 95,
+    "wheel_python_modules": 21,
+    "legacy_pipeline_and_non_zarr_output_modules_absent": true,
+    "base_install_cli_smoke_macho_audit": "passed by scripts/validation/check_macos_release.py for this exact wheel hash",
+    "packaging_pytest": "2 passed after old Python CLI helper removals",
+    "format_and_raw_manifest_readback": "5 passed after exact wheel reinstall into its clean extras venv"
+  },
+  "clean_extras_retests": [
+    {
+      "wheel_tag": "macosx_11_0_arm64",
+      "wheel_sha256": "a5613331db97599cb05fa84512a2f49464167a3c22ecc96d819f1072e777661c",
+      "environment": "/private/tmp/radiust-wheel-check/clean-extras-final11",
+      "application_extras": [
+        "science",
+        "geotiff",
+        "zarr"
+      ],
+      "result": "5 passed (1.72s) after exact wheel reinstall; PROJ_DATA/PROJ_LIB unset",
+      "environment_variables": "PROJ_DATA and PROJ_LIB unset"
+    },
+    {
+      "wheel_tag": "macosx_15_0_arm64",
+      "wheel_sha256": "3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0",
+      "environment": "/private/tmp/radiust-wheel-check/clean-extras-final15",
+      "application_extras": [
+        "science",
+        "geotiff",
+        "zarr"
+      ],
+      "result": "5 passed (2.42s) after exact wheel reinstall; PROJ_DATA/PROJ_LIB unset",
+      "environment_variables": "PROJ_DATA and PROJ_LIB unset"
+    }
+  ],
+  "post_t083_macos15_wheel": {
+    "wheel_tag": "macosx_15_0_arm64",
+    "wheel_sha256": "3bac5070a5eaaf33767066973916c6f02a088f9efb27e427b16e535b84b4f7a0",
+    "wheel_path": "/private/tmp/radiust-wheel-check/t083-current/radiust-0.1.0-cp312-cp312-macosx_15_0_arm64.whl",
+    "source_modules": 95,
+    "wheel_python_modules": 21,
+    "legacy_pipeline_and_non_zarr_output_modules_absent": true,
+    "base_install_cli_smoke_macho_audit": "passed by scripts/validation/check_macos_release.py for this exact wheel hash",
+    "packaging_pytest": "2 passed after old Python CLI helper removals",
+    "format_and_raw_manifest_readback": "5 passed after exact wheel reinstall into its clean extras venv"
+  }
+}

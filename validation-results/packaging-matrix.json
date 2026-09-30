@@ -344,5 +344,80 @@
       "default NetCDF/HDF5 data and quality readback",
       "GeoTIFF and Zarr data and quality readback for enabled extras"
     ]
+  },
+  "current_macos_arm64_release_recheck_2026-09-28": {
+    "date": "2026-09-28",
+    "python": "CPython 3.12.7",
+    "host": "macOS 26.6.2 arm64",
+    "build": "maturin --release, then delocate-wheel --require-archs arm64",
+    "raw_wheel_filename": "radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_filename": "radiust-0.1.0-cp312-cp312-macosx_15_0_arm64.whl",
+    "wheel_sha256": "6215223ad080ed7d46867f8813372544c741cb66124b0e4b346125b29d7ee6f0",
+    "wheel_size_bytes": 12636989,
+    "minimum_macos_tag": "15.0",
+    "bundled_dylibs": [
+      "libaec.0.1.6.dylib",
+      "libhdf5.320.1.0.dylib",
+      "libhdf5_hl.320.0.1.dylib",
+      "libnetcdf.22.dylib",
+      "libsz.2.0.1.dylib",
+      "libzstd.1.5.7.dylib"
+    ],
+    "installed_wheel_smokes": {
+      "core": {
+        "result": "passed",
+        "tests": 2
+      },
+      "zarr+science": {
+        "result": "passed",
+        "tests": 2
+      }
+    },
+    "verified": [
+      "release wheel installed in child virtual environments outside the source tree",
+      "core mode runs without NumPy or xarray and imports top-level Rust RadarField/RadarDataset bindings",
+      "science mode converts the Rust binding field and verifies values, quality flags, coordinates, and time",
+      "wheel console CLI JSON and exit codes match the native Rust CLI for success and invalid arguments",
+      "delocate-listdeps reports only dylibs packaged inside radiust/.dylibs"
+    ],
+    "scope": "One CPython 3.12 macOS arm64 release wheel tested in an isolated venv on macOS 26.6.2; this wheel requires macOS 15 or later. It does not establish the full Python/platform matrix or a separate clean macOS host."
+  },
+  "current_macos_arm64_legacy_display_release_recheck_2026-09-28": {
+    "date": "2026-09-28",
+    "python": "CPython 3.12.7",
+    "host": "macOS 26.6.2 arm64",
+    "build": "maturin --release, then delocate-wheel --require-archs arm64",
+    "raw_wheel_filename": "radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_filename": "radiust-0.1.0-cp312-cp312-macosx_15_0_arm64.whl",
+    "wheel_sha256": "1cd4ea33311215d52f2c1e684a6569ec5348791420b557a7c4825267de8dba37",
+    "wheel_size_bytes": 12673571,
+    "minimum_macos_tag": "15.0",
+    "bundled_dylibs": [
+      "libaec.0.1.6.dylib",
+      "libhdf5.320.1.0.dylib",
+      "libhdf5_hl.320.0.1.dylib",
+      "libnetcdf.22.dylib",
+      "libsz.2.0.1.dylib",
+      "libzstd.1.5.7.dylib"
+    ],
+    "installed_wheel_smokes": {
+      "core": {
+        "result": "passed",
+        "tests": 2
+      },
+      "zarr+science": {
+        "result": "passed",
+        "tests": 2
+      }
+    },
+    "verified": [
+      "release wheel installed in child virtual environments outside the source tree",
+      "core mode runs without NumPy or xarray and imports top-level Rust RadarField/RadarDataset bindings",
+      "science mode converts the Rust binding field and verifies values, quality flags, coordinates, and time",
+      "wheel console CLI JSON and exit codes match the native Rust CLI for success and invalid arguments",
+      "wheel cat --help exposes --legacy-display and matches native CLI help",
+      "delocate-listdeps reports NetCDF/HDF5 dylibs packaged inside radiust/.dylibs"
+    ],
+    "scope": "One CPython 3.12.7 macOS arm64 release wheel tested in isolated core and zarr+science venvs on macOS 26.6.2; this wheel requires macOS 15 or later. It does not establish the full Python/platform matrix or a separate clean macOS host."
   }
 }

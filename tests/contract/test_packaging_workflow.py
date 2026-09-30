@@ -29,7 +29,8 @@ def test_build_matrix_smoke_uses_only_its_own_wheel_artifact() -> None:
     build_step = steps[build_index]["run"]
     upload = next(step for step in steps if step.get("uses", "").startswith("actions/upload-artifact@"))
 
-    assert '--out "$WHEEL_DIR"' in build_step
+    assert '--out "$WHEEL_DIR/raw"' in build_step
+    assert 'delocate-wheel --require-archs "$ARCHITECTURE" --wheel-dir "$WHEEL_DIR"' in build_step
     assert steps[build_index]["env"]["WHEEL_DIR"] == wheel_dir
     assert selection_index is not None, "the smoke must receive the wheel built by this matrix cell"
     assert build_index < selection_index < smoke_index

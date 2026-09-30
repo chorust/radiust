@@ -30,7 +30,8 @@ jobs:
             apt-get install -y tesseract-ocr
           fi
       - run: uv sync --no-dev --group ci --locked
-      - run: uv run --no-sync ruff check python tests
+      - run: cargo fmt --all -- --check
+      - run: uv run --no-sync ruff check python tests scripts/validation
       - run: cargo test --workspace --locked
       - run: uv run --no-sync pytest -q
 
@@ -46,7 +47,7 @@ jobs:
         run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
       - run: uv sync --no-dev --group ci --locked
       - name: POSIX PTY, terminal and CLI contracts
-        run: uv run --no-sync pytest -q tests/terminal tests/contract/test_rendering.py tests/contract/test_cli_acquisition.py tests/contract/test_cli_output.py tests/contract/test_cli_cat.py
+        run: uv run --no-sync pytest -q tests/terminal tests/contract/test_cli_acquisition.py tests/contract/test_cli_output.py tests/contract/test_cli_cat.py
 
   browser-contract:
     runs-on: ubuntu-latest

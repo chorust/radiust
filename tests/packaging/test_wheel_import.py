@@ -10,6 +10,25 @@ def test_source_tree_import_exposes_version() -> None:
     assert result.stdout.strip()
 
 
+def test_cli_bootstrap_does_not_import_the_python_sdk_or_yaml() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; import radiust; import radiust.cli.main; "
+                "assert 'radiust.config' not in sys.modules; "
+                "assert 'radiust.rust_client' not in sys.modules; "
+                "assert 'yaml' not in sys.modules"
+            ),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+
+
 def test_build_configuration_points_at_maturin() -> None:
     text = Path("pyproject.toml").read_text(encoding="utf-8")
     assert "build-backend = \"maturin\"" in text

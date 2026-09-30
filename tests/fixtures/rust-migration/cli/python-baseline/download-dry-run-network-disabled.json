@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "radiust",
+    "download",
+    "au",
+    "--latest",
+    "--dry-run",
+    "--json"
+  ],
+  "exit_code": 2,
+  "stderr": "",
+  "stdout": {
+    "command": null,
+    "counts": {},
+    "error": {
+      "code": "error",
+      "message": "Unexpected operation failure",
+      "retryable": false,
+      "stage": "validate"
+    },
+    "interrupted": false,
+    "items": [],
+    "query": null,
+    "run_id": null,
+    "schema_version": 1
+  }
+}

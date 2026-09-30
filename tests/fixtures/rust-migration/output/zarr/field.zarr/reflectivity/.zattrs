@@ -1,0 +1,15 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "latitude",
+    "longitude"
+  ],
+  "long_name": "reflectivity",
+  "valid_time": "2026-09-26T01:02:03.123456789Z",
+  "provenance": "[\"source=fixture\"]",
+  "ancillary_variables": "quality",
+  "units": "dBZ",
+  "crs": "EPSG:4326",
+  "grid_mapping": "crs",
+  "affine": "[119.75,0.5,0.0,23.75,0.0,-0.5]",
+  "coordinates": "crs quality time"
+}

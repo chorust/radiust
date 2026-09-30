@@ -1,0 +1,9 @@
+{
+  "_ARRAY_DIMENSIONS": [],
+  "long_name": "coordinate reference system",
+  "spatial_ref": "EPSG:4326",
+  "units": "1",
+  "grid_mapping_name": "latitude_longitude",
+  "semi_major_axis": 6378137.0,
+  "inverse_flattening": 298.257223563
+}

@@ -1,0 +1,180 @@
+{
+  "zarr_consolidated_format": 1,
+  "metadata": {
+    ".zattrs": {
+      "Conventions": "CF-1.8",
+      "radiust_grid_kind": "geographic",
+      "radiust_provenance": [
+        "source=fixture"
+      ]
+    },
+    ".zgroup": {
+      "zarr_format": 2
+    },
+    "crs/.zarray": {
+      "filters": null,
+      "zarr_format": 2,
+      "shape": [],
+      "chunks": [],
+      "dtype": "<i8",
+      "compressor": null,
+      "fill_value": null,
+      "order": "C"
+    },
+    "crs/.zattrs": {
+      "_ARRAY_DIMENSIONS": [],
+      "long_name": "coordinate reference system",
+      "spatial_ref": "EPSG:4326",
+      "units": "1",
+      "grid_mapping_name": "latitude_longitude",
+      "semi_major_axis": 6378137.0,
+      "inverse_flattening": 298.257223563
+    },
+    "latitude/.zarray": {
+      "filters": null,
+      "zarr_format": 2,
+      "shape": [
+        2
+      ],
+      "chunks": [
+        2
+      ],
+      "dtype": "<f8",
+      "compressor": {
+        "id": "blosc",
+        "cname": "lz4",
+        "clevel": 5,
+        "shuffle": 1,
+        "blocksize": 0
+      },
+      "fill_value": "NaN",
+      "order": "C"
+    },
+    "latitude/.zattrs": {
+      "_ARRAY_DIMENSIONS": [
+        "latitude"
+      ],
+      "standard_name": "latitude",
+      "units": "degrees_north"
+    },
+    "longitude/.zarray": {
+      "filters": null,
+      "zarr_format": 2,
+      "shape": [
+        2
+      ],
+      "chunks": [
+        2
+      ],
+      "dtype": "<f8",
+      "compressor": {
+        "id": "blosc",
+        "cname": "lz4",
+        "clevel": 5,
+        "shuffle": 1,
+        "blocksize": 0
+      },
+      "fill_value": "NaN",
+      "order": "C"
+    },
+    "longitude/.zattrs": {
+      "_ARRAY_DIMENSIONS": [
+        "longitude"
+      ],
+      "standard_name": "longitude",
+      "units": "degrees_east"
+    },
+    "quality/.zarray": {
+      "filters": null,
+      "zarr_format": 2,
+      "shape": [
+        2,
+        2
+      ],
+      "chunks": [
+        2,
+        2
+      ],
+      "dtype": "<u2",
+      "compressor": {
+        "id": "blosc",
+        "cname": "lz4",
+        "clevel": 5,
+        "shuffle": 1,
+        "blocksize": 0
+      },
+      "fill_value": null,
+      "order": "C"
+    },
+    "quality/.zattrs": {
+      "_ARRAY_DIMENSIONS": [
+        "latitude",
+        "longitude"
+      ],
+      "flag_masks": [
+        1,
+        2,
+        4,
+        8,
+        16,
+        32
+      ],
+      "flag_meanings": "missing outside_coverage unknown_color recovered interpolated below_detection",
+      "long_name": "quality flags",
+      "coordinates": "crs time"
+    },
+    "reflectivity/.zarray": {
+      "filters": null,
+      "zarr_format": 2,
+      "shape": [
+        2,
+        2
+      ],
+      "chunks": [
+        2,
+        2
+      ],
+      "dtype": "<f4",
+      "compressor": {
+        "id": "blosc",
+        "cname": "lz4",
+        "clevel": 5,
+        "shuffle": 1,
+        "blocksize": 0
+      },
+      "fill_value": "NaN",
+      "order": "C"
+    },
+    "reflectivity/.zattrs": {
+      "_ARRAY_DIMENSIONS": [
+        "latitude",
+        "longitude"
+      ],
+      "long_name": "reflectivity",
+      "valid_time": "2026-09-26T01:02:03.123456789Z",
+      "provenance": "[\"source=fixture\"]",
+      "ancillary_variables": "quality",
+      "units": "dBZ",
+      "crs": "EPSG:4326",
+      "grid_mapping": "crs",
+      "affine": "[119.75,0.5,0.0,23.75,0.0,-0.5]",
+      "coordinates": "crs quality time"
+    },
+    "time/.zarray": {
+      "filters": null,
+      "zarr_format": 2,
+      "shape": [],
+      "chunks": [],
+      "dtype": "<i8",
+      "compressor": null,
+      "fill_value": null,
+      "order": "C"
+    },
+    "time/.zattrs": {
+      "_ARRAY_DIMENSIONS": [],
+      "calendar": "proleptic_gregorian",
+      "standard_name": "time",
+      "units": "days since 2026-09-26 01:02:03.123456789"
+    }
+  }
+}

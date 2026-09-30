@@ -5,10 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from .client import AsyncClient, Client
-from .rendering.api import render
-from .terminal.api import show
 
-__all__ = ["fetch", "afetch", "fetch_many", "afetch_many", "iter_fetch", "aiter_fetch", "download", "adownload", "render_field", "render", "show"]
+__all__ = ["fetch", "afetch", "fetch_many", "afetch_many", "iter_fetch", "aiter_fetch", "download", "adownload"]
 
 
 def fetch(query: Any, *, config: Any = None) -> Any:
@@ -52,7 +50,3 @@ def download(query_or_refs: Any, *, output: str = "./data", format: str = "netcd
 async def adownload(query_or_refs: Any, **kwargs: Any) -> Any:
     async with AsyncClient(config=kwargs.pop("config", None)) as client:
         return await client.download(query_or_refs, **kwargs)
-
-
-def render_field(value: Any, **options: Any) -> Any:
-    return render(value, **options)

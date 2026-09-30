@@ -1,0 +1,217 @@
+{
+  "argv": [
+    "radiust",
+    "list",
+    "sources",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": {
+    "command": "list",
+    "counts": {
+      "items": 24
+    },
+    "error": null,
+    "interrupted": false,
+    "items": [
+      {
+        "availability": "needs_configuration",
+        "description": "Australia Bureau of Meteorology radar",
+        "id": "au",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Indonesia BMKG radar tiles",
+        "id": "bmkg",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Canada ECCC radar",
+        "id": "ca",
+        "products": [
+          "rain"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Cambodia radar slideshow",
+        "id": "cam",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Spain AEMET national radar",
+        "id": "es",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "France Meteo-France radar",
+        "id": "fr",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Indonesia BMKG legacy radar",
+        "id": "id",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Indonesia SIDARMA radar",
+        "id": "id_sidarma",
+        "products": [
+          "cmax"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Korea radar CGI",
+        "id": "kr",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Malaysia Met Department radar",
+        "id": "my",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "New Zealand rural mobile radar",
+        "id": "nz",
+        "products": [
+          "rain"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "OpenSnow radar tiles",
+        "id": "opensnow",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "PAGASA radar timeline",
+        "id": "ph",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Portugal IPMA radar rainfall-intensity categories",
+        "id": "pt",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "RainViewer radar tiles",
+        "id": "rainviewer",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Singapore radar rainfall-intensity display",
+        "id": "sg",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Thailand TMD radar",
+        "id": "th",
+        "products": [
+          "composite"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Thailand Royal Rain radar",
+        "id": "th_royalrain",
+        "products": [
+          "cappi"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Taiwan CWA anonymous S3 observation radar and numeric grid",
+        "id": "tw",
+        "products": [
+          "observation",
+          "grid"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Taiwan HTTP radar observation",
+        "id": "tw-http",
+        "products": [
+          "observation"
+        ]
+      },
+      {
+        "availability": "retired",
+        "description": "United Kingdom rainfall radar (retired)",
+        "id": "uk",
+        "products": [
+          "rain"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Vietnam Hymetnet CMAX radar",
+        "id": "vn",
+        "products": [
+          "cmax"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Windy radar tiles",
+        "id": "windy",
+        "products": [
+          "reflectivity"
+        ]
+      },
+      {
+        "availability": "needs_configuration",
+        "description": "Weather Underground radar mosaic",
+        "id": "wunderground",
+        "products": [
+          "composite"
+        ]
+      }
+    ],
+    "query": null,
+    "result": null,
+    "run_id": null,
+    "schema_version": 1
+  }
+}

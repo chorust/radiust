@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "ref": {
+    "source": "id_sidarma",
+    "product": "cmax",
+    "station": "JAK",
+    "valid_time": "2026-09-30T07:13:00.000000Z",
+    "base_time": null,
+    "locator": {
+      "artifacts": [],
+      "bbox": [
+        104.39898771981228,
+        -8.418959280187721,
+        108.89421828018772,
+        -3.9237287198122797
+      ],
+      "station": "JAK",
+      "revision": "JAK-20260930-0713.png"
+    },
+    "locator_version": "id_sidarma-legacy-v1",
+    "revision": "JAK-20260930-0713.png",
+    "logical_id": "4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288"
+  },
+  "artifacts": [
+    {
+      "name": "JAK-20260930-0713.png",
+      "role": "data",
+      "media_type": "image/png",
+      "size_bytes": 27239,
+      "sha256": "117e2038e352d96a8b6b244073fb52c6d6ceddd5c94f7d029916b944aa3e8f88",
+      "source_revision": null
+    }
+  ],
+  "metadata": {},
+  "raw_complete": true
+}

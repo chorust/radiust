@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "radiust",
+    "doctor",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": {
+    "checks": {
+      "cache_writable": true,
+      "dependencies": {
+        "PIL": true,
+        "click": true,
+        "h5netcdf": true,
+        "h5py": true,
+        "numpy": true,
+        "xarray": true,
+        "yaml": true
+      },
+      "network_probe": "not_requested",
+      "ok": true,
+      "output_writable": true,
+      "python": true,
+      "source": null
+    },
+    "command": "doctor",
+    "schema_version": 1
+  }
+}

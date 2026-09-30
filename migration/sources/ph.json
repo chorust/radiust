@@ -66,5 +66,15 @@
         "scientific_status_unchanged": true
       }
     ]
+  },
+  "current_recovery": {
+    "date": "2026-09-30",
+    "adapter": "crates/radiust-core/src/source/ph.rs",
+    "discovery": "verified_via_proxy_7897_automatic_signed_session",
+    "raw": "blocked_provider_returns_http_200_1x1_placeholder_in_orca_and_isolated_chromium",
+    "authentication": "automatic_csrf_and_current_provider_signing_bootstrap_no_external_token",
+    "science": "unverified",
+    "endpoint": "/api/v1/radar-data-image",
+    "sublayer": "mosaic-reflectivity"
   }
 }

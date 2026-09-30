@@ -1,271 +1,65 @@
+"""Console entry point that forwards every command to the Rust CLI."""
+
 from __future__ import annotations
 
-import math
-from datetime import timedelta
-from pathlib import Path
-
-import click
-
-from ..api import download as sdk_download
-from ..config import load_config
-from ..models import Query
-from ..registry import get_source, sources
-from .cache import cache_command
-from .cat import cat_command
-from .query import build_query
-from .query import parse_time as _time
-from .reporting import emit, emit_error, exit_code
+import os
+import sys
+import tempfile
+from collections.abc import Sequence
+from typing import Any
 
 
-def _query(source: str, product: str | None, station: tuple[str, ...], latest: bool, at: str | None, start: str | None, end: str | None, base_time: str | None, max_age: float | None) -> Query:
-    return build_query(source, product=product, stations=station, latest=latest, at=_time(at), start=_time(start), end=_time(end), base_time=_time(base_time), max_age=timedelta(seconds=max_age) if max_age is not None else None)
+class _RustCliCommand:
+    """Tiny command protocol adapter for console scripts and Click's test runner.
 
+    Argument parsing, validation, reporting, and command behavior all remain in
+    ``radiust-cli``. The ``name``/``main`` surface lets existing CliRunner based
+    tests invoke the same Rust entry point without reimplementing Click logic.
+    """
 
-def _bbox(value: str | None) -> tuple[float, float, float, float] | None:
-    if value is None:
-        return None
-    try:
-        values = tuple(float(part.strip()) for part in value.split(","))
-    except ValueError as exc:
-        raise click.BadParameter("bbox must be west,south,east,north") from exc
-    if len(values) != 4:
-        raise click.BadParameter("bbox must be west,south,east,north")
-    return values  # type: ignore[return-value]
+    name = "radiust"
 
+    def __call__(self) -> int:
+        return self.main(args=None, standalone_mode=False)
 
-def _root_options(local_path: Path | None, local_quiet: bool | None, local_verbose: bool | None) -> tuple[Path | None, bool, bool]:
-    root = click.get_current_context().find_root().obj or {}
-    config_path = local_path if local_path is not None else root.get("config_path")
-    quiet = bool(local_quiet if local_quiet is not None else root.get("quiet", False))
-    verbose = bool(local_verbose if local_verbose is not None else root.get("verbose", False))
-    if quiet and verbose:
-        raise click.UsageError("--quiet and --verbose are mutually exclusive")
-    return config_path, quiet, verbose
+    def main(
+        self,
+        args: Sequence[str] | None = None,
+        prog_name: str | None = None,
+        standalone_mode: bool = True,
+        **_kwargs: Any,
+    ) -> int:
+        del prog_name
+        from radiust import _core
 
-
-def _config(config_path: Path | None, overrides: dict[str, object] | None = None):
-    return load_config(overrides or {}, path=config_path)
-
-
-@click.group()
-@click.option("--conf", "config_path", type=click.Path(path_type=Path))
-@click.option("--quiet", is_flag=True, default=False)
-@click.option("--verbose", is_flag=True, default=False)
-@click.pass_context
-def main(ctx: click.Context, config_path: Path | None, quiet: bool, verbose: bool) -> None:
-    """Acquire and inspect radar data."""
-    if quiet and verbose:
-        raise click.UsageError("--quiet and --verbose are mutually exclusive")
-    ctx.ensure_object(dict)
-    ctx.obj.update(config_path=config_path, quiet=quiet, verbose=verbose)
-
-
-@main.command("list")
-@click.argument("kind", required=False, default="sources")
-@click.argument("source", required=False)
-@click.option("--conf", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--quiet", is_flag=True, default=None)
-@click.option("--verbose", is_flag=True, default=None)
-@click.option("--json", "as_json", is_flag=True)
-def list_command(kind: str, source: str | None, config_path: Path | None, quiet: bool | None, verbose: bool | None, as_json: bool) -> None:
-    try:
-        config_path, quiet, _verbose = _root_options(config_path, quiet, verbose)
-        if kind in {"sources", "source"}:
-            values = sources()
-            payload = [{"id": item.id, "description": item.description, "availability": item.availability, "products": [p.id for p in item.products]} for item in values]
-        elif kind in {"products", "stations"}:
-            if not source:
-                raise click.UsageError(f"{kind} requires a source id")
-            info = get_source(source).info
-            # Keep frozen model mappings intact until reporting's recursive
-            # JSON projection.  dataclasses.asdict() deep-copies fields and
-            # cannot copy ProductInfo.units, which is intentionally a
-            # mappingproxy.
-            payload = list(info.products) if kind == "products" else list(info.stations)
+        argv = list(sys.argv[1:] if args is None else args)
+        if args is None:
+            code = int(_core.cli_main(argv))
         else:
-            info = get_source(kind).info
-            payload = {"id": info.id, "description": info.description, "availability": info.availability, "products": [p.id for p in info.products], "stations": [s.id for s in info.stations]}
-        emit(payload, as_json=as_json, quiet=quiet and not as_json, command="list")
-    except Exception as exc:
-        emit_error(exc, as_json=as_json)
-        raise click.exceptions.Exit(2) from None
+            code = self._invoke_capturing_native_output(_core, argv)
+        if standalone_mode:
+            raise SystemExit(code)
+        return code
+
+    @staticmethod
+    def _invoke_capturing_native_output(core: Any, argv: list[str]) -> int:
+        """Forward native fd output into the active Python test/output streams."""
+        saved = (os.dup(1), os.dup(2))
+        with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+            try:
+                os.dup2(stdout_file.fileno(), 1)
+                os.dup2(stderr_file.fileno(), 2)
+                code = int(core.cli_main(argv))
+            finally:
+                os.dup2(saved[0], 1)
+                os.dup2(saved[1], 2)
+                os.close(saved[0])
+                os.close(saved[1])
+            stdout_file.seek(0)
+            stderr_file.seek(0)
+            sys.stdout.write(stdout_file.read().decode("utf-8", errors="replace"))
+            sys.stderr.write(stderr_file.read().decode("utf-8", errors="replace"))
+        return code
 
 
-@main.command("discover")
-@click.argument("source")
-@click.option("--conf", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--product")
-@click.option("--station", multiple=True)
-@click.option("--latest", is_flag=True)
-@click.option("--at")
-@click.option("--start")
-@click.option("--end")
-@click.option("--base-time")
-@click.option("--max-age", type=float)
-@click.option("--quiet", is_flag=True, default=None)
-@click.option("--verbose", is_flag=True, default=None)
-@click.option("--json", "as_json", is_flag=True)
-def discover_command(source: str, config_path: Path | None, product: str | None, station: tuple[str, ...], latest: bool, at: str | None, start: str | None, end: str | None, base_time: str | None, max_age: float | None, quiet: bool | None, verbose: bool | None, as_json: bool) -> None:
-    try:
-        from ..client import Client
-        from ..discovery import discover_all, discovery_exit_code
-        from .progress import Progress, ProgressEvent
-
-        config_path, quiet, _verbose = _root_options(config_path, quiet, verbose)
-        if source == "all":
-            if product is not None or station or any(value is not None for value in (at, start, end, base_time)):
-                raise click.UsageError("discover all supports latest and max-age only; query a single source for other selectors")
-            if max_age is not None and (not math.isfinite(max_age) or max_age <= 0):
-                raise click.UsageError("--max-age must be finite and positive")
-            with Progress(quiet=quiet) as progress:
-                report = discover_all(
-                    _config(config_path), max_age=max_age,
-                    progress=lambda stage, completed, total: progress.update(ProgressEvent(stage, completed, total)),
-                )
-            emit(report, as_json=as_json, quiet=quiet and not as_json, command="discover")
-            raise click.exceptions.Exit(discovery_exit_code(report))
-        query = _query(source, product, station, latest, at, start, end, base_time, max_age)
-        with Progress(quiet=quiet) as progress:
-            progress.update(ProgressEvent("discover", 0))
-            with Client(config=_config(config_path)) as client:
-                refs = client.discover(query)
-            progress.update(ProgressEvent("discover", len(refs), len(refs)))
-        payload = [{"source": r.source, "product": r.product, "station": r.station, "valid_time": r.valid_time.isoformat().replace("+00:00", "Z"), "logical_id": r.logical_id} for r in refs]
-        emit(payload, as_json=as_json, quiet=quiet and not as_json, command="discover")
-    except click.exceptions.Exit:
-        raise
-    except Exception as exc:
-        emit_error(exc, as_json=as_json)
-        raise click.exceptions.Exit(3 if getattr(exc, "code", "") == "no_data" else 2) from None
-
-
-@main.command("download")
-@click.argument("source")
-@click.option("--conf", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--product")
-@click.option("--station", multiple=True)
-@click.option("--latest", is_flag=True)
-@click.option("--at")
-@click.option("--start")
-@click.option("--end")
-@click.option("--base-time")
-@click.option("--max-age", type=float)
-@click.option("--output", default="./data", type=click.Path())
-@click.option("--format", "format_name", default="netcdf", type=click.Choice(["netcdf", "geotiff", "png", "zarr"]))
-@click.option("--output-template")
-@click.option("--raw", is_flag=True)
-@click.option("--raw-only", is_flag=True)
-@click.option("--overwrite", is_flag=True)
-@click.option("--variable")
-@click.option("--grid", type=click.Choice(["native", "geographic"]), default="native")
-@click.option("--bbox")
-@click.option("--resolution", type=float)
-@click.option("--resampling", type=click.Choice(["nearest", "bilinear"]), default="nearest")
-@click.option("--no-cache", is_flag=True)
-@click.option("--cache-dir", type=click.Path())
-@click.option("--access-key")
-@click.option("--secret-key")
-@click.option("--endpoint")
-@click.option("--quiet", is_flag=True, default=None)
-@click.option("--verbose", is_flag=True, default=None)
-@click.option("--dry-run", is_flag=True)
-@click.option("--on-error", type=click.Choice(["collect", "continue", "raise", "stop"]), default="collect")
-@click.option("--json", "as_json", is_flag=True)
-def download_command(source: str, config_path: Path | None, product: str | None, station: tuple[str, ...], latest: bool, at: str | None, start: str | None, end: str | None, base_time: str | None, max_age: float | None, output: str, format_name: str, output_template: str | None, raw: bool, raw_only: bool, overwrite: bool, variable: str | None, grid: str, bbox: str | None, resolution: float | None, resampling: str, no_cache: bool, cache_dir: str | None, access_key: str | None, secret_key: str | None, endpoint: str | None, quiet: bool | None, verbose: bool | None, dry_run: bool, on_error: str, as_json: bool) -> None:
-    try:
-        from .progress import Progress, ProgressEvent
-
-        config_path, quiet, _verbose = _root_options(config_path, quiet, verbose)
-        query = _query(source, product, station, latest, at, start, end, base_time, max_age)
-        bbox_value = _bbox(bbox)
-        if grid == "native" and (bbox_value is not None or resolution is not None):
-            raise click.UsageError("--bbox and --resolution require --grid geographic")
-        if grid == "geographic" and (bbox_value is None or resolution is None):
-            raise click.UsageError("--grid geographic requires --bbox and --resolution")
-        if raw_only and any((variable, bbox_value, resolution is not None, grid != "native", resampling != "nearest")):
-            raise click.UsageError("--raw-only cannot be combined with decoded processing options")
-        if dry_run:
-            from ..client import Client
-
-            with Progress(quiet=quiet) as progress:
-                progress.update(ProgressEvent("discover", 0))
-                with Client(config=_config(config_path)) as client:
-                    refs = client.discover(query)
-                progress.update(ProgressEvent("discover", len(refs), len(refs)))
-            from ..models import DownloadReport, FrameResult
-
-            report = DownloadReport("download", "dry-run", tuple(FrameResult(ref, "planned") for ref in refs), query={"source": source})
-        else:
-            config_overrides = {"storage": {"output": output}}
-            if no_cache:
-                config_overrides["cache"] = {"enabled": False}
-            if cache_dir is not None:
-                config_overrides.setdefault("cache", {})["dir"] = cache_dir
-            credentials = {key: value for key, value in {"access_key": access_key, "secret_key": secret_key, "endpoint": endpoint}.items() if value is not None}
-            if credentials:
-                config_overrides["sources"] = {source: credentials}
-            with Progress(quiet=quiet) as progress:
-                report = sdk_download(query, output=output, format=format_name, raw=raw, raw_only=raw_only, overwrite=overwrite, output_template=output_template, on_error=on_error, config=_config(config_path, config_overrides), variable=variable, grid=grid, bbox=bbox_value, resolution=resolution, resampling=resampling, progress=lambda stage, done, total: progress.update(ProgressEvent(stage, done, total)))
-        emit(report, as_json=as_json, quiet=quiet and not as_json, command="download")
-        raise click.exceptions.Exit(exit_code(report))
-    except click.exceptions.Exit:
-        raise
-    except Exception as exc:
-        emit_error(exc, as_json=as_json)
-        raise click.exceptions.Exit(2) from None
-
-
-@main.command("doctor")
-@click.option("--source")
-@click.option("--network", is_flag=True)
-@click.option("--conf", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--quiet", is_flag=True, default=None)
-@click.option("--verbose", is_flag=True, default=None)
-@click.option("--json", "as_json", is_flag=True)
-def doctor_command(source: str | None, network: bool, config_path: Path | None, quiet: bool | None, verbose: bool | None, as_json: bool) -> None:
-    from .doctor import run_doctor
-
-    try:
-        config_path, quiet, verbose = _root_options(config_path, quiet, verbose)
-        payload = run_doctor(source=source, network=network, config_path=config_path)
-        if verbose and not as_json:
-            payload = {**payload, "diagnostics": {
-                "configuration": "explicit_file" if config_path is not None else "default_or_environment",
-                "network_probe_requested": network,
-                "source_scoped": source is not None,
-            }}
-        emit(payload, as_json=as_json, quiet=quiet and not as_json, command="doctor")
-    except Exception as exc:
-        emit_error(exc, as_json=as_json)
-        raise click.exceptions.Exit(2) from None
-
-
-@main.command("config")
-@click.argument("action", default="show")
-@click.option("--conf", "config_path", type=click.Path(path_type=Path), default=None)
-@click.option("--quiet", is_flag=True, default=None)
-@click.option("--verbose", is_flag=True, default=None)
-@click.option("--json", "as_json", is_flag=True)
-def config_command(action: str, config_path: Path | None, quiet: bool | None, verbose: bool | None, as_json: bool) -> None:
-    try:
-        config_path, quiet, verbose = _root_options(config_path, quiet, verbose)
-        if action != "show":
-            raise click.UsageError("only config show is supported")
-        payload = _config(config_path).redacted()
-        if verbose and not as_json:
-            payload = {**payload, "diagnostics": {
-                "configuration": "explicit_file" if config_path is not None else "default_or_environment",
-                "effective_network_allowed": bool(payload["runtime"]["allow_network"]),
-            }}
-        emit(payload, as_json=as_json, quiet=quiet and not as_json, command="config")
-    except Exception as exc:
-        emit_error(exc, as_json=as_json)
-        raise click.exceptions.Exit(2) from None
-
-
-main.add_command(cat_command)
-main.add_command(cache_command)
-
-
-if __name__ == "__main__":
-    main()
+main = _RustCliCommand()

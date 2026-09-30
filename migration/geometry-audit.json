@@ -80,7 +80,7 @@
       "locator_geometry": "station-specific overlay bbox from the versioned radar resource",
       "native_crs": "EPSG:4326 overlay bbox; provider pixel transform pending",
       "evidence": ["python/radiust/sources/id_sidarma.py", "python/radiust/resources/sources/id_sidarma.json", "tests/fixtures/sources/id_sidarma/fixture.json", "migration/sources/id_sidarma.json"],
-      "blockers": ["No authorized current raw image and no pixel control points are retained."]
+      "blockers": ["A current JAK raw PNG is retained, but native pixel control points and pixel geometry remain unverified."]
     },
     {
       "id": "kr",

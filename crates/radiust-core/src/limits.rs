@@ -1,7 +1,11 @@
 use crate::errors::{CoreError, CoreResult};
+use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
+
+const MAX_TRACKED_HOSTS: usize = 4096;
 
 #[derive(Clone, Debug)]
 pub struct Limits {
@@ -63,6 +67,9 @@ impl Limits {
 pub struct RequestBudget {
     requests: Arc<Semaphore>,
     frames: Arc<Semaphore>,
+    hosts: Arc<Mutex<HashMap<String, Arc<Semaphore>>>>,
+    overflow_hosts: Arc<Semaphore>,
+    host_limit: usize,
     pub cancellation: CancellationToken,
 }
 
@@ -71,6 +78,9 @@ impl RequestBudget {
         Self {
             requests: Arc::new(Semaphore::new(limits.request_concurrency)),
             frames: Arc::new(Semaphore::new(limits.frame_concurrency)),
+            hosts: Arc::new(Mutex::new(HashMap::new())),
+            overflow_hosts: Arc::new(Semaphore::new(limits.host_concurrency)),
+            host_limit: limits.host_concurrency,
             cancellation: CancellationToken::new(),
         }
     }
@@ -85,6 +95,26 @@ impl RequestBudget {
     pub async fn acquire_frame(&self) -> CoreResult<OwnedSemaphorePermit> {
         tokio::select! {
             permit = self.frames.clone().acquire_owned() => permit.map_err(|_| CoreError::Cancelled),
+            _ = self.cancellation.cancelled() => Err(CoreError::Cancelled),
+        }
+    }
+
+    pub async fn acquire_host(&self, host: &str) -> CoreResult<OwnedSemaphorePermit> {
+        let host = host.to_ascii_lowercase();
+        let semaphore = {
+            let mut hosts = self.hosts.lock();
+            if let Some(semaphore) = hosts.get(&host) {
+                semaphore.clone()
+            } else if hosts.len() < MAX_TRACKED_HOSTS {
+                let semaphore = Arc::new(Semaphore::new(self.host_limit));
+                hosts.insert(host, semaphore.clone());
+                semaphore
+            } else {
+                self.overflow_hosts.clone()
+            }
+        };
+        tokio::select! {
+            permit = semaphore.acquire_owned() => permit.map_err(|_| CoreError::Cancelled),
             _ = self.cancellation.cancelled() => Err(CoreError::Cancelled),
         }
     }

@@ -1,11 +1,46 @@
 {
   "schema_version": 1,
   "source": "id_sidarma",
-  "origin": "https://api.bmkg.go.id/sidarma/sidarma-nowcast/android/ssx{radar_id}.json",
-  "collected_at": "2026-09-18T00:00:00Z",
-  "license_basis": "No raw artifact retained because the current provider API requires an authorized key.",
-  "status": "blocked",
-  "evidence": ["migration/sources/id_sidarma.json", "tests/sources/test_id_sidarma.py"],
-  "blockers": ["A current authorized API key and verified palette are required."],
-  "frames": []
+  "origin": "https://api.bmkg.go.id/radar/v1/arsip",
+  "collected_at": "2026-09-30T07:12:40.298621+00:00",
+  "license_basis": "BMKG artifact fetched using a user-provided request capture for local validation; operational use and redistribution remain subject to upstream terms. No credentials retained.",
+  "status": "raw-acquisition-verified-science-geometry-blocked",
+  "evidence": [
+    "archive-evidence.json",
+    "archive-response.json",
+    "migration/sources/id_sidarma.json",
+    "crates/radiust-core/src/source/id_sidarma.rs"
+  ],
+  "blockers": [
+    "CMAX color-to-dBZ palette and native image pixel geometry remain unverified."
+  ],
+  "frames": [
+    {
+      "product": "cmax",
+      "station": "JAK",
+      "valid_time": "2026-09-30T07:05:00Z",
+      "uri": "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0705.png",
+      "locator_version": "id_sidarma-legacy-v1",
+      "revision": "JAK-20260930-0705.png",
+      "metadata": {
+        "reference_shape": [
+          4084,
+          4084
+        ],
+        "raw_mode": "RGBA",
+        "time_semantics": "provider UTC listTime confirmed by archive filename",
+        "geometry_status": "unverified: legacy station bbox is not proof of native pixel coordinates",
+        "scientific_reference_status": "blocked: CMAX palette not verified"
+      },
+      "artifacts": [
+        {
+          "name": "JAK-20260930-0705.png",
+          "path": "raw/JAK-20260930-0705.png",
+          "role": "data",
+          "media_type": "image/png",
+          "sha256": "b48b2cfa0bebe5bc63f72910af0b4816b71bed89a295d8ab6dcb1a5f11c3d8e5"
+        }
+      ]
+    }
+  ]
 }

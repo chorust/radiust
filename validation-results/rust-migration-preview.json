@@ -1,0 +1,70 @@
+{
+  "all_30_pairs_correct": true,
+  "created_at_utc": "2026-09-30T03:42:58.606259+00:00",
+  "environment": {
+    "machine": "arm64",
+    "native_executable_sha256": "37e0b57d95b130b03d2d5a8a39e7867a14c7d870451576bebb1ccec5567e3456",
+    "network_setting": "disabled",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "python_package_tree_sha256": "df172292c6d3de3fe402c0bca940623c3e15006198199d786fb800165ed663e7",
+    "python_version": "3.12.7"
+  },
+  "fixture": {
+    "height": 256,
+    "path": "tests/fixtures/sources/windy/raw/tile-z1-x1-y1.png",
+    "sha256": "9052bae7ccf8af41e8046c0c2f1abe69f30803861bded455424ce9c9d3acef09",
+    "width": 256
+  },
+  "frame_pixel_sha256": "be7259c7427031760f32fa32da3578d4e5623470d6a1c3baf55f37e16c650ee5",
+  "limitation": "elapsed from process launch until all 48x24 ANSI preview cells are observed by the PTY reader; this is terminal-output completion, not emulator paint timing",
+  "measurements": {
+    "native": {
+      "all_correctness_checks_passed": true,
+      "direct_child_peak_rss_p50_bytes": 10747904.0,
+      "p50_first_frame_output_seconds": 0.030215708,
+      "p95_first_frame_output_seconds": 0.0326382459,
+      "process_tree_peak_rss_max_bytes": 10649600,
+      "sample_count": 30,
+      "sampled_temporary_bytes_max": 0,
+      "semantic_fingerprint_count": 1
+    },
+    "python": {
+      "all_correctness_checks_passed": true,
+      "direct_child_peak_rss_p50_bytes": 97853440.0,
+      "p50_first_frame_output_seconds": 0.3057927085,
+      "p95_first_frame_output_seconds": 0.3114877,
+      "process_tree_peak_rss_max_bytes": 98140160,
+      "sample_count": 30,
+      "sampled_temporary_bytes_max": 0,
+      "semantic_fingerprint_count": 1
+    }
+  },
+  "method": {
+    "first_frame_event": "PTY reader observed all ANSI cells in the complete preview grid",
+    "pair_order": "alternates Python/native first on each repetition",
+    "paired": true,
+    "percentile": "linear interpolation at index (n - 1) * p",
+    "pixel_validation": "each foreground/background RGB triplet and block glyph is decoded and compared to the source PNG nearest-neighbor pixel grid; all paired semantic fingerprints match",
+    "preview_grid": {
+      "columns": 48,
+      "rows": 24,
+      "terminal_cells": 1152
+    },
+    "pty": {
+      "columns": 80,
+      "rows": 24
+    },
+    "renderer": "ANSI true-color block renderer",
+    "rss_scope": "wait4 direct child and sampled process tree as recorded in the paired report",
+    "sample_interval_seconds": 0.01
+  },
+  "p95_native_to_python_ratio": 0.10478181289341443,
+  "p95_reduction_fraction": 0.8952181871065856,
+  "p95_speedup_factor": 9.543640946709086,
+  "satisfies_sc_005": true,
+  "scenario": "cat_file_local_raw_png_ansi_tty",
+  "schema_version": 1,
+  "semantic_fingerprints_match": true,
+  "source_comparison_report": "rust-migration-comparison.json",
+  "status": "passed"
+}

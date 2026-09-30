@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "radiust",
+    "discover",
+    "my",
+    "--latest",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": {
+    "command": "discover",
+    "counts": {
+      "items": 0
+    },
+    "error": null,
+    "interrupted": false,
+    "items": [],
+    "query": null,
+    "result": null,
+    "run_id": null,
+    "schema_version": 1
+  },
+  "trigger": "synthetic source discovery returned an empty list"
+}

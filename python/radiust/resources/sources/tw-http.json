@@ -3,6 +3,8 @@
   "source": "tw-http",
   "adapter_version": "1",
   "historical": true,
+  "page_url": "https://www.cwa.gov.tw/V8/C/W/OBS_Radar.html",
+  "referer": "https://www.cwa.gov.tw/V8/C/W/OBS_Radar.html",
   "index_url": "https://www.cwa.gov.tw/Data/js/obs_img/Observe_radar.js",
   "image_base": "https://www.cwa.gov.tw/Data/radar/",
   "product": "observation",

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "logical_id": "4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288",
+  "revision": "88177e82657e3e24b075d3fcc8eb39d0ec43d60be18f98d95efc487454079144",
+  "output_id": "53503ddf20f0bb74096c86e74620c8cdf545b6e986649cb5a05565da643da318",
+  "processing_spec": {
+    "identity_schema": 1,
+    "output_kind": "raw-only",
+    "format": "netcdf",
+    "variable": null,
+    "grid": "native",
+    "bbox": null,
+    "resolution": null,
+    "resampling": "nearest",
+    "decoder_version": "1",
+    "resource_version": "1",
+    "encoder_version": "1",
+    "options": {}
+  },
+  "processing_hash": "e8bdf1b9fbf11fb5dd68b3eef694e616f06aa9fa3f90d830316a8783b1695d7a",
+  "artifacts": [
+    {
+      "name": "raw-manifest.json",
+      "relative_uri": "frames/4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288/raw-manifest.json",
+      "role": "metadata",
+      "media_type": "application/json",
+      "size_bytes": 920,
+      "sha256": "f2cda276e0eebf914757e5a438f43b79f52b8b8f0aa9a4097b07b187280f72aa"
+    },
+    {
+      "name": "frames/4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288/raw/JAK-20260930-0713.png",
+      "relative_uri": "frames/4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288/raw/JAK-20260930-0713.png",
+      "role": "data",
+      "media_type": "image/png",
+      "size_bytes": 27239,
+      "sha256": "117e2038e352d96a8b6b244073fb52c6d6ceddd5c94f7d029916b944aa3e8f88"
+    }
+  ],
+  "raw_complete": true,
+  "created_at": "2026-09-30T07:29:45.861978Z",
+  "generation": "2209db76c1814bd28249eef563a294fe",
+  "supersedes": null
+}

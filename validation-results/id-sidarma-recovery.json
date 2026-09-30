@@ -1,0 +1,112 @@
+{
+  "discover": {
+    "exit_code": 0,
+    "report": {
+      "schema_version": 1,
+      "command": "discover",
+      "run_id": null,
+      "query": null,
+      "counts": {
+        "items": 1
+      },
+      "items": [
+        {
+          "source": "id_sidarma",
+          "product": "cmax",
+          "station": "JAK",
+          "valid_time": "2026-09-30T07:13:00.000000Z",
+          "logical_id": "4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288",
+          "source_urls": [
+            "https://api.bmkg.go.id/sidarma-mobile/arsip/JAK/20260930/CMAX/JAK-20260930-0713.png"
+          ]
+        }
+      ],
+      "result": null,
+      "error": null,
+      "interrupted": false
+    }
+  },
+  "download": {
+    "exit_code": 0,
+    "report": {
+      "schema_version": 1,
+      "command": "download",
+      "run_id": "native-download-59713-1790753385889105000",
+      "query": {
+        "source": "id_sidarma",
+        "product": null,
+        "stations": [
+          "JAK"
+        ],
+        "latest": true,
+        "max_age": null,
+        "base_time": null
+      },
+      "counts": {
+        "written": 1,
+        "skipped": 0,
+        "failed": 0,
+        "cancelled": 0,
+        "not_started": 0,
+        "planned": 0
+      },
+      "items": [
+        {
+          "source": "id_sidarma",
+          "product": "cmax",
+          "station": "JAK",
+          "valid_time": "2026-09-30T07:13:00.000000Z",
+          "logical_id": "4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288",
+          "status": "written",
+          "output_uri": "/Users/blizhan/data/code/github/radiust/validation-results/id-sidarma-live-data/frames/4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288/raw-manifest.json",
+          "error": null
+        }
+      ],
+      "error": null,
+      "interrupted": false
+    }
+  },
+  "science_guard": {
+    "exit_code": 2,
+    "report": {
+      "schema_version": 1,
+      "command": null,
+      "run_id": null,
+      "query": null,
+      "counts": {},
+      "items": [],
+      "error": {
+        "code": "unsupported",
+        "message": "Native decoded downloads support --format png, netcdf, geotiff, or zarr only for rainviewer composite or tw grid",
+        "stage": "validate",
+        "retryable": false
+      },
+      "interrupted": false
+    }
+  },
+  "committed_artifacts": [
+    {
+      "path": "validation-results/id-sidarma-live-data/frames/4bef7ed737ba61b74df3736e77dc0c6e7fdfcb3f2e04e1be554054194e9b0288/raw/JAK-20260930-0713.png",
+      "sha256": "117e2038e352d96a8b6b244073fb52c6d6ceddd5c94f7d029916b944aa3e8f88",
+      "size_bytes": 27239,
+      "image_size": [
+        4084,
+        4084
+      ],
+      "mode": "P"
+    }
+  ],
+  "validation": {
+    "manifest_hashes_verified": true,
+    "png_headers_verified": true,
+    "metadata_time_basis": "UTC",
+    "key_retained": false
+  },
+  "verification_counts": {
+    "sidarma_unit_tests_passed": 9,
+    "source_matrix_tests_passed": 10,
+    "cli_tests_passed": 99,
+    "python_contract_tests_passed": 27,
+    "preexisting_cli_snapshot_difference": "aggregate_discover_matches_v1_offline_statuses_and_exit_code lacks source_urls; excluded from broader CLI run"
+  }
+}

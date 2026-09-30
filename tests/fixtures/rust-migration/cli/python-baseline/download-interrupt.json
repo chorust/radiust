@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "radiust",
+    "download",
+    "au",
+    "--latest",
+    "--json"
+  ],
+  "exit_code": 1,
+  "stderr": "Aborted!",
+  "stdout": "",
+  "trigger": "synthetic KeyboardInterrupt during the SDK operation"
+}

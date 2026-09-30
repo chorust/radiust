@@ -41,6 +41,44 @@ fn gc_removes_expired_and_lru_entries_but_skips_leased_keys() {
 }
 
 #[test]
+fn gc_preview_reports_expired_entries_without_mutating_the_index_or_files() {
+    let directory = tempfile::tempdir().expect("directory");
+    let root = directory.path().join("cache");
+    let cache = Cache::open(&root).expect("cache");
+    let (_, _, path) = cache.put_bytes("expired", b"old-data", "object", Some(0)).unwrap();
+    drop(cache);
+
+    let cache = Cache::open_for_preview(&root).unwrap().expect("read-only cache preview");
+    let report = cache.gc_preview(0).expect("preview gc");
+
+    assert_eq!(report.removed, ["expired"]);
+    assert_eq!(report.bytes_before, 8);
+    assert_eq!(report.bytes_after, 0);
+    assert!(cache.index.get("expired").unwrap().is_some());
+    assert!(path.is_file());
+}
+
+#[test]
+fn opening_a_cache_for_preview_does_not_repair_or_create_cache_files() {
+    let directory = tempfile::tempdir().expect("directory");
+    let missing = directory.path().join("missing-cache");
+    assert!(Cache::open_for_preview(&missing).unwrap().is_none());
+    assert!(!missing.exists());
+
+    let root = directory.path().join("cache");
+    let cache = Cache::open(&root).expect("cache");
+    let (_, _, path) = cache.put_bytes("damaged", b"good-data", "object", None).unwrap();
+    drop(cache);
+    std::fs::write(&path, b"bad").unwrap();
+
+    let preview = Cache::open_for_preview(&root).unwrap().expect("read-only cache preview");
+    let report = preview.gc_preview(0).unwrap();
+    assert_eq!(report.removed, ["damaged"]);
+    assert_eq!(preview.index.entries().unwrap().len(), 1);
+    assert!(path.is_file());
+}
+
+#[test]
 fn updating_one_key_preserves_blob_shared_by_another_key() {
     let directory = tempfile::tempdir().expect("directory");
     let cache = Cache::open(directory.path().join("cache")).expect("cache");

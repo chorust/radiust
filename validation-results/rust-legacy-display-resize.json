@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "T034 legacy display resize performance evidence",
+  "measured_at": "2026-09-29",
+  "environment": {
+    "platform": "macOS 26.6.2 arm64",
+    "logical_cpu_count": 14,
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "profile": "debug"
+  },
+  "scenario": {
+    "source": "id",
+    "product": "composite",
+    "input_dimensions": [4084, 4084],
+    "fixture": "tests/fixtures/legacy-display/id/source.png",
+    "fixture_sha256": "b7788761625d9557ceb12c13a2d92cbcaa034777d21c52cc6e7349ba15913170",
+    "command": "cargo test --offline --locked -p radiust-core --test legacy_display_resize -- --exact id_legacy_display_matches_the_pinned_pillow_bicubic_output_pixel_for_pixel",
+    "semantic_result": "pixel_for_pixel_equal_to_frozen_legacy_output"
+  },
+  "before": {
+    "implementation": "serial bicubic passes and palette scans; usize nearest-index buffers",
+    "test_duration_seconds": [8.42],
+    "repetitions": 1
+  },
+  "after": {
+    "implementation": "bicubic passes and palette scans use a bounded pool of at most 4 Rayon workers; nearest-index buffers use u8; zero-color classification omits unused nearest indices",
+    "test_duration_seconds": [4.52, 4.50, 4.56, 4.56, 4.59],
+    "repetitions": 5,
+    "median_seconds": 4.56
+  },
+  "observed_median_reduction_percent_vs_single_before_sample": 45.8,
+  "limitations": [
+    "The before result is a single debug-profile sample; this is not a p95 claim.",
+    "The measurement covers local legacy display transformation only, not source discovery, network acquisition, or CLI startup.",
+    "Exact pixel parity remains the acceptance criterion; performance does not close the OpenCV inpaint or science coverage gaps."
+  ]
+}

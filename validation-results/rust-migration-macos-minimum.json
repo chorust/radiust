@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "check": "macos-wheel-minimum-deployment-build",
+  "status": "blocked",
+  "captured_at_utc": "2026-09-29T05:59:30Z",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "macos_version": "26.6.2"
+  },
+  "requested_macos_version": "11.0",
+  "raw_wheel": {
+    "path": "validation-results/wheel/pruned/bundled/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "sha256": "81915555fa278738dc5c136ee9c8dd83dc231faeb610bb4ca3c39849e979c990",
+    "delocated": false
+  },
+  "delocation": {
+    "status": "failed",
+    "command": "MACOSX_DEPLOYMENT_TARGET=11.0 delocate-wheel --require-archs arm64",
+    "minimum_dependency_version": "15.0",
+    "dependencies": [
+      "libnetcdf.22.dylib",
+      "libaec.0.1.6.dylib",
+      "libzstd.1.5.7.dylib",
+      "libhdf5.320.1.0.dylib",
+      "libsz.2.0.1.dylib",
+      "libhdf5_hl.320.0.1.dylib"
+    ],
+    "reason": "Current Homebrew-linked NetCDF/HDF5 compression libraries require macOS 15.0; delocate rejected lowering the wheel target to 11.0."
+  },
+  "resolution": "Do not distribute the raw macosx_11_0 wheel. The failed local attempt used prebuilt Homebrew dylibs; the repository workflow rebuilds these dependencies from source with the declared target, but that CI path has not run. A separate macosx_15_0 wheel from the same source passed isolated installation, Mach-O audit, and four-format readback; see rust-migration-packaging.json.",
+  "status_note": "macOS 11 compatibility of the source-built workflow remains unverified. This report only establishes that current prebuilt Homebrew dylibs cannot be relabeled as macOS 11."
+}

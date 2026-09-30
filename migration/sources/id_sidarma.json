@@ -4,40 +4,50 @@
   "old_commit": "8d251601ca551fbd5c05451f1fb337fc4b75362c",
   "old_path": "core/scrapers/id_sidarma_scraper.py",
   "adapter": "python/radiust/sources/id_sidarma.py",
-  "status": "acquisition-implemented-evidence-blocked",
+  "status": "raw-acquisition-verified-science-geometry-blocked",
   "credential_audit": {
     "legacy_key_literal_present": true,
     "value_migrated": false,
-    "live_probe_using_legacy_literal": "HTTP 403 on 2026-09-21"
+    "live_probe_using_legacy_literal": "HTTP 403 on 2026-09-21",
+    "authorized_current_probe": "HTTP 200 on 2026-09-30 using a user-provided capture key; value not retained"
   },
   "upstream": {
-    "api_template": "https://api.bmkg.go.id/sidarma/sidarma-nowcast/android/ssx{radar_id}.json",
+    "api_template": "https://api.bmkg.go.id/radar/v1/arsip?startTime={start_utc}&endTime={end_utc}&radar={radar_id}&product=CMAX",
     "product": "CMAX",
-    "buckets": [
+    "radar_count": 47,
+    "time_semantics": "provider UTC frame time",
+    "legacy_api_template": "https://api.bmkg.go.id/sidarma/sidarma-nowcast/android/ssx{radar_id}.json",
+    "legacy_buckets": [
       "LastOneHour",
       "Latest"
     ],
-    "radar_count": 47,
-    "time_semantics": "provider UTC frame time"
+    "response_fields": [
+      "listURL",
+      "listTime"
+    ],
+    "latest_lookback_minutes": 60
   },
   "differences": [
-    "The legacy embedded x-api-key is not migrated; api_key is accepted only through runtime configuration.",
-    "Discovery fails before any request when sources.id_sidarma.api_key is absent, so an unconfigured checkout cannot accidentally probe the provider.",
-    "The legacy radarlist is migrated as a versioned resource and each station keeps its own overlay bbox.",
-    "Frames duplicated between LastOneHour and Latest are downloaded once while retaining Latest semantics.",
-    "No luminance or guessed palette is used as reflectivity; scientific decode is rejected until a verified palette is available."
+    "API key remains external-only, injected as x-api-key at metadata request time and never stored in a locator.",
+    "Runtime discovery replaces the legacy ssx endpoint with radar/v1/arsip using a one-hour UTC window.",
+    "Archive listURL/listTime arrays must align; No Data is skipped; the archive PNG station, CMAX product and UTC timestamp must match metadata.",
+    "The 47-station legacy inventory and bbox remain metadata; native pixel geometry is unverified.",
+    "Legacy LastOneHour/Latest parsing is retained for compatibility; runtime archive results select the newest timestamp per station.",
+    "No luminance or guessed palette is used as reflectivity; science decoding stays blocked.",
+    "Raw image requests preserve the public SidarmaMobile/2 User-Agent. Empty User-Agent returns 403; no API key is sent to image URLs."
   ],
   "evidence": [
-    "python/radiust/resources/sources/id_sidarma.json",
-    "tests/sources/test_id_sidarma.py",
-    "tests/sources/test_external_credentials.py",
-    "live read-only provider probe using the legacy embedded key returned HTTP 403 on 2026-09-21",
-    "offline replay tests cover CMAX LastOneHour/Latest de-duplication, provider UTC parsing, station bbox, latest-only query policy, partial failures, cancellation, and raw acquisition; scientific decode stays fail-closed",
-    "tests/sources/test_id_sidarma.py::test_sidarma_transport_error_does_not_echo_configured_api_key verifies x-api-key values are removed from transport errors"
+    "tests/fixtures/sources/id_sidarma/archive-evidence.json",
+    "tests/fixtures/sources/id_sidarma/archive-response.json",
+    "tests/fixtures/sources/id_sidarma/fixture.json",
+    "crates/radiust-core/src/source/id_sidarma.rs",
+    "JAK metadata HTTP 200 and 4084x4084 PNG HTTP 200 without artifact credentials verified on 2026-09-30",
+    "Supplied old ssxJAK request returned HTTP 403 with the same key as the successful archive request.",
+    "validation-results/id-sidarma-recovery.json: CLI latest discovery, raw commit, PNG readback/hash verification and fail-closed science guard all verified on 2026-09-30"
   ],
   "blockers": [
-    "The legacy key literal is present but the provider rejects it; no currently valid authorized API credential is available for fixing a canonical upstream raw frame.",
-    "No verified CMAX color-to-dBZ palette has been recovered."
+    "No verified CMAX color-to-dBZ palette has been recovered.",
+    "Native pixel control points and image geometry remain unverified; the legacy bbox alone is insufficient."
   ],
   "credential_configuration": {
     "runtime_environment": "RADIUST_SOURCES__ID_SIDARMA__API_KEY",
@@ -71,5 +81,6 @@
         "scientific_status_unchanged": true
       }
     ]
-  }
+  },
+  "native_adapter": "crates/radiust-core/src/source/id_sidarma.rs"
 }

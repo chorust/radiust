@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "source": "tw-http",
+  "checked_at": "2026-09-30T06:45:35.497539+00:00",
+  "page_url": "https://www.cwa.gov.tw/V8/C/W/OBS_Radar.html",
+  "referer": "https://www.cwa.gov.tw/V8/C/W/OBS_Radar.html",
+  "index_url": "https://www.cwa.gov.tw/Data/js/obs_img/Observe_radar.js",
+  "commands": [
+    "cargo test -p radiust-core source::tw_http::tests --lib",
+    "cargo build -p radiust-cli",
+    "radiust --conf <network-enabled-config> --json discover tw-http --latest",
+    "radiust --conf <network-enabled-config> --json download tw-http --latest --raw-only --no-cache --overwrite"
+  ],
+  "unit_tests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "discover_counts": {
+    "items": 1
+  },
+  "download_counts": {
+    "written": 1,
+    "skipped": 0,
+    "failed": 0,
+    "cancelled": 0,
+    "not_started": 0,
+    "planned": 0
+  },
+  "frame": {
+    "source": "tw-http",
+    "product": "observation",
+    "station": "CV1_3600",
+    "valid_time": "2026-09-30T06:30:00.000000Z",
+    "base_time": null,
+    "locator": {
+      "artifacts": [],
+      "station": "CV1_3600",
+      "revision": "CV1_3600_202609301430"
+    },
+    "locator_version": "tw-http-legacy-v1",
+    "revision": "CV1_3600_202609301430",
+    "logical_id": "d92049fb16d66dc71197851854f0018c643311f20c72672950c750cdd16171d8"
+  },
+  "artifacts": [
+    {
+      "name": "CV1_3600_202609301430.png",
+      "role": "data",
+      "media_type": "image/png",
+      "size_bytes": 608950,
+      "sha256": "5199b0c9cfa6f7ab5d697df529735a87a99aeba52c6dfa528f470cfb925b3011",
+      "source_revision": null
+    }
+  ],
+  "raw_complete": true,
+  "png_signature_verified": true,
+  "sha256_verified": true
+}

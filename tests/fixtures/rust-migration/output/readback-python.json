@@ -1,0 +1,19 @@
+{
+  "reader": "python/radiust/storage/manifest.py",
+  "results": {
+    "conflict_v1": {
+      "logical_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "note": "artifact integrity is valid; identity differs from the legal fixture",
+      "output_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "status": "complete"
+    },
+    "damaged_v1": {
+      "status": "incomplete"
+    },
+    "legal_v1": {
+      "logical_id": "c5f3d209f57a286204135614de04cebb6c831324f4d01184811ff7d816fa4819",
+      "output_id": "56c1a0ee010ff6bf61ddb35838d6dae6aa6dd8309871f22ac73c567c2de95977",
+      "status": "complete"
+    }
+  }
+}

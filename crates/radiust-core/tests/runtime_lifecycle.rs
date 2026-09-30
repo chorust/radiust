@@ -20,6 +20,30 @@ fn request_budget_can_be_cancelled_without_sleeping() {
 }
 
 #[test]
+fn host_budget_is_shared_and_case_insensitive() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    let limits = Limits { host_concurrency: 1, ..Limits::default() };
+    let manager = RuntimeManager::new(limits).expect("runtime");
+    manager.block_on(async {
+        let first = manager.budget.acquire_host("Radar.Example").await.expect("first permit");
+        let acquired = Arc::new(AtomicBool::new(false));
+        let budget = manager.budget.clone();
+        let second_acquired = acquired.clone();
+        let second = tokio::spawn(async move {
+            let _permit = budget.acquire_host("radar.example").await.expect("second permit");
+            second_acquired.store(true, Ordering::SeqCst);
+        });
+        tokio::task::yield_now().await;
+        assert!(!acquired.load(Ordering::SeqCst));
+        drop(first);
+        second.await.expect("second request completes");
+        assert!(acquired.load(Ordering::SeqCst));
+    });
+}
+
+#[test]
 fn temp_owner_keeps_data_until_drop_and_cache_has_index() {
     let directory = tempfile::tempdir().expect("directory");
     let mut owner = TempOwner::new(directory.path()).expect("owner");

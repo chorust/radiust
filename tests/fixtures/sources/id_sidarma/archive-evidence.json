@@ -1,0 +1,17 @@
+{
+  "collected_at": "2026-09-30T07:12:40.298621+00:00",
+  "endpoint": "https://api.bmkg.go.id/radar/v1/arsip",
+  "query": {
+    "startTime": "202609300612",
+    "endTime": "202609300712",
+    "radar": "JAK",
+    "product": "CMAX"
+  },
+  "http_status": 200,
+  "authentication": "user-provided capture; injected at request time; value not retained",
+  "time_evidence": "listTime explicitly uses UTC; UTC+7 and UTC+8 windows returned No Data",
+  "artifact_request_headers": {
+    "User-Agent": "SidarmaMobile/2"
+  },
+  "artifact_authentication": "No API key sent; User-Agent required (empty User-Agent returned 403; SidarmaMobile/2 returned 200)"
+}

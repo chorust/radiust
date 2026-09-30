@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "check": "current-browser-cdp-wheel-audit",
+  "status": "partial",
+  "captured_at": "2026-09-29",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "macos_version": "26.6.2"
+  },
+  "build": {
+    "command": "MACOSX_DEPLOYMENT_TARGET=15.0 maturin build --release --auditwheel repair",
+    "offline": true,
+    "wheel": "/tmp/radiust-browser-wheel15/radiust-0.1.0-cp312-cp312-macosx_15_0_arm64.whl",
+    "sha256": "58c61986ca5ca7d3d28db53bdf332c0d751254d3b459d050cf46d6fa5dec1554",
+    "architecture": "arm64",
+    "minimum_macos": "15.0"
+  },
+  "checks": {
+    "isolated_base_wheel_install": "passed",
+    "python_extension_import": "passed",
+    "native_cli_list_sources": "passed; 24 sources",
+    "macho_audit_no_developer_homebrew_paths": "passed",
+    "current_wheel_optional_format_readback": "blocked; pip install of optional extras exceeded the audit's 600-second limit while downloading from files.pythonhosted.org",
+    "current_source_full_python_readback": "passed; included in 643 passed, 25 skipped suite after rebuilding the extension and fixing the Runtime.evaluate result path",
+    "previous_delocated_wheel_four_format_readback": "passed; see rust-migration-packaging.json"
+  },
+  "remaining": [
+    "Re-run optional-extra readback in a network environment with reliable PyPI downloads.",
+    "Run the source-built macOS 11 dependency workflow in CI; the local prebuilt dylibs require macOS 15."
+  ]
+}

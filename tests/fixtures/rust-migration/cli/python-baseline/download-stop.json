@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "radiust",
+    "download",
+    "au",
+    "--latest",
+    "--raw-only",
+    "--on-error",
+    "stop",
+    "--json"
+  ],
+  "exit_code": 2,
+  "stderr": "",
+  "stdout": {
+    "command": null,
+    "counts": {},
+    "error": {
+      "code": "batch_error",
+      "message": "batch stopped after first failure",
+      "retryable": false,
+      "stage": "process"
+    },
+    "interrupted": false,
+    "items": [],
+    "query": null,
+    "run_id": null,
+    "schema_version": 1
+  },
+  "trigger": "synthetic BatchError with failed and not_started partial items"
+}

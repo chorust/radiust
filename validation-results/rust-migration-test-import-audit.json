@@ -1,0 +1,16 @@
+{
+  "check": "python-test-imports-of-wheel-excluded-modules",
+  "direct_import_statement_count": 0,
+  "distinct_excluded_module_paths": 0,
+  "excluded_module_reference_counts": {},
+  "matching_test_files": [],
+  "parse_errors": [],
+  "schema_version": 1,
+  "scope": "direct AST imports only; dynamically constructed imports are not detected",
+  "test_file_count": 75,
+  "test_files_with_excluded_module_imports": 0,
+  "wheel": {
+    "path": "/private/tmp/radiust-final-wheel/radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "sha256": "94f4a11b90dda7f90fb591eb83a735c6e6483171fa04278bf942faa821ac3b90"
+  }
+}

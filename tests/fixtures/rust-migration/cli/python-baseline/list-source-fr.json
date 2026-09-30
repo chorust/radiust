@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "radiust",
+    "list",
+    "fr",
+    "--json"
+  ],
+  "exit_code": 0,
+  "stderr": "",
+  "stdout": {
+    "command": "list",
+    "counts": {},
+    "error": null,
+    "interrupted": false,
+    "items": [],
+    "query": null,
+    "result": {
+      "availability": "needs_configuration",
+      "description": "France Meteo-France radar",
+      "id": "fr",
+      "products": [
+        "composite"
+      ],
+      "stations": []
+    },
+    "run_id": null,
+    "schema_version": 1
+  }
+}
