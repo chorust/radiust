@@ -47,15 +47,25 @@ def test_real_chromium_cdp_handshake_and_private_profile_cleanup() -> None:
 
     env = os.environ.copy()
     wrapper_root = None
-    browser_log = None
+    browser_logs: list[tuple[str, Path]] = []
     if env.get("RADIUST_TEST_CHROMIUM_NO_SANDBOX") == "1":
         wrapper_root = tempfile.TemporaryDirectory(prefix="radiust-chromium-test-")
         wrapper = Path(wrapper_root.name) / "chromium-wrapper"
-        browser_log = Path(wrapper_root.name) / "chromium-stderr.log"
+        browser_args_log = Path(wrapper_root.name) / "chromium-args.log"
+        browser_stdout_log = Path(wrapper_root.name) / "chromium-stdout.log"
+        browser_stderr_log = Path(wrapper_root.name) / "chromium-stderr.log"
+        browser_logs = [
+            ("Chromium arguments", browser_args_log),
+            ("Chromium stdout", browser_stdout_log),
+            ("Chromium stderr", browser_stderr_log),
+        ]
         wrapper.write_text(
             "#!/bin/sh\n"
+            "unset DBUS_SESSION_BUS_ADDRESS DBUS_STARTER_ADDRESS DBUS_STARTER_BUS_TYPE\n"
+            f"printf '%s\\n' \"$@\" >{shlex.quote(str(browser_args_log))}\n"
             f"exec {shlex.quote(executable)} --no-sandbox --disable-dev-shm-usage "
-            f'--enable-logging=stderr "$@" 2>{shlex.quote(str(browser_log))}\n',
+            f'--enable-logging=stderr "$@" >{shlex.quote(str(browser_stdout_log))} '
+            f"2>{shlex.quote(str(browser_stderr_log))}\n",
             encoding="utf-8",
         )
         wrapper.chmod(0o755)
@@ -84,10 +94,11 @@ def test_real_chromium_cdp_handshake_and_private_profile_cleanup() -> None:
             timeout=240,
             check=False,
         )
-        if browser_log is not None and browser_log.is_file():
-            chromium_stderr = browser_log.read_text(encoding="utf-8", errors="replace")
-            if chromium_stderr:
-                result.stderr = f"{result.stderr}\nChromium stderr:\n{chromium_stderr}"
+        for label, log_path in browser_logs:
+            if log_path.is_file():
+                contents = log_path.read_text(encoding="utf-8", errors="replace")
+                if contents:
+                    result.stderr = f"{result.stderr}\n{label}:\n{contents}"
     finally:
         if wrapper_root is not None:
             wrapper_root.cleanup()

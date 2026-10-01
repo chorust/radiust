@@ -97,7 +97,7 @@
       },
       {
         "availability": "needs_configuration",
-        "description": "New Zealand rural mobile radar",
+        "description": "New Zealand MetService mobile radar",
         "id": "nz",
         "products": [
           "rain"

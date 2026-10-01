@@ -73,7 +73,17 @@ fn run_with_stderr_tty(args: &[&str]) -> (std::process::ExitStatus, Vec<u8>, Vec
     });
     let stderr_reader = thread::spawn(move || {
         let mut output = Vec::new();
-        master.read_to_end(&mut output).expect("read terminal stderr");
+        let mut buffer = [0; 4096];
+        loop {
+            match master.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(read) => output.extend_from_slice(&buffer[..read]),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                // Linux PTY masters report EIO after the last slave closes.
+                Err(error) if error.raw_os_error() == Some(libc::EIO) => break,
+                Err(error) => panic!("read terminal stderr: {error}"),
+            }
+        }
         output
     });
     let status = child.wait().expect("native radiust process exits");
@@ -215,7 +225,9 @@ fn native_human_reports_are_labeled_and_verbose_does_not_change_json() {
 }
 
 #[test]
-fn aggregate_discover_matches_v1_offline_statuses_and_exit_code() {
+fn aggregate_discover_matches_native_v1_offline_statuses_and_exit_code() {
+    // The native PH adapter does not need the Python baseline's timeline
+    // token, so it is network-restricted here instead of credential-gated.
     assert_snapshot(
         &["discover", "all", "--json"],
         include_str!("../../../tests/fixtures/rust-migration/cli/discover-all.json"),
