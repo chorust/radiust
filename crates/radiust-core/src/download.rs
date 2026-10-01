@@ -451,6 +451,7 @@ fn schedule_decoded_fetch<'a>(
     running: &mut BTreeMap<usize, (FrameRef, CancellationToken)>,
 ) {
     let frame_for_fetch = frame.clone();
+    let frame_for_result = frame.clone();
     let cancellation_for_fetch = cancellation.clone();
     in_flight.push(Box::pin(async move {
         let result = tokio::select! {
@@ -469,9 +470,9 @@ fn schedule_decoded_fetch<'a>(
                     .map_err(|error| (error, ErrorStage::Decode))
             } => result,
         };
-        (index, frame, result)
+        (index, frame_for_result, result)
     }));
-    running.insert(index, (frame.clone(), cancellation));
+    running.insert(index, (frame, cancellation));
 }
 
 /// Acquire and decode each frame in one bounded task so a decode failure can
@@ -545,10 +546,7 @@ pub async fn fetch_many_decoded(
             .remove(&index)
             .map(|(_, cancellation)| cancellation)
             .unwrap_or_else(CancellationToken::new);
-        let cancelled = matches!(
-            &result,
-            Err((EngineError::Core(CoreError::Cancelled), _))
-        );
+        let cancelled = matches!(&result, Err((EngineError::Core(CoreError::Cancelled), _)));
         let after_failure = stop_after.is_some_and(|failed_index| index > failed_index);
         let failed = result.is_err() && !cancelled && !after_failure;
         let cancelled_message = if after_failure || cancellation.is_cancelled() {

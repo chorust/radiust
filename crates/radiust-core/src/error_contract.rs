@@ -63,7 +63,9 @@ impl ErrorReport {
             CoreError::ResourceLimit(_) => {
                 (ErrorCode::ResourceLimit, "configured resource limit exceeded".to_owned(), false)
             }
-            CoreError::Transport(message) if message == "source ph returned a placeholder data image" => {
+            CoreError::Transport(message)
+                if message == "source ph returned a placeholder data image" =>
+            {
                 (ErrorCode::Transport, message.clone(), true)
             }
             CoreError::Transport(_) => {

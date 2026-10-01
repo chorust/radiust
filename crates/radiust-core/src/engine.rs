@@ -4,7 +4,9 @@ use crate::config::{CoreConfig, RuntimeConfig};
 use crate::discovery::{DiscoveryOutcome, run_source_fair_with_deadline};
 #[cfg(feature = "extension-module")]
 use crate::download::DecodedFetchStream;
-use crate::download::{DecodedFetchBatchReport, FetchBatchReport, FetchErrorPolicy, fetch_many_raw};
+use crate::download::{
+    DecodedFetchBatchReport, FetchBatchReport, FetchErrorPolicy, fetch_many_raw,
+};
 use crate::error_contract::{ErrorReport, ErrorStage};
 use crate::errors::CoreError;
 use crate::grid::{Resampling, regrid_regular, supports_regrid_crs};
@@ -1047,9 +1049,8 @@ impl Engine {
                 }
                 let remaining_frame = limits.max_frame_bytes - total_bytes;
                 let remaining_temp = limits.max_temp_bytes - total_bytes;
-                let artifact_limit = remaining_frame
-                    .min(remaining_temp)
-                    .min(limits.max_artifact_bytes);
+                let artifact_limit =
+                    remaining_frame.min(remaining_temp).min(limits.max_artifact_bytes);
                 let artifact_key = format!("raw:{frame_key}:artifact:{name}");
                 let destination =
                     temp_root.join(format!("{}.cache-{index}.bin", uuid::Uuid::new_v4()));
@@ -1723,7 +1724,11 @@ fn make_artifact_request(
 
 fn sanitize_fetch_error(error: CoreError, source: &str) -> CoreError {
     match error {
-        CoreError::Transport(message) if source == "ph" && message == "source ph returned a placeholder data image" => CoreError::Transport(message),
+        CoreError::Transport(message)
+            if source == "ph" && message == "source ph returned a placeholder data image" =>
+        {
+            CoreError::Transport(message)
+        }
         CoreError::Cancelled => CoreError::Cancelled,
         CoreError::NetworkDisabled(_) => {
             CoreError::NetworkDisabled(format!("source {source} artifact acquisition is disabled"))
@@ -2129,11 +2134,8 @@ mod tests {
     #[test]
     fn multi_source_vn_latest_selects_each_station_without_historical_ambiguity() {
         let query = Query { source: Some("all".into()), ..Query::default() };
-        let target = DiscoveryTarget {
-            source: "vn".into(),
-            product: Some("cmax".into()),
-            station: None,
-        };
+        let target =
+            DiscoveryTarget { source: "vn".into(), product: Some("cmax".into()), station: None };
         let stations = ["DHA", "NHB", "NHT", "PHA", "PLE", "PLI", "QNH", "TKY", "VIN", "VTR"];
         let latest = "2026-09-24T00:10:00Z";
         let frames = stations

@@ -819,7 +819,10 @@ fn doctor_reports_source_optional_capabilities_without_probe_or_secret_exposure(
     std::fs::remove_file(ph_config).unwrap();
     assert_eq!(ph.status.code(), Some(0));
     let report: Value = serde_json::from_slice(&ph.stdout).unwrap();
-    assert_eq!(report["checks"]["source_capabilities"]["timeline_token"]["status"], "automatic_session");
+    assert_eq!(
+        report["checks"]["source_capabilities"]["timeline_token"]["status"],
+        "automatic_session"
+    );
     assert_eq!(report["checks"]["source_capabilities"]["timeline_token"]["value_exposed"], false);
     assert!(matches!(
         report["checks"]["source_capabilities"]["browser_fallback"]["status"].as_str(),

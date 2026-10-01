@@ -103,11 +103,8 @@ const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 26] = [
 ];
 
 const RAW_HOOK_SOURCES: [&str; 6] = ["au", "ph", "rainviewer", "th", "tw", "windy"];
-const CREDENTIALS: [(&str, &str); 3] = [
-    ("id", "token"),
-    ("id_sidarma", "api_key"),
-    ("wunderground", "api_key"),
-];
+const CREDENTIALS: [(&str, &str); 3] =
+    [("id", "token"), ("id_sidarma", "api_key"), ("wunderground", "api_key")];
 
 fn offline_engine(config: CoreConfig) -> Engine {
     assert!(!config.runtime.allow_network, "source matrix tests must stay offline");
