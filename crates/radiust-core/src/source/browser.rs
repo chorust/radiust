@@ -569,7 +569,7 @@ impl ChromiumSession {
         let frame_deadline =
             Instant::now() + Duration::from_secs(context.limits.frame_deadline_secs.max(1));
         let startup_deadline =
-            (Instant::now() + request_timeout.min(Duration::from_secs(15))).min(frame_deadline);
+            (Instant::now() + request_timeout.min(Duration::from_secs(30))).min(frame_deadline);
         let endpoint =
             wait_for_debugger(&mut process, &context.request_budget, startup_deadline).await?;
         let socket = connect_debugger(&endpoint, startup_deadline, &context.request_budget).await?;
@@ -1657,7 +1657,7 @@ mod tests {
         };
         let temporary = tempfile::tempdir().unwrap();
         let session = tokio::time::timeout(
-            Duration::from_secs(30),
+            Duration::from_secs(45),
             ChromiumSession::launch(
                 &context,
                 temporary.path(),
