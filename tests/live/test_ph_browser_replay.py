@@ -47,12 +47,15 @@ def test_real_chromium_cdp_handshake_and_private_profile_cleanup() -> None:
 
     env = os.environ.copy()
     wrapper_root = None
+    browser_log = None
     if env.get("RADIUST_TEST_CHROMIUM_NO_SANDBOX") == "1":
         wrapper_root = tempfile.TemporaryDirectory(prefix="radiust-chromium-test-")
         wrapper = Path(wrapper_root.name) / "chromium-wrapper"
+        browser_log = Path(wrapper_root.name) / "chromium-stderr.log"
         wrapper.write_text(
             "#!/bin/sh\n"
-            f'exec {shlex.quote(executable)} --no-sandbox --disable-dev-shm-usage "$@"\n',
+            f"exec {shlex.quote(executable)} --no-sandbox --disable-dev-shm-usage "
+            f'--enable-logging=stderr "$@" 2>{shlex.quote(str(browser_log))}\n',
             encoding="utf-8",
         )
         wrapper.chmod(0o755)
@@ -81,6 +84,10 @@ def test_real_chromium_cdp_handshake_and_private_profile_cleanup() -> None:
             timeout=240,
             check=False,
         )
+        if browser_log is not None and browser_log.is_file():
+            chromium_stderr = browser_log.read_text(encoding="utf-8", errors="replace")
+            if chromium_stderr:
+                result.stderr = f"{result.stderr}\nChromium stderr:\n{chromium_stderr}"
     finally:
         if wrapper_root is not None:
             wrapper_root.cleanup()

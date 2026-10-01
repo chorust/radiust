@@ -86,25 +86,33 @@ fn expected_text() -> String {
 }
 
 fn write_multitime_netcdf(path: &Path) {
-    let mut file = netcdf::create(path).expect("create local NetCDF fixture");
+    // Keep this subprocess fixture in the portable classic format. It only
+    // needs small numeric arrays, so it does not need an HDF5-backed file.
+    let mut file =
+        netcdf::create_with(path, netcdf::Options::empty()).expect("create local NetCDF fixture");
     file.add_dimension("time", 2).expect("add time dimension");
     file.add_dimension("y", 2).expect("add y dimension");
     file.add_dimension("x", 2).expect("add x dimension");
     {
-        let mut time = file.add_variable::<i64>("time", &["time"]).expect("add time variable");
+        let mut time = file.add_variable::<f64>("time", &["time"]).expect("add time variable");
         time.put_attribute("units", "seconds since 1970-01-01 00:00:00 UTC")
             .expect("set time units");
-        time.put_values(&[1_790_380_800_i64, 1_790_388_000_i64], ..).expect("write time values");
     }
     {
         let mut field = file
             .add_variable::<f32>("reflectivity", &["time", "y", "x"])
             .expect("add reflectivity variable");
         field.put_attribute("units", "dBZ").expect("set reflectivity units");
-        field
-            .put_values(&[1.0_f32, 2.0, 3.0, 4.0, 11.0, 12.0, 13.0, 14.0], ..)
-            .expect("write reflectivity values");
     }
+    file.enddef().expect("finish local NetCDF fixture definitions");
+    file.variable_mut("time")
+        .expect("get time variable")
+        .put_values(&[1_790_380_800.0_f64, 1_790_388_000.0], ..)
+        .expect("write time values");
+    file.variable_mut("reflectivity")
+        .expect("get reflectivity variable")
+        .put_values(&[1.0_f32, 2.0, 3.0, 4.0, 11.0, 12.0, 13.0, 14.0], ..)
+        .expect("write reflectivity values");
     file.close().expect("close local NetCDF fixture");
 }
 
@@ -249,6 +257,7 @@ fn cat_local_multitime_netcdf_requires_selection_and_shows_the_selected_field() 
     let directory = tempfile::tempdir().expect("create temporary fixture directory");
     let path = directory.path().join("series.nc");
     write_multitime_netcdf(&path);
+    drop(netcdf::open(&path).expect("reopen local NetCDF fixture before spawning CLI"));
     let path_text = path.to_str().expect("fixture path is valid UTF-8");
     let ambiguous = run_cat(&["cat", "--file", path_text, "--variable", "reflectivity"]);
 
