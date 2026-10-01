@@ -4,7 +4,7 @@ Cargo 安装的 `radiust` 是原生 Rust CLI。Python 包提供的 `radiust` con
 
 ## 原生 Rust CLI
 
-从仓库根目录构建或安装，见[安装说明](installation.md#原生-rust-命令行程序)。当前实现提供七组命令：`list`、`discover`、`download`、`cat`、`doctor`、`config` 和 `cache`。`--conf PATH`、`--json` 与 `--quiet` 是全局选项，可放在根命令或子命令后。命令默认输出人类可读报告；显式 `--json` 输出一条紧凑 JSON。TTY 上的 discover、download 和来源预览会把安全进度写到 stderr，JSON 仍只写 stdout；非 TTY 不输出进度。`--quiet` 抑制成功报告和进度，但不抑制 JSON、错误或 `cat` 预览。报告 schema 版本为 1，但各命令的字段形状不同。
+macOS Apple Silicon 可从[安装说明](installation.md#macos-apple-silicon-预编译版本预览)获取 v0.1.0 预览版；也可从仓库根目录构建或使用 Cargo 安装，步骤见[原生 CLI 安装说明](installation.md#原生-rust-命令行程序)。当前实现提供七组命令：`list`、`discover`、`download`、`cat`、`doctor`、`config` 和 `cache`。`--conf PATH`、`--json` 与 `--quiet` 是全局选项，可放在根命令或子命令后。命令默认输出人类可读报告；显式 `--json` 输出一条紧凑 JSON。TTY 上的 discover、download 和来源预览会把安全进度写到 stderr，JSON 仍只写 stdout；非 TTY 不输出进度。`--quiet` 抑制成功报告和进度，但不抑制 JSON、错误或 `cat` 预览。报告 schema 版本为 1，但各命令的字段形状不同。
 
 ### 终端报告
 

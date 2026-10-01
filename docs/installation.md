@@ -2,7 +2,30 @@
 
 ## 原生 Rust 命令行程序
 
-原生 `radiust` 二进制不需要 Python。工作区声明 Rust 1.92 或更新版本；从仓库根目录构建并运行：
+原生 `radiust` 二进制不需要 Python。macOS Apple Silicon 用户可以下载下方的预编译版本；从仓库源码构建或使用 Cargo 安装则需要 Rust 1.92 或更新版本。
+
+### macOS Apple Silicon 预编译版本（预览）
+
+GitHub 提供 macOS arm64 预览版 `v0.1.0`，支持 macOS 11 及更新版本。它是独立 Rust CLI，不是 Python 包；发布资产和后续版本见 [GitHub Releases](https://github.com/chorust/radiust/releases)。下载后先检查 SHA-256，再安装到用户级 `~/.local/bin`：
+
+```bash
+mkdir -p "$HOME/.local/bin"
+workdir="$(mktemp -d)"
+cd "$workdir"
+curl -fL -o radiust-v0.1.0-macos-arm64.tar.gz \
+  https://github.com/chorust/radiust/releases/download/v0.1.0/radiust-v0.1.0-macos-arm64.tar.gz
+curl -fL -o radiust-v0.1.0-macos-arm64.sha256 \
+  https://github.com/chorust/radiust/releases/download/v0.1.0/radiust-v0.1.0-macos-arm64.sha256
+shasum -a 256 -c radiust-v0.1.0-macos-arm64.sha256
+tar -xzf radiust-v0.1.0-macos-arm64.tar.gz
+install -m 755 radiust "$HOME/.local/bin/radiust"
+export PATH="$HOME/.local/bin:$PATH"
+radiust --help
+```
+
+`~/.local/bin` 若尚未加入 PATH，请将 `export PATH="$HOME/.local/bin:$PATH"` 加入 `~/.zshrc` 并重新打开终端。该预览构建未经过 Apple 公证；首次运行时 macOS 可能显示 Gatekeeper 提示。确认下载来源并通过 SHA-256 校验后，再决定是否允许运行。预览版仍有未完成的来源和科学能力验收，详见下方支持边界及[迁移记录](migration.md)。
+
+### 从源码构建或使用 Cargo 安装
 
 ```bash
 cargo build --locked --release -p radiust-cli

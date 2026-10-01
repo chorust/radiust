@@ -100,6 +100,12 @@ with radiust.Client() as client:
 
 ## 安装和可选能力
 
+### macOS Apple Silicon 原生 CLI（预览版）
+
+macOS arm64 用户可下载独立 Rust CLI `radiust` v0.1.0（支持 macOS 11 及更新版本），无需安装 Python 或 Rust。当前为预览版，适用范围和校验步骤见[完整安装说明](docs/installation.md#macos-apple-silicon-预编译版本预览)及 [GitHub Release](https://github.com/chorust/radiust/releases/tag/v0.1.0)。该 CLI 与下方的 Python 包是两种独立安装方式。
+
+### Python 包
+
 基础安装包含 Rust 扩展；YAML 配置由 Rust 解析，因此运行时不依赖 PyYAML。科学互操作等能力按需安装：
 
 ```bash
