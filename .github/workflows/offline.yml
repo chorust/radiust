@@ -67,4 +67,5 @@ jobs:
         env:
           RADIUST_TEST_ALLOW_LIVE: "1"
           RADIUST_TEST_REAL_BROWSER: "1"
+          RADIUST_TEST_CHROMIUM_NO_SANDBOX: "1"
         run: uv run --no-sync pytest -q tests/live/test_ph_browser_replay.py

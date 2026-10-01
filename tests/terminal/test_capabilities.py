@@ -10,13 +10,44 @@ ROOT = Path(__file__).parents[2]
 IMAGE = ROOT / "tests/fixtures/sources/au/raw/IDR021.T.202609180511.png"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _build_native_cli_once():
+    binary = ROOT / "target/debug/radiust"
+    if binary.is_file():
+        return
+    subprocess.run(
+        [
+            "cargo",
+            "build",
+            "--quiet",
+            "--offline",
+            "--locked",
+            "-p",
+            "radiust-cli",
+            "--bin",
+            "radiust",
+        ],
+        cwd=ROOT,
+        check=True,
+        timeout=240,
+    )
+
+
 def _native_command(*args: str) -> list[str]:
     binary = ROOT / "target/debug/radiust"
     if binary.is_file():
         return [str(binary), *args]
     return [
-        "cargo", "run", "--quiet", "--offline", "--package", "radiust-cli",
-        "--bin", "radiust", "--", *args,
+        "cargo",
+        "run",
+        "--quiet",
+        "--offline",
+        "--package",
+        "radiust-cli",
+        "--bin",
+        "radiust",
+        "--",
+        *args,
     ]
 
 

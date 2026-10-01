@@ -58,7 +58,17 @@ fn run_cat_on_pty(args: &[&str], no_color: bool) -> (std::process::ExitStatus, V
     drop(command);
     let reader = thread::spawn(move || {
         let mut output = Vec::new();
-        master.read_to_end(&mut output).expect("read pty output");
+        let mut buffer = [0; 4096];
+        loop {
+            match master.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(read) => output.extend_from_slice(&buffer[..read]),
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                // Linux PTY masters report EIO when the last slave descriptor closes.
+                Err(error) if error.raw_os_error() == Some(libc::EIO) => break,
+                Err(error) => panic!("read pty output: {error}"),
+            }
+        }
         output
     });
     let status = child.wait().expect("native radiust process exits");

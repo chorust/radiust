@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -44,27 +46,42 @@ def test_real_chromium_cdp_handshake_and_private_profile_cleanup() -> None:
         pytest.skip("cargo is unavailable; the opt-in Rust browser test cannot run")
 
     env = os.environ.copy()
+    wrapper_root = None
+    if env.get("RADIUST_TEST_CHROMIUM_NO_SANDBOX") == "1":
+        wrapper_root = tempfile.TemporaryDirectory(prefix="radiust-chromium-test-")
+        wrapper = Path(wrapper_root.name) / "chromium-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f'exec {shlex.quote(executable)} --no-sandbox --disable-dev-shm-usage "$@"\n',
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        executable = str(wrapper)
     env["RADIUST_CHROMIUM_EXECUTABLE"] = executable
-    result = subprocess.run(
-        [
-            cargo,
-            "test",
-            "-p",
-            "radiust-core",
-            "--lib",
-            "--offline",
-            "--locked",
-            RUST_TEST,
-            "--",
-            "--ignored",
-            "--exact",
-            "--nocapture",
-        ],
-        cwd=ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=240,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [
+                cargo,
+                "test",
+                "-p",
+                "radiust-core",
+                "--lib",
+                "--offline",
+                "--locked",
+                RUST_TEST,
+                "--",
+                "--ignored",
+                "--exact",
+                "--nocapture",
+            ],
+            cwd=ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=240,
+            check=False,
+        )
+    finally:
+        if wrapper_root is not None:
+            wrapper_root.cleanup()
     assert result.returncode == 0, f"native Chromium test failed:\n{result.stdout}\n{result.stderr}"
