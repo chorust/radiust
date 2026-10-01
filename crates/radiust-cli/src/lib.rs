@@ -2839,7 +2839,9 @@ mod tests {
                 raw_fixtures: None,
             }))
             .unwrap();
-        Engine::new(config.clone(), overrides).unwrap()
+        let mut isolated_config = config.clone();
+        isolated_config.cache.enabled = false;
+        Engine::new(isolated_config, overrides).unwrap()
     }
 
     fn rainviewer_cat_fixture() -> (FrameRef, Vec<CatRawArtifactFixture>) {
@@ -2900,7 +2902,9 @@ mod tests {
                 raw_fixtures: Some(raw_fixtures),
             }))
             .unwrap();
-        Engine::new(config.clone(), overrides).unwrap()
+        let mut isolated_config = config.clone();
+        isolated_config.cache.enabled = false;
+        Engine::new(isolated_config, overrides).unwrap()
     }
 
     fn cat_test_query() -> Query {
