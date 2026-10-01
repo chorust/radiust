@@ -15,7 +15,7 @@ from radiust.errors import (
 )
 
 
-@pytest.mark.parametrize("method", ["discover", "fetch", "download", "fetch_many"])
+@pytest.mark.parametrize("method", ["discover", "fetch", "download"])
 def test_offline_discovery_propagates_network_failure(method):
     with (
         Client(config={"runtime": {"allow_network": False}}) as client,
@@ -25,6 +25,26 @@ def test_offline_discovery_propagates_network_failure(method):
     assert caught.value.stage == "discover"
     assert caught.value.source == "sg"
     assert not caught.value.retryable
+
+
+def test_offline_fetch_many_collects_the_discovery_failure():
+    with Client(config={"runtime": {"allow_network": False}}) as client:
+        result = client.fetch_many(Query("sg", latest=True))
+
+    assert result.items == ()
+    assert result.discovery_counts["total"] == 1
+    assert result.discovery_counts["network_restricted"] == 1
+
+
+def test_offline_rdcap_unknown_selector_returns_discovery_failure():
+    query = Query("rdcap", stations=("NOPE",), latest=True)
+    with Client(config={"runtime": {"allow_network": False}}) as client:
+        report = client.discover_report(query)
+        result = client.fetch_many(query)
+    assert report.items[0].target.station == "NOPE"
+    assert report.items[0].error["code"] == "catalog_unavailable"
+    assert result.items == ()
+    assert result.discovery_counts["total"] == 1
 
 
 @pytest.mark.asyncio
@@ -70,7 +90,7 @@ async def test_range_frames_reach_sdk_download_and_fetch_reports(monkeypatch, tm
     frames = [core.FrameRef(json.dumps({
         **json.loads(frame.to_json()), "logical_id": core.identity_logical_id(frame.to_json()),
     })) for frame in frames]
-    native_report = core.DiscoveryReport(json.dumps({
+    native_payload = {
         "schema_version": 1,
         "query": rust_client._bridge._native_query_payload(query),
         "interrupted": False,
@@ -83,14 +103,25 @@ async def test_range_frames_reach_sdk_download_and_fetch_reports(monkeypatch, tm
             "target": {"source": frame.source, "product": frame.product, "station": None},
             "valid_time": json.loads(frame.to_json())["valid_time"], "error": None,
         } for frame in frames],
-    }))
+    }
+    native_report = core.DiscoveryReport(json.dumps(native_payload))
 
     class Session:
         def __init__(self, config):
             self.engine = core.Engine(json.dumps({"runtime": {"allow_network": False}}))
 
         async def discover_report(self, query):
+            if query.at is not None:
+                document = json.loads(json.dumps(native_payload))
+                document["items"] = [item for item in document["items"] if (
+                    query.at == datetime.fromisoformat(item["valid_time"].replace("Z", "+00:00"))
+                )]
+                document["counts"]["total"] = document["counts"]["success"] = len(document["items"])
+                return core.DiscoveryReport(json.dumps(document))
             return native_report
+
+        async def fetch_many_decoded(self, refs, **kwargs):
+            return await self.engine.fetch_many_decoded(refs, "collect", False, None)
 
         async def download_netcdf(self, refs, **kwargs):
             return await self.engine.download_netcdf(refs, "collect", True, False)
@@ -99,6 +130,17 @@ async def test_range_frames_reach_sdk_download_and_fetch_reports(monkeypatch, tm
 
     monkeypatch.setattr(rust_client._bridge, "CoreEngineSession", Session)
     async with AsyncClient() as client:
+        discovery_report = await client.discover_report(query)
+        assert discovery_report.counts["success"] == 2
+        assert [rust_client._frame_key(discovery_report.frame(i)) for i in range(2)] == [
+            rust_client._frame_key(frame) for frame in frames
+        ]
+        for batch_query in (query, [Query("rainviewer", at=start + timedelta(minutes=i * 5)) for i in range(2)]):
+            batch = await client.fetch_many(batch_query)
+            assert batch.discovery_counts["success"] == len(batch.items) == 2
+            assert [rust_client._frame_key(item.ref) for item in batch.items] == [
+                rust_client._frame_key(frame) for frame in frames
+            ]
         assert [rust_client._frame_key(frame) for frame in await client.discover(query)] == [
             rust_client._frame_key(frame) for frame in frames
         ]

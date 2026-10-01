@@ -178,7 +178,17 @@ struct GeoTiffProvenance {
     valid_time: String,
     processing_history: Vec<Value>,
     provenance: Vec<String>,
+    #[serde(default)]
+    quality_flag_masks: Option<Vec<u16>>,
+    #[serde(default)]
+    quality_flag_meanings: Option<String>,
 }
+
+const LEGACY_QUALITY_FLAG_MASKS: [u16; 6] = [1, 2, 4, 8, 16, 32];
+const QUALITY_FLAG_MASKS: [u16; 7] = [1, 2, 4, 8, 16, 32, 64];
+const LEGACY_QUALITY_FLAG_MEANINGS: &str =
+    "missing outside_coverage unknown_color recovered interpolated below_detection";
+const QUALITY_FLAG_MEANINGS: &str = "missing outside_coverage unknown_color recovered interpolated below_detection source_annotation";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RasterKind {
@@ -201,6 +211,7 @@ fn validate_provenance(provenance: &GeoTiffProvenance) -> CoreResult<()> {
         || provenance.provenance.iter().any(|entry| !valid_provenance_text(entry))
         || !provenance.processing_history.is_empty()
         || parse_utc_time(&provenance.valid_time).is_err()
+        || !valid_quality_flag_metadata(provenance)
     {
         return Err(storage_error("GeoTIFF identity, time, units, or provenance is invalid"));
     }
@@ -233,6 +244,17 @@ fn validate_provenance(provenance: &GeoTiffProvenance) -> CoreResult<()> {
         return Err(storage_error("GeoTIFF provenance transform is invalid"));
     }
     Ok(())
+}
+
+fn valid_quality_flag_metadata(provenance: &GeoTiffProvenance) -> bool {
+    match (provenance.quality_flag_masks.as_deref(), provenance.quality_flag_meanings.as_deref()) {
+        (None, None) => true,
+        (Some(masks), Some(meanings)) => {
+            (masks == LEGACY_QUALITY_FLAG_MASKS && meanings == LEGACY_QUALITY_FLAG_MEANINGS)
+                || (masks == QUALITY_FLAG_MASKS && meanings == QUALITY_FLAG_MEANINGS)
+        }
+        _ => false,
+    }
 }
 
 fn canonical_crs(value: &str) -> Option<String> {
@@ -918,6 +940,8 @@ fn write_provenance(path: &Path, field: &RadarField, geometry: GeoGeometry) -> C
         "flip_y": geometry.transform.flip_y,
         "valid_time": field.valid_time,
         "processing_history": [],
+        "quality_flag_masks": QUALITY_FLAG_MASKS,
+        "quality_flag_meanings": QUALITY_FLAG_MEANINGS,
         "provenance": field.provenance,
     });
     sort_json_keys(&mut document);

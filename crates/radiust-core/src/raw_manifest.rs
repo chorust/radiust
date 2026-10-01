@@ -114,6 +114,9 @@ pub fn load(path: &Path, temp_root: &Path, limits: &Limits) -> CoreResult<RawFra
             path: staged,
         });
     }
+    if frame.source == "rdcap" {
+        crate::source::rdcap::validate_binding(&frame, &artifacts)?;
+    }
     Ok(RawFrame { frame, artifacts, private_locator: None })
 }
 

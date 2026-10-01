@@ -8,447 +8,1215 @@
   "exit_code": 5,
   "stderr": "",
   "stdout": {
+    "schema_version": 1,
     "command": "discover",
-    "counts": {
-      "ambiguous": 0,
-      "cancelled": 0,
-      "missing_credentials": 3,
-      "network_restricted": 22,
-      "no_data": 0,
-      "not_started": 0,
-      "retired": 1,
-      "stale": 0,
-      "success": 0,
-      "timeout": 0,
-      "total": 26,
-      "upstream_failed": 0
+    "run_id": null,
+    "query": {
+      "source": "all",
+      "latest": true,
+      "max_age": null
     },
-    "error": null,
-    "interrupted": false,
+    "counts": {
+      "total": 74,
+      "success": 0,
+      "no_data": 0,
+      "stale": 0,
+      "missing_credentials": 3,
+      "retired": 1,
+      "network_restricted": 70,
+      "upstream_failed": 0,
+      "ambiguous": 0,
+      "timeout": 0,
+      "cancelled": 0,
+      "not_started": 0
+    },
     "items": [
       {
-        "capabilities": null,
-        "error": {
-          "code": "network_restricted",
-          "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
         "source": "au",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "bmkg",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "rain",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "ca",
-        "source_urls": [],
+        "product": "rain",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "cam",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "es",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
-        "source": "fr",
-        "source_urls": [],
-        "station": null,
-        "status": "network_restricted",
-        "valid_time": null
+          "stage": "discover",
+          "retryable": false
+        }
       },
       {
+        "source": "fr",
+        "product": "composite",
+        "station": null,
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "id",
+        "product": "composite",
+        "station": null,
+        "status": "missing_credentials",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "missing_credentials",
           "message": "source requires sources.id.token",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
-        "source": "id",
-        "source_urls": [],
-        "station": null,
-        "status": "missing_credentials",
-        "valid_time": null
+          "stage": "discover",
+          "retryable": false
+        }
       },
       {
+        "source": "id_sidarma",
+        "product": "cmax",
+        "station": null,
+        "status": "missing_credentials",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "missing_credentials",
           "message": "source requires sources.id_sidarma.api_key",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "cmax",
-        "source": "id_sidarma",
-        "source_urls": [],
-        "station": null,
-        "status": "missing_credentials",
-        "valid_time": null
+          "stage": "discover",
+          "retryable": false
+        }
       },
       {
-        "capabilities": null,
-        "error": {
-          "code": "network_restricted",
-          "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
         "source": "kr",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "my",
-        "source_urls": [],
+        "product": "composite",
         "station": "east",
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "my",
-        "source_urls": [],
+        "product": "composite",
         "station": "peninsular",
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "rain",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "nz",
-        "source_urls": [],
+        "product": "rain",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "opensnow",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "ph",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "pt",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "rainviewer",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/AKIT",
+        "status": "network_restricted",
+        "valid_time": null,
         "frame": null,
-        "product": "composite",
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/FUNC",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/HAIG",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/HAKO",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/ISHI",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/ITOK",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/KASH",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/KURU",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/KUSH",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/MAKI",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/MISA",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/MURO",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/NAGO",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/SAPP",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/SEFU",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/SEND",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/TAKA",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/TANE",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/TOJI",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/YAHI",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/APAR",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/BAGU",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/BALE",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/BASC",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/BOHO",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/DAET",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/GUIU",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/HINA",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/ILOI",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/MACT",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/QUEZ",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/SUBI",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/TAGA",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/TAMP",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "PHL/VIRA",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCAA",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCCG",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCCK",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCCU",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCGI",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCHL",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCKT",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCLY",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCMD",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCMK",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCNT",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCSL",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "TWN/RCWF",
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "sg",
-        "source_urls": [],
-        "station": null,
-        "status": "network_restricted",
-        "valid_time": null
-      },
-      {
-        "capabilities": null,
-        "error": {
-          "code": "network_restricted",
-          "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
         "product": "composite",
+        "station": null,
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "th",
-        "source_urls": [],
+        "product": "composite",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "cappi",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "th_royalrain",
-        "source_urls": [],
+        "product": "cappi",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "tw",
         "product": "grid",
-        "source": "tw",
-        "source_urls": [],
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "observation",
-        "source": "tw",
-        "source_urls": [],
-        "station": null,
-        "status": "network_restricted",
-        "valid_time": null
+          "stage": "discover",
+          "retryable": false
+        }
       },
       {
+        "source": "tw",
+        "product": "observation",
+        "station": null,
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "observation",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
         "source": "tw-http",
-        "source_urls": [],
+        "product": "observation",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
       },
       {
+        "source": "uk",
+        "product": "rain",
+        "station": null,
+        "status": "retired",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "retired",
           "message": "source retired",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "rain",
-        "source": "uk",
-        "source_urls": [],
-        "station": null,
-        "status": "retired",
-        "valid_time": null
+          "stage": "discover",
+          "retryable": false
+        }
       },
       {
-        "capabilities": null,
-        "error": {
-          "code": "network_restricted",
-          "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "cmax",
         "source": "vn",
-        "source_urls": [],
+        "product": "cmax",
         "station": null,
         "status": "network_restricted",
-        "valid_time": null
-      },
-      {
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "network_restricted",
           "message": "public network access is disabled",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "reflectivity",
-        "source": "windy",
-        "source_urls": [],
-        "station": null,
-        "status": "network_restricted",
-        "valid_time": null
+          "stage": "discover",
+          "retryable": false
+        }
       },
       {
+        "source": "windy",
+        "product": "reflectivity",
+        "station": null,
+        "status": "network_restricted",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
+        "capabilities": null,
+        "error": {
+          "code": "network_restricted",
+          "message": "public network access is disabled",
+          "stage": "discover",
+          "retryable": false
+        }
+      },
+      {
+        "source": "wunderground",
+        "product": "composite",
+        "station": null,
+        "status": "missing_credentials",
+        "valid_time": null,
+        "frame": null,
+        "source_urls": [],
         "capabilities": null,
         "error": {
           "code": "missing_credentials",
           "message": "source requires sources.wunderground.api_key",
-          "retryable": false,
-          "stage": "discover"
-        },
-        "frame": null,
-        "product": "composite",
-        "source": "wunderground",
-        "source_urls": [],
-        "station": null,
-        "status": "missing_credentials",
-        "valid_time": null
+          "stage": "discover",
+          "retryable": false
+        }
       }
     ],
-    "query": {
-      "latest": true,
-      "max_age": null,
-      "source": "all"
-    },
-    "run_id": null,
-    "schema_version": 1
+    "error": null,
+    "interrupted": false
   }
 }

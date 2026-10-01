@@ -4,7 +4,9 @@ use crate::engine::{Engine, EngineError};
 use crate::error_contract::{ErrorCode, ErrorReport, ErrorStage};
 use crate::errors::CoreError;
 use crate::grid::Resampling;
-use crate::identity::{ProcessingSpec, digest, logical_id, output_id, safe_ref, variant_id};
+use crate::identity::{
+    ProcessingSpec, apply_science_versions, digest, logical_id, output_id, safe_ref, variant_id,
+};
 use crate::limits::Limits;
 use crate::model::{FrameRef, Grid, RadarField, RawFrame, parse_utc_time};
 use crate::storage::manifest::is_safe_relative_path;
@@ -2234,7 +2236,19 @@ fn render_output_template(
     let values = BTreeMap::from([
         ("source", frame.source.as_str().to_owned()),
         ("product", frame.product.as_str().to_owned()),
-        ("station", frame.station.as_deref().unwrap_or("composite").to_owned()),
+        (
+            "station",
+            frame.station.as_deref().map_or_else(
+                || "composite".to_owned(),
+                |station| {
+                    if frame.source == "rdcap" {
+                        url::form_urlencoded::byte_serialize(station.as_bytes()).collect()
+                    } else {
+                        station.to_owned()
+                    }
+                },
+            ),
+        ),
         ("valid_time", valid_value),
         ("base_time", base_value),
         ("date", valid_time.format("%Y-%m-%d").to_string()),
@@ -2333,7 +2347,7 @@ fn prepare_decoded_output_files(
     let DecodedCommitOptions { format, overwrite, output_template, processing, include_raw } =
         options;
     let frame_id = logical_id(&frame).map_err(|error| CoreError::Storage(error.to_string()))?;
-    let processing_spec = ProcessingSpec {
+    let mut processing_spec = ProcessingSpec {
         format: format.format_name().into(),
         variable: Some(field.name.clone()),
         grid: processing.grid.name().into(),
@@ -2342,6 +2356,7 @@ fn prepare_decoded_output_files(
         resampling: processing.resampling.as_str().into(),
         ..ProcessingSpec::default()
     };
+    apply_science_versions(&mut processing_spec, field);
     let resolved_output_id = output_id(&frame, revision, &processing_spec)
         .map_err(|error| CoreError::Storage(error.to_string()))?;
     let output_name = match output_template.as_deref() {
@@ -3560,6 +3575,31 @@ mod tests {
         .unwrap()
         .unwrap();
         assert!(crate::storage::manifest::is_complete(root.path(), &manifest));
+    }
+
+    #[test]
+    fn rdcap_station_template_value_is_percent_encoded_as_one_path_component() {
+        let mut frame = fixture_frame(0);
+        frame.source = "rdcap".into();
+        frame.product = "reflectivity".into();
+        frame.station = Some("TWN/RCHL".into());
+        frame.locator_version = "rdcap-csr-v1".into();
+        frame.locator = serde_json::json!({
+            "country": "TWN",
+            "station_code": "RCHL",
+            "key": "1790834708000",
+        });
+        frame.logical_id = crate::identity::logical_id(&frame).unwrap();
+        let rendered = render_output_template(
+            "{source}/{station}/{valid_time}.{ext}",
+            &frame,
+            &frame.logical_id,
+            &ProcessingSpec::default(),
+        )
+        .unwrap();
+
+        assert!(rendered.starts_with("rdcap/TWN%2FRCHL/"));
+        assert_eq!(rendered.matches('/').count(), 2);
     }
 
     #[tokio::test]

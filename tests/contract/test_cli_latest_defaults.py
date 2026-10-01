@@ -7,14 +7,16 @@ from click.testing import CliRunner
 from radiust.cli.main import main
 
 
-def test_discover_and_download_dry_run_default_equal_explicit_latest():
+def test_discover_and_download_dry_run_default_equal_explicit_latest(tmp_path):
+    config = tmp_path / "offline.yaml"
+    config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
     runner = CliRunner()
     for command in ("discover", "download"):
         options = ["my", "--json"]
         if command == "download":
             options.append("--dry-run")
-        implicit = runner.invoke(main, [command, *options])
-        explicit = runner.invoke(main, [command, *options, "--latest"])
+        implicit = runner.invoke(main, ["--conf", str(config), command, *options])
+        explicit = runner.invoke(main, ["--conf", str(config), command, *options, "--latest"])
         assert implicit.exit_code == explicit.exit_code, (implicit.output, explicit.output)
         i, e = json.loads(implicit.output), json.loads(explicit.output)
         if command == "discover":
@@ -32,29 +34,35 @@ def test_explicit_bad_selector_is_not_replaced_with_latest():
         assert runner.invoke(main, [command, "my", "--at", "not-a-time"]).exit_code == 2
 
 
-def test_scientific_cat_can_omit_time_on_offline_source():
-    implicit = CliRunner().invoke(main, ["cat", "my", "--decoded", "--renderer", "text"])
-    explicit = CliRunner().invoke(main, ["cat", "my", "--decoded", "--latest", "--renderer", "text"])
+def test_scientific_cat_can_omit_time_on_offline_source(tmp_path):
+    config = tmp_path / "offline.yaml"
+    config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
+    implicit = CliRunner().invoke(main, ["--conf", str(config), "cat", "my", "--decoded", "--renderer", "text"])
+    explicit = CliRunner().invoke(main, ["--conf", str(config), "cat", "my", "--decoded", "--latest", "--renderer", "text"])
     assert implicit.exit_code == explicit.exit_code
     assert implicit.output == explicit.output
 
 
 @pytest.mark.parametrize("command", ["discover", "download", "cat"])
-def test_default_latest_with_product_and_station_uses_native_cli(command):
+def test_default_latest_with_product_and_station_uses_native_cli(command, tmp_path):
+    config = tmp_path / "offline.yaml"
+    config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
     options = ["my", "--product", "composite", "--station", "east", "--json"]
     if command == "download":
         options.append("--dry-run")
     if command == "cat":
         options.extend(["--raw", "--renderer", "text"])
     runner = CliRunner()
-    implicit = runner.invoke(main, [command, *options])
-    explicit = runner.invoke(main, [command, *options, "--latest"])
+    implicit = runner.invoke(main, ["--conf", str(config), command, *options])
+    explicit = runner.invoke(main, ["--conf", str(config), command, *options, "--latest"])
     assert implicit.exit_code == explicit.exit_code, (implicit.output, explicit.output)
     assert implicit.output == explicit.output
 
 
 @pytest.mark.parametrize("command", ["discover", "download"])
-def test_native_cli_accepts_selector_forms_and_rejects_conflicts(command):
+def test_native_cli_accepts_selector_forms_and_rejects_conflicts(command, tmp_path):
+    config = tmp_path / "offline.yaml"
+    config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
     options = ["--dry-run"] if command == "download" else []
     runner = CliRunner()
     at = "2026-09-22T00:00:00Z"
@@ -64,18 +72,18 @@ def test_native_cli_accepts_selector_forms_and_rejects_conflicts(command):
         ["--max-age", "600"],
         ["--start", at, "--end", "2026-09-23T00:00:00Z"],
     ):
-        result = runner.invoke(main, [command, "my", *options, "--json", *selectors])
-        # The request reaches the Rust engine and is rejected only at its
-        # network gate because this test intentionally runs offline.
+        result = runner.invoke(main, ["--conf", str(config), command, "my", *options, "--json", *selectors])
+        # Requests run with network access disabled so selectors are tested
+        # without depending on live provider state.
         assert result.exit_code == 2, result.output
 
     conflict = runner.invoke(
-        main, [command, "my", *options, "--latest", "--at", at, "--json"]
+        main, ["--conf", str(config), command, "my", *options, "--latest", "--at", at, "--json"]
     )
     assert conflict.exit_code == 2
     assert "--latest cannot be combined" in conflict.output
 
-    malformed = runner.invoke(main, [command, "my", *options, "--at", "not-a-time", "--json"])
+    malformed = runner.invoke(main, ["--conf", str(config), command, "my", *options, "--at", "not-a-time", "--json"])
     assert malformed.exit_code == 2
     assert "timezone" in malformed.output.lower() or "iso-8601" in malformed.output.lower()
 

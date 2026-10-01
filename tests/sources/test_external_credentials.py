@@ -19,7 +19,7 @@ async def test_native_discovery_fails_closed_without_required_credentials():
         item["target"]["source"]: item["status"] for item in report["items"]
     }
 
-    assert report["counts"]["total"] == 26
+    assert report["counts"]["total"] == 74
     for source_id in CREDENTIAL_FIELDS:
         assert statuses[source_id] == "missing_credentials"
     assert statuses["ph"] == "network_restricted"
@@ -40,6 +40,6 @@ async def test_native_reports_never_echo_configured_source_credentials():
 
     assert report["counts"]["missing_credentials"] == 0
     assert report["counts"]["retired"] == 1
-    assert report["counts"]["network_restricted"] == 25
+    assert report["counts"]["network_restricted"] == 73
     for source_id in CREDENTIAL_FIELDS:
         assert f"offline-test-{source_id}-secret" not in serialized

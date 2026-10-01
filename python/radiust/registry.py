@@ -33,6 +33,7 @@ def _info_from_dict(item: dict[str, Any]) -> SourceInfo:
             default=bool(product.get("default", False)),
             time_binding_policy=product.get("time_binding_policy", "valid_time"),
             mutable=bool(product.get("mutable", False)),
+            metadata=product.get("metadata") or {},
         )
         for product in item.get("products", ())
     )
@@ -40,10 +41,16 @@ def _info_from_dict(item: dict[str, Any]) -> SourceInfo:
         StationInfo(
             id=station["id"],
             name=station.get("name") or station["id"],
-            longitude=float(station.get("longitude") or 0.0),
-            latitude=float(station.get("latitude") or 0.0),
+            longitude=(
+                None if station.get("longitude") is None else float(station["longitude"])
+            ),
+            latitude=None if station.get("latitude") is None else float(station["latitude"]),
             altitude=station.get("altitude"),
             product_ids=tuple(station.get("product_ids", ())),
+            metadata={
+                **(station.get("metadata") or {}),
+                "source_id": (station.get("metadata") or {}).get("source_id", item["id"]),
+            },
         )
         for station in item.get("stations", ())
     )
@@ -56,6 +63,7 @@ def _info_from_dict(item: dict[str, Any]) -> SourceInfo:
         required_extras=tuple(item.get("required_extras", ())),
         availability=item.get("availability", "available"),
         availability_evidence=item.get("availability_evidence"),
+        metadata=item.get("metadata") or {},
     )
 
 

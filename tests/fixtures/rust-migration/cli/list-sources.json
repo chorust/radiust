@@ -8,210 +8,302 @@
   "exit_code": 0,
   "stderr": "",
   "stdout": {
+    "schema_version": 1,
     "command": "list",
+    "run_id": null,
+    "query": null,
     "counts": {
-      "items": 24
+      "items": 25
     },
-    "error": null,
-    "interrupted": false,
     "items": [
       {
-        "availability": "needs_configuration",
-        "description": "Australia Bureau of Meteorology radar",
         "id": "au",
+        "description": "Australia Bureau of Meteorology radar",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Indonesia BMKG radar tiles",
         "id": "bmkg",
+        "description": "Indonesia BMKG radar tiles",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Canada ECCC radar",
         "id": "ca",
+        "description": "Canada ECCC radar",
+        "availability": "needs_configuration",
         "products": [
           "rain"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Cambodia radar slideshow",
         "id": "cam",
+        "description": "Cambodia radar slideshow",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Spain AEMET national radar",
         "id": "es",
+        "description": "Spain AEMET national radar",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "France Meteo-France radar",
         "id": "fr",
+        "description": "France Meteo-France radar",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Indonesia BMKG legacy radar",
         "id": "id",
+        "description": "Indonesia BMKG legacy radar",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Indonesia SIDARMA radar",
         "id": "id_sidarma",
+        "description": "Indonesia SIDARMA radar",
+        "availability": "needs_configuration",
         "products": [
           "cmax"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Korea radar CGI",
         "id": "kr",
+        "description": "Korea radar CGI",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Malaysia Met Department radar",
         "id": "my",
+        "description": "Malaysia Met Department radar",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "New Zealand MetService mobile radar",
         "id": "nz",
+        "description": "New Zealand MetService mobile radar",
+        "availability": "needs_configuration",
         "products": [
           "rain"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "OpenSnow radar tiles",
         "id": "opensnow",
+        "description": "OpenSnow radar tiles",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "PAGASA radar timeline",
         "id": "ph",
+        "description": "PAGASA radar timeline",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Portugal IPMA radar rainfall-intensity categories",
         "id": "pt",
+        "description": "Portugal IPMA radar rainfall-intensity categories",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "RainViewer radar tiles",
         "id": "rainviewer",
+        "description": "RainViewer radar tiles",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Singapore radar rainfall-intensity display",
+        "id": "rdcap",
+        "description": "CWA Asia-Pacific Radar Data Center single-station reflectivity (Taiwan, Japan, Philippines)",
+        "availability": "available",
+        "products": [
+          "reflectivity"
+        ],
+        "metadata": {
+          "directory_conflicts": [
+            {
+              "station_id": "PHL/BALE",
+              "field": "Status",
+              "values": [
+                "Inactive",
+                "Active"
+              ],
+              "provenance": [
+                {
+                  "source": "CWA RDCAP station directory sample",
+                  "reference": "validation-results/rdcap-analysis/catalog.json",
+                  "observed_at": "2026-10-01T06:16:17.356Z"
+                }
+              ]
+            }
+          ],
+          "provenance": [
+            {
+              "source": "CWA RDCAP station directory sample",
+              "reference": "validation-results/rdcap-analysis/catalog.json",
+              "observed_at": "2026-10-01T06:16:17.356Z"
+            }
+          ],
+          "country_capabilities": {
+            "JPN": {
+              "discovery": "unverified",
+              "raw_acquisition": "unverified",
+              "science": "unverified",
+              "readback": "unverified"
+            },
+            "PHL": {
+              "discovery": "unverified",
+              "raw_acquisition": "unverified",
+              "science": "unverified",
+              "readback": "unverified"
+            },
+            "TWN": {
+              "discovery": "unverified",
+              "raw_acquisition": "unverified",
+              "science": "unverified",
+              "readback": "unverified"
+            }
+          },
+          "countries": [
+            "TWN",
+            "JPN",
+            "PHL"
+          ],
+          "historical": false,
+          "last_live_validation_attempt": {
+            "attempted_at": "2026-10-01T12:53:27.500967Z",
+            "entrypoint": "standard Rust-backed SDK with system TLS validation",
+            "status": "blocked_before_raw_acquisition",
+            "evidence": "validation-results/rdcap-live-attempt-20261001.json",
+            "file_acquisition_started": false,
+            "stations": {
+              "TWN/RCHL": {
+                "status": "upstream_failed",
+                "stage": "discover",
+                "error_code": "catalog_unavailable",
+                "retryable": true
+              },
+              "JPN/ISHI": {
+                "status": "upstream_failed",
+                "stage": "discover",
+                "error_code": "catalog_unavailable",
+                "retryable": true
+              },
+              "PHL/SUBI": {
+                "status": "upstream_failed",
+                "stage": "discover",
+                "error_code": "catalog_unavailable",
+                "retryable": true
+              }
+            }
+          },
+          "scan_height": "unknown",
+          "snapshot_date": "2026-10-01",
+          "snapshot_record_count": 49,
+          "snapshot_unique_station_count": 48,
+          "upstream_qc": "unknown"
+        }
+      },
+      {
         "id": "sg",
+        "description": "Singapore radar rainfall-intensity display",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Thailand TMD radar",
         "id": "th",
+        "description": "Thailand TMD radar",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Thailand Royal Rain radar",
         "id": "th_royalrain",
+        "description": "Thailand Royal Rain radar",
+        "availability": "needs_configuration",
         "products": [
           "cappi"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Taiwan CWA anonymous S3 observation radar and numeric grid",
         "id": "tw",
+        "description": "Taiwan CWA anonymous S3 observation radar and numeric grid",
+        "availability": "needs_configuration",
         "products": [
           "observation",
           "grid"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Taiwan HTTP radar observation",
         "id": "tw-http",
+        "description": "Taiwan HTTP radar observation",
+        "availability": "needs_configuration",
         "products": [
           "observation"
         ]
       },
       {
-        "availability": "retired",
-        "description": "United Kingdom rainfall radar (retired)",
         "id": "uk",
+        "description": "United Kingdom rainfall radar (retired)",
+        "availability": "retired",
         "products": [
           "rain"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Vietnam Hymetnet CMAX radar",
         "id": "vn",
+        "description": "Vietnam Hymetnet CMAX radar",
+        "availability": "needs_configuration",
         "products": [
           "cmax"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Windy radar tiles",
         "id": "windy",
+        "description": "Windy radar tiles",
+        "availability": "needs_configuration",
         "products": [
           "reflectivity"
         ]
       },
       {
-        "availability": "needs_configuration",
-        "description": "Weather Underground radar mosaic",
         "id": "wunderground",
+        "description": "Weather Underground radar mosaic",
+        "availability": "needs_configuration",
         "products": [
           "composite"
         ]
       }
     ],
-    "query": null,
     "result": null,
-    "run_id": null,
-    "schema_version": 1
+    "error": null,
+    "interrupted": false
   }
 }

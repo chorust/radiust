@@ -67,6 +67,16 @@ impl Query {
         if self.max_age_secs.is_some() && !matches!(self.selector, TimeSelector::Latest) {
             return Err(ModelError::InvalidQuery("max-age is only valid with latest"));
         }
+        let has_rdcap_scope = self.source.as_deref() == Some("rdcap")
+            || self.sources.iter().any(|source| source == "rdcap");
+        if has_rdcap_scope
+            && self
+                .stations
+                .iter()
+                .any(|station| !crate::source::rdcap::is_valid_station_selection(station))
+        {
+            return Err(ModelError::InvalidQuery("RDCAP station identifier is invalid"));
+        }
         if let Some(base_time) = self.base_time.as_deref() {
             parse_utc_time(base_time)?;
         }
@@ -153,7 +163,13 @@ impl FrameRef {
     pub fn validate_identity(&self) -> Result<(), ModelError> {
         if !valid_identifier(&self.source)
             || !valid_identifier(&self.product)
-            || self.station.as_deref().is_some_and(|value| !valid_identifier(value))
+            || self.station.as_deref().is_some_and(|value| {
+                if self.source == "rdcap" {
+                    !crate::source::rdcap::is_valid_station_id(value)
+                } else {
+                    !valid_identifier(value)
+                }
+            })
             || !valid_identifier(&self.locator_version)
         {
             return Err(ModelError::InvalidFrame("frame identifiers are invalid"));
@@ -515,6 +531,48 @@ impl DiscoveryReport {
         }
         Ok(Self { schema_version: 1, query, counts, items, interrupted })
     }
+
+    /// Serialize a public report without exposing the transport locator kept
+    /// on each selected frame for in-process follow-up operations.
+    pub fn safe_document(&self) -> serde_json::Value {
+        let items = self
+            .items
+            .iter()
+            .map(|item| {
+                let frame = item.frame.as_ref().map(|frame| {
+                    serde_json::json!({
+                        "source": frame.source,
+                        "product": frame.product,
+                        "station": frame.station,
+                        "valid_time": frame.valid_time,
+                        "base_time": frame.base_time,
+                    })
+                });
+                let error = item.error.as_ref().map(|error| {
+                    serde_json::json!({
+                        "code": error.code,
+                        "message": crate::safety::safe_text(&error.message),
+                        "stage": error.stage,
+                        "retryable": error.retryable,
+                    })
+                });
+                serde_json::json!({
+                    "target": item.target,
+                    "status": item.status,
+                    "valid_time": item.valid_time,
+                    "frame": frame,
+                    "error": error,
+                })
+            })
+            .collect::<Vec<_>>();
+        serde_json::json!({
+            "schema_version": self.schema_version,
+            "query": self.query,
+            "counts": self.counts,
+            "items": items,
+            "interrupted": self.interrupted,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -604,6 +662,24 @@ mod tests {
     }
 
     #[test]
+    fn rdcap_query_accepts_canonical_or_short_station_codes_and_rejects_bad_paths() {
+        for station in ["TWN/RCHL", "RCHL"] {
+            let query = Query {
+                source: Some("rdcap".into()),
+                stations: vec![station.into()],
+                ..Query::default()
+            };
+            assert!(query.validate(false).is_ok(), "{station}");
+        }
+        let invalid = Query {
+            source: Some("rdcap".into()),
+            stations: vec!["TWN/../RCHL".into()],
+            ..Query::default()
+        };
+        assert!(matches!(invalid.validate(false), Err(ModelError::InvalidQuery(_))));
+    }
+
+    #[test]
     fn field_shape_and_quality_must_match() {
         let field = RadarField {
             name: "reflectivity".into(),
@@ -672,6 +748,26 @@ mod tests {
         let mut invalid = frame;
         invalid.valid_time = "2026-09-24T00:00:00".into();
         assert!(matches!(invalid.validate_identity(), Err(ModelError::InvalidFrame(_))));
+    }
+
+    #[test]
+    fn rdcap_frame_station_grammar_is_source_specific() {
+        let mut rdcap = valid_frame();
+        rdcap.source = "rdcap".into();
+        rdcap.product = "reflectivity".into();
+        rdcap.station = Some("TWN/RCHL".into());
+        rdcap.logical_id = crate::identity::logical_id(&rdcap).unwrap();
+        assert!(rdcap.validate_identity().is_ok());
+
+        let mut invalid_rdcap = rdcap.clone();
+        invalid_rdcap.station = Some("TWN/RCH/L".into());
+        invalid_rdcap.logical_id = crate::identity::logical_id(&invalid_rdcap).unwrap();
+        assert!(matches!(invalid_rdcap.validate_identity(), Err(ModelError::InvalidFrame(_))));
+
+        let mut other_source = valid_frame();
+        other_source.station = Some("TWN/RCHL".into());
+        other_source.logical_id = crate::identity::logical_id(&other_source).unwrap();
+        assert!(matches!(other_source.validate_identity(), Err(ModelError::InvalidFrame(_))));
     }
 
     #[test]

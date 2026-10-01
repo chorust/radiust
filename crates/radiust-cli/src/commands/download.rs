@@ -98,12 +98,18 @@ pub(crate) fn run(args: Args, context: &Context<'_>) -> Result<u8, String> {
     }
     if !args.dry_run && !args.raw_only && !crate::supports_native_decoded(&query) {
         let message = match config.output.format.as_str() {
-            "png" => "Native PNG download requires rainviewer composite or tw grid",
-            "netcdf" => {
-                "Native decoded downloads support --format png, netcdf, geotiff, or zarr only for rainviewer composite or tw grid"
+            "png" => {
+                "Native PNG download requires rainviewer composite, tw grid, or rdcap reflectivity"
             }
-            "geotiff" => "Native GeoTIFF downloads support only rainviewer composite or tw grid",
-            "zarr" => "Native Zarr downloads support only rainviewer composite or tw grid",
+            "netcdf" => {
+                "Native decoded downloads support --format png, netcdf, geotiff, or zarr only for rainviewer composite, tw grid, or rdcap reflectivity"
+            }
+            "geotiff" => {
+                "Native GeoTIFF downloads support only rainviewer composite, tw grid, or rdcap reflectivity"
+            }
+            "zarr" => {
+                "Native Zarr downloads support only rainviewer composite, tw grid, or rdcap reflectivity"
+            }
             _ => "Native decoded downloads do not support this output format",
         };
         crate::emit(&report::error_envelope("unsupported", message, "validate"), context.json)?;

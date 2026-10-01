@@ -40,3 +40,24 @@ def test_typed_report_rejects_success_mismatched_frame_identity():
     with pytest.raises(ValueError, match="identity"):
         DiscoveryItem(DiscoveryTarget("a", "p", None), "success", valid_time="2026-09-22T00:00:00Z",
                       frame={"source": "other", "product": "p", "station": None, "valid_time": "2026-09-22T00:00:00Z", "base_time": None})
+
+
+def test_report_accepts_distinct_frame_times_and_base_times_for_one_target():
+    target = DiscoveryTarget("a", "p", "s")
+    frames = [
+        {"source": "a", "product": "p", "station": "s", "valid_time": valid_time, "base_time": base_time}
+        for valid_time, base_time in (
+            ("2026-09-22T00:00:00Z", None),
+            ("2026-09-22T00:05:00Z", None),
+            ("2026-09-22T00:05:00Z", "2026-09-21T18:00:00Z"),
+        )
+    ]
+    items = tuple(DiscoveryItem(target, "success", frame["valid_time"], frame=frame) for frame in frames)
+    handles = tuple(object() for _ in items)
+    failure = DiscoveryItem(target, "no_data")
+    report = DiscoveryReport((*items, failure), _native_frame_refs=(*handles, None))
+    assert report.counts["success"] == 3
+    assert report.counts["no_data"] == 1
+    assert [report.frame(index) for index in range(3)] == list(handles)
+    with pytest.raises(ValueError, match="duplicate discovery frame"):
+        DiscoveryReport((*items, items[0]))

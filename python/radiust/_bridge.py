@@ -21,6 +21,7 @@ from .errors import (
     ErrorContext,
     GridError,
     IntegrityError,
+    RadiustError,
     ResourceLimitError,
     StorageError,
     UnsupportedQueryError,
@@ -29,6 +30,18 @@ from .errors import (
 
 def version() -> str:
     return _core.version() if _core is not None else "python-fallback"
+
+
+def _native_error_context(exc: Exception, stage: str, *, source: str | None = None) -> ErrorContext:
+    native_stage = getattr(exc, "radiust_stage", stage)
+    native_code = getattr(exc, "radiust_code", None)
+    native_retryable = getattr(exc, "radiust_retryable", False)
+    return ErrorContext(
+        stage=str(native_stage),
+        source=source,
+        retryable=bool(native_retryable),
+        code=str(native_code) if native_code else None,
+    )
 
 
 def sha256(data: bytes) -> str:
@@ -282,16 +295,20 @@ class CoreEngineSession:
             ) from exc
         try:
             return await self._engine.discover(native_query)
-        except ValueError as exc:
-            raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
+        except (OSError, ValueError) as exc:
+            native_code = getattr(exc, "radiust_code", None)
+            error_type = RadiustError if native_code else ConfigError
+            raise error_type(
+                str(exc), context=_native_error_context(exc, "discover"), cause=exc
+            ) from exc
 
     async def fetch_raw(self, frame: Any) -> Any:
         native_frame = _native_frames([frame])[0]
         try:
             return await self._engine.fetch_raw(native_frame)
-        except ValueError as exc:
+        except (OSError, ValueError) as exc:
             raise UnsupportedQueryError(
-                str(exc), context=ErrorContext(stage="validate"), cause=exc
+                str(exc), context=_native_error_context(exc, "acquire"), cause=exc
             ) from exc
 
     async def load_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
@@ -300,7 +317,7 @@ class CoreEngineSession:
         except (OSError, ValueError) as exc:
             raise IntegrityError(
                 "raw manifest or retained artifacts failed Rust validation",
-                context=ErrorContext(stage="validate"),
+                context=_native_error_context(exc, "validate"),
                 cause=exc,
             ) from exc
 
@@ -309,17 +326,18 @@ class CoreEngineSession:
             return await self._engine.decode_science(raw_frame)
         except ValueError as exc:
             message = str(exc)
+            context = _native_error_context(exc, "decode")
             if "resource limit" in message:
-                raise ResourceLimitError(
-                    message, context=ErrorContext(stage="decode"), cause=exc
-                ) from exc
+                raise ResourceLimitError(message, context=context, cause=exc) from exc
             if "scientific decoding is not available" in message:
                 raise UnsupportedQueryError(
-                    message, context=ErrorContext(stage="decode"), cause=exc
+                    message, context=context, cause=exc
                 ) from exc
-            raise DecodeError(message, context=ErrorContext(stage="decode"), cause=exc) from exc
+            raise DecodeError(message, context=context, cause=exc) from exc
         except OSError as exc:
-            raise DecodeError(str(exc), context=ErrorContext(stage="decode"), cause=exc) from exc
+            raise DecodeError(
+                str(exc), context=_native_error_context(exc, "decode"), cause=exc
+            ) from exc
 
     async def replay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
         try:
@@ -327,7 +345,7 @@ class CoreEngineSession:
         except (OSError, ValueError) as exc:
             raise IntegrityError(
                 "raw manifest or retained artifacts failed Rust validation",
-                context=ErrorContext(stage="validate"),
+                context=_native_error_context(exc, "validate"),
                 cause=exc,
             ) from exc
 

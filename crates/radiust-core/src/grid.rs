@@ -12,8 +12,12 @@ const QUALITY_OUTSIDE: u16 = 2;
 const QUALITY_UNKNOWN: u16 = 4;
 const QUALITY_INTERPOLATED: u16 = 16;
 const QUALITY_RECOVERED: u16 = 32;
-const INVALID_BILINEAR_FLAGS: u16 =
-    QUALITY_MISSING | QUALITY_OUTSIDE | QUALITY_UNKNOWN | QUALITY_RECOVERED;
+const QUALITY_SOURCE_ANNOTATION: u16 = 64;
+const INVALID_BILINEAR_FLAGS: u16 = QUALITY_MISSING
+    | QUALITY_OUTSIDE
+    | QUALITY_UNKNOWN
+    | QUALITY_RECOVERED
+    | QUALITY_SOURCE_ANNOTATION;
 // EPSG:3857 spherical Web Mercator parameters; formulas follow PROJ's
 // documented Web Mercator operation.
 const WEB_MERCATOR_RADIUS_METERS: f64 = 6_378_137.0;
@@ -495,6 +499,21 @@ mod tests {
                 .unwrap();
         assert!(between.values[0].is_nan());
         assert_eq!(between.quality, [1]);
+    }
+
+    #[test]
+    fn bilinear_propagates_source_annotation_as_invalid_quality() {
+        let source = field(
+            vec![0.0, 1.0],
+            vec![0.0, 1.0],
+            vec![f32::NAN, 10.0, 20.0, 30.0],
+            vec![65, 0, 0, 0],
+        );
+        let output =
+            regrid_regular(&source, target(vec![0.5], vec![0.5]), Resampling::Bilinear, &limits())
+                .unwrap();
+        assert!(output.values[0].is_nan());
+        assert_eq!(output.quality, [65]);
     }
 
     #[test]

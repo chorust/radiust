@@ -1,0 +1,59 @@
+{
+  "_fixture": {
+    "classification": "reconstructed_index_metadata_not_original_http_response",
+    "source_artifact": "validation-results/rdcap-analysis/station-summary.json",
+    "selected_key_source": "validation-results/rdcap-analysis/evidence.json",
+    "ticket_values": "omitted"
+  },
+  "list": [
+    {
+      "key": 1790827665000,
+      "url": []
+    },
+    {
+      "key": 1790828265000,
+      "url": []
+    },
+    {
+      "key": 1790828865000,
+      "url": []
+    },
+    {
+      "key": 1790829464000,
+      "url": []
+    },
+    {
+      "key": 1790830064000,
+      "url": []
+    },
+    {
+      "key": 1790830665000,
+      "url": []
+    },
+    {
+      "key": 1790831265000,
+      "url": []
+    },
+    {
+      "key": 1790831865000,
+      "url": []
+    },
+    {
+      "key": 1790832464000,
+      "url": []
+    },
+    {
+      "key": 1790833065000,
+      "url": []
+    },
+    {
+      "key": 1790833665000,
+      "url": []
+    },
+    {
+      "key": 1790834268000,
+      "url": []
+    }
+  ],
+  "header": null
+}

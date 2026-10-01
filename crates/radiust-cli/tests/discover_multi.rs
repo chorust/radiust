@@ -268,11 +268,11 @@ fn discover_all_emits_v1_aggregate_and_keeps_network_disabled_by_default() {
     assert_eq!(report["query"], json!({"source": "all", "latest": true, "max_age": null}));
 
     let counts = &report["counts"];
-    assert_eq!(counts["total"], 26);
+    assert_eq!(counts["total"], 74);
     assert_eq!(counts["success"], 0);
-    assert!(counts["network_restricted"].as_u64().unwrap() > 0);
-    assert!(counts["retired"].as_u64().unwrap() > 0);
-    assert!(counts["missing_credentials"].as_u64().unwrap() > 0);
+    assert_eq!(counts["network_restricted"], 70);
+    assert_eq!(counts["retired"], 1);
+    assert_eq!(counts["missing_credentials"], 3);
     assert_eq!(counts["no_data"], 0);
 
     for item in report["items"].as_array().unwrap() {
@@ -287,7 +287,7 @@ fn discover_all_emits_v1_aggregate_and_keeps_network_disabled_by_default() {
         .iter()
         .map(|item| item["source"].as_str().unwrap())
         .collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(source_ids.len(), 24);
+    assert_eq!(source_ids.len(), 25);
     assert_eq!(proxy.count(), 0, "network-disabled discovery must not request public sources");
 }
 

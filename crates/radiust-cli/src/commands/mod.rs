@@ -1,6 +1,7 @@
 pub mod discover;
 pub mod download;
 pub mod list;
+pub mod replay;
 
 use std::path::Path;
 

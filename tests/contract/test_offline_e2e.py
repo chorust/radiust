@@ -36,4 +36,4 @@ def test_native_cli_json_is_one_object() -> None:
     payload = json.loads(result.output)
     assert payload["schema_version"] == 1
     assert payload["command"] == "list"
-    assert len(payload["items"]) == 24
+    assert len(payload["items"]) == 25

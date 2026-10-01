@@ -7,9 +7,8 @@ use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
 use netcdf::{AttributeValue, Extent};
 use std::path::{Path, PathBuf};
 
-const QUALITY_FLAGS: [u16; 6] = [1, 2, 4, 8, 16, 32];
-const QUALITY_MEANINGS: &str =
-    "missing outside_coverage unknown_color recovered interpolated below_detection";
+const QUALITY_FLAGS: [u16; 7] = [1, 2, 4, 8, 16, 32, 64];
+const QUALITY_MEANINGS: &str = "missing outside_coverage unknown_color recovered interpolated below_detection source_annotation";
 
 fn storage_error(message: impl Into<String>) -> CoreError {
     CoreError::Storage(message.into())

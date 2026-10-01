@@ -288,6 +288,33 @@ async def test_native_engine_session_exposes_sanitized_operation_events() -> Non
     assert events.dropped_events == 0
 
 
+@pytest.mark.asyncio
+async def test_native_binding_errors_expose_safe_code_stage_and_retryability() -> None:
+    from radiust import FrameRef
+
+    frame = _bridge._native_frames(
+        [
+            FrameRef(
+                "fr",
+                "composite",
+                datetime(2026, 9, 24, tzinfo=timezone.utc),
+                station="FRCOMP",
+            )
+        ]
+    )[0]
+    session = _bridge.CoreEngineSession(
+        {"runtime": {"allow_network": False}, "cache": {"enabled": False}}
+    )
+
+    with pytest.raises(UnsupportedQueryError) as caught:
+        await session.fetch_raw(frame)
+
+    assert caught.value.context.code == "network_restricted"
+    assert caught.value.context.stage == "acquire"
+    assert caught.value.context.retryable is False
+    assert "https://" not in str(caught.value)
+
+
 def test_sync_client_progress_uses_rust_engine_discovery_events() -> None:
     events: list[tuple[str, int, int | None]] = []
     with (

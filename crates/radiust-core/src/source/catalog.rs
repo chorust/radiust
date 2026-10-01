@@ -2,7 +2,7 @@
 
 use crate::model::DiscoveryTarget;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 const BUILTIN_CATALOG: &str = include_str!("../../../../python/radiust/resources/catalog.json");
 
@@ -31,6 +31,8 @@ pub struct CatalogProduct {
     pub time_binding_policy: String,
     #[serde(default)]
     pub mutable: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<CatalogMetadata>,
 }
 
 fn geographic_grid_kind() -> String {
@@ -52,6 +54,8 @@ pub struct CatalogStation {
     pub latitude: Option<f64>,
     #[serde(default)]
     pub product_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<CatalogMetadata>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -71,6 +75,93 @@ pub struct CatalogSource {
     pub products: Vec<CatalogProduct>,
     #[serde(default)]
     pub stations: Vec<CatalogStation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<CatalogMetadata>,
+}
+
+/// Additive metadata shared by source, product, station, and live catalog
+/// updates. Unknown extension keys round-trip without changing catalog v1.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct CatalogMetadata {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recent_query: Option<RecentQueryCapability>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub directory_conflicts: Vec<CatalogDirectoryConflict>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provenance: Vec<CatalogProvenance>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub country_capabilities: BTreeMap<String, CountryCapabilities>,
+    #[serde(flatten)]
+    pub extensions: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct RecentQueryCapability {
+    #[serde(default)]
+    pub latest: bool,
+    #[serde(default)]
+    pub exact_at: bool,
+    #[serde(default)]
+    pub range: bool,
+    #[serde(default)]
+    pub historical: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_age_seconds: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CatalogDirectoryConflict {
+    pub station_id: String,
+    pub field: String,
+    #[serde(default)]
+    pub values: Vec<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provenance: Vec<CatalogProvenance>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CatalogProvenance {
+    pub source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_at: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CatalogCapabilityStatus {
+    Verified,
+    Blocked,
+    Unsupported,
+    #[default]
+    Unverified,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct CountryCapabilities {
+    #[serde(default)]
+    pub discovery: CatalogCapabilityStatus,
+    #[serde(default)]
+    pub raw_acquisition: CatalogCapabilityStatus,
+    #[serde(default)]
+    pub science: CatalogCapabilityStatus,
+    #[serde(default)]
+    pub readback: CatalogCapabilityStatus,
+}
+
+/// A provider's one-call dynamic station directory response. The source id
+/// makes the update's namespace explicit before Engine merges it with the
+/// static schema-v1 snapshot.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct StationCatalogUpdate {
+    pub source_id: String,
+    #[serde(default)]
+    pub stations: Vec<CatalogStation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<CatalogMetadata>,
 }
 
 fn available() -> String {
@@ -203,10 +294,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builtin_catalog_has_twenty_four_sources_and_twenty_six_targets() {
+    fn builtin_catalog_has_twenty_five_sources_and_seventy_four_targets() {
         let catalog = SourceCatalog::builtin().unwrap();
-        assert_eq!(catalog.sources.len(), 24);
-        assert_eq!(catalog.expand_targets(None).unwrap().len(), 26);
+        assert_eq!(catalog.sources.len(), 25);
+        assert_eq!(catalog.expand_targets(None).unwrap().len(), 74);
         assert_eq!(catalog.source("uk").unwrap().availability, "retired");
     }
 
@@ -241,5 +332,60 @@ mod tests {
         assert_eq!(sg.native_grid_kind, "cartesian");
         assert_eq!(sg.variables, ["rain_intensity"]);
         assert_eq!(sg.units["rain_intensity"], "1");
+    }
+
+    #[test]
+    fn legacy_catalog_v1_parses_without_metadata_and_does_not_gain_null_fields() {
+        let catalog = SourceCatalog::parse(
+            r#"{"schema_version":1,"sources":[{"id":"legacy","products":[{"id":"p"}],"stations":[{"id":"s"}]}]}"#,
+        )
+        .unwrap();
+        let source = &catalog.sources[0];
+        assert!(source.metadata.is_none());
+        assert!(source.products[0].metadata.is_none());
+        assert!(source.stations[0].metadata.is_none());
+
+        let value = serde_json::to_value(source).unwrap();
+        assert!(value.get("metadata").is_none());
+        assert!(value["products"][0].get("metadata").is_none());
+        assert!(value["stations"][0].get("metadata").is_none());
+    }
+
+    #[test]
+    fn station_catalog_update_models_country_capabilities_conflicts_and_provenance() {
+        let update: StationCatalogUpdate = serde_json::from_value(serde_json::json!({
+            "source_id": "rdcap",
+            "stations": [{
+                "id": "TWN/BALE",
+                "metadata": {"country": "TWN"}
+            }],
+            "metadata": {
+                "country": "TWN",
+                "recent_query": {"latest": true, "exact_at": true, "range": true},
+                "directory_conflicts": [{
+                    "station_id": "TWN/BALE",
+                    "field": "status",
+                    "values": ["Active", "Inactive"],
+                    "provenance": [{"source": "country directory"}]
+                }],
+                "provenance": [{"source": "country directory", "reference": "fixture"}],
+                "country_capabilities": {
+                    "TWN": {"discovery": "verified", "raw_acquisition": "blocked"}
+                },
+                "provider_extension": {"kept": true}
+            }
+        }))
+        .unwrap();
+
+        let metadata = update.metadata.unwrap();
+        assert_eq!(metadata.country.as_deref(), Some("TWN"));
+        assert!(metadata.recent_query.unwrap().range);
+        assert_eq!(metadata.directory_conflicts.len(), 1);
+        assert_eq!(metadata.provenance[0].source, "country directory");
+        assert_eq!(
+            metadata.country_capabilities["TWN"].raw_acquisition,
+            CatalogCapabilityStatus::Blocked
+        );
+        assert_eq!(metadata.extensions["provider_extension"]["kept"], true);
     }
 }

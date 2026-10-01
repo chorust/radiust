@@ -36,8 +36,8 @@ pub fn write_png(
         u32::try_from(width).map_err(|_| storage_error("PNG width exceeds image limits"))?;
     let height_u32 =
         u32::try_from(height).map_err(|_| storage_error("PNG height exceeds image limits"))?;
-    let (vmin, vmax) = value_range(field, options.vmin, options.vmax)?;
-    let rgba = render_pixels(field, width, height, vmin, vmax)?;
+    let (vmin, vmax) = value_range(field, options)?;
+    let rgba = render_pixels(field, width, height, vmin, vmax, options.palette)?;
 
     let output = output.as_ref().to_path_buf();
     let image = RgbaImage::from_raw(width_u32, height_u32, rgba)
@@ -47,7 +47,7 @@ pub fn write_png(
         .map_err(|error| storage_error(format!("PNG encoding failed: {error}")))?;
 
     let sidecar = sidecar_path(&output);
-    let mut sidecar_document = sidecar_document(field, width, height, vmin, vmax);
+    let mut sidecar_document = sidecar_document(field, width, height, vmin, vmax, options.palette);
     sort_json_keys(&mut sidecar_document);
     let sidecar_json = serde_json::to_string_pretty(&sidecar_document)
         .map_err(|error| storage_error(format!("render sidecar serialization failed: {error}")))?;
@@ -99,15 +99,15 @@ pub fn preview_field_with_options(
         u32::try_from(*width).map_err(|_| storage_error("preview width exceeds image limits"))?;
     let height_u32 =
         u32::try_from(*height).map_err(|_| storage_error("preview height exceeds image limits"))?;
-    let (vmin, vmax) = value_range(field, options.vmin, options.vmax)?;
-    let rgba = render_pixels(field, *width, *height, vmin, vmax)?;
+    let (vmin, vmax) = value_range(field, options)?;
+    let rgba = render_pixels(field, *width, *height, vmin, vmax, options.palette)?;
     let preview = Preview {
         width: width_u32,
         height: height_u32,
         rgba,
         frame: None,
         mode: PreviewMode::Decoded,
-        rule_version: Some(format!("{PALETTE_ID}-{PALETTE_VERSION}")),
+        rule_version: Some(palette_rule_version(options.palette).to_owned()),
     };
     preview.validate().map_err(|_| storage_error("rendered preview is invalid"))?;
     Ok(preview)
@@ -117,6 +117,14 @@ pub fn preview_field_with_options(
 struct RenderOptions {
     vmin: Option<f64>,
     vmax: Option<f64>,
+    palette: PaletteKind,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum PaletteKind {
+    #[default]
+    Default,
+    Rdcap,
 }
 
 fn parse_options(field: &RadarField, options: &Value) -> CoreResult<RenderOptions> {
@@ -124,11 +132,14 @@ fn parse_options(field: &RadarField, options: &Value) -> CoreResult<RenderOption
         return Err(storage_error("PNG options must be a JSON object"));
     }
 
-    if let Some(palette) = option_string(options, "palette")?
-        && palette != PALETTE_ID
-    {
-        return Err(storage_error(format!("unknown palette: {palette}")));
-    }
+    let rdcap_field = provenance_value(field, "source") == Some("rdcap");
+    let selected_palette = match option_string(options, "palette")? {
+        None if rdcap_field => PaletteKind::Rdcap,
+        None => PaletteKind::Default,
+        Some("default") => PaletteKind::Default,
+        Some("rdcap-reflectivity-v1") if rdcap_field => PaletteKind::Rdcap,
+        Some(palette) => return Err(storage_error(format!("unknown palette: {palette}"))),
+    };
     if let Some(variable) = option_string(options, "variable")?
         && variable != field.name
     {
@@ -137,6 +148,7 @@ fn parse_options(field: &RadarField, options: &Value) -> CoreResult<RenderOption
     Ok(RenderOptions {
         vmin: option_number(options, "vmin")?,
         vmax: option_number(options, "vmax")?,
+        palette: selected_palette,
     })
 }
 
@@ -213,11 +225,23 @@ fn validate_axis(axis: &[f64], expected: usize, name: &str) -> CoreResult<()> {
     Ok(())
 }
 
-fn value_range(
-    field: &RadarField,
-    selected_min: Option<f64>,
-    selected_max: Option<f64>,
-) -> CoreResult<(f64, f64)> {
+fn value_range(field: &RadarField, options: RenderOptions) -> CoreResult<(f64, f64)> {
+    if options.palette == PaletteKind::Rdcap {
+        let minimum = f64::from(crate::rdcap_palette::palette().under_threshold.less_than_dbz);
+        let maximum = f64::from(
+            crate::rdcap_palette::palette()
+                .classes
+                .last()
+                .expect("validated palette classes")
+                .lower_dbz,
+        );
+        let vmin = options.vmin.unwrap_or(minimum);
+        let vmax = options.vmax.unwrap_or(maximum);
+        if !vmin.is_finite() || !vmax.is_finite() || vmax <= vmin {
+            return Err(storage_error("vmax must be greater than vmin"));
+        }
+        return Ok((vmin, vmax));
+    }
     let mut finite_range: Option<(f64, f64)> = None;
     for &value in &field.values {
         if value.is_finite() {
@@ -229,14 +253,14 @@ fn value_range(
         }
     }
     let (minimum, maximum) = finite_range.unwrap_or((0.0, 1.0));
-    let (vmin, vmax) = if minimum == maximum && selected_min.is_none() && selected_max.is_none() {
+    let (vmin, vmax) = if minimum == maximum && options.vmin.is_none() && options.vmax.is_none() {
         // A constant field is still a valid image. Expand a stable relative
         // range so every finite sample maps to the palette midpoint. Explicit
         // caller limits retain the strict vmin < vmax validation below.
         let margin = minimum.abs().max(1.0) * 0.01;
         (minimum - margin, maximum + margin)
     } else {
-        (selected_min.unwrap_or(minimum), selected_max.unwrap_or(maximum))
+        (options.vmin.unwrap_or(minimum), options.vmax.unwrap_or(maximum))
     };
     let range = vmax - vmin;
     if !range.is_finite() || vmax <= vmin {
@@ -251,6 +275,7 @@ fn render_pixels(
     height: usize,
     vmin: f64,
     vmax: f64,
+    palette: PaletteKind,
 ) -> CoreResult<Vec<u8>> {
     let pixel_bytes = width
         .checked_mul(height)
@@ -275,11 +300,45 @@ fn render_pixels(
             if !value.is_finite() {
                 continue;
             }
-            let color = interpolate_color(f64::from(value), vmin, range);
-            rgba[output_index..output_index + 3].copy_from_slice(&color);
-            if field.quality[source_index] & INVALID_QUALITY == 0 {
-                rgba[output_index + 3] = 255;
+            let quality = field.quality[source_index];
+            if palette == PaletteKind::Rdcap && quality & INVALID_QUALITY != 0 {
+                let palette_data = crate::rdcap_palette::palette();
+                let color = if quality & palette_data.annotation.quality
+                    == palette_data.annotation.quality
+                {
+                    palette_data.annotation.rgba
+                } else {
+                    palette_data.missing_rgba
+                };
+                rgba[output_index..output_index + 4].copy_from_slice(&color);
+                continue;
             }
+            let value = f64::from(value);
+            let color = match palette {
+                PaletteKind::Default => interpolate_color(value, vmin, range),
+                PaletteKind::Rdcap => {
+                    let palette = crate::rdcap_palette::palette();
+                    if value < f64::from(palette.under_threshold.less_than_dbz) {
+                        rgba[output_index..output_index + 4]
+                            .copy_from_slice(&palette.under_threshold.rgba);
+                        continue;
+                    }
+                    let selected = value.clamp(vmin, vmax) as f32;
+                    let Some(class) =
+                        palette.classes.iter().rev().find(|class| selected >= class.lower_dbz)
+                    else {
+                        continue;
+                    };
+                    class.rgb
+                }
+            };
+            rgba[output_index..output_index + 3].copy_from_slice(&color);
+            rgba[output_index + 3] =
+                if palette == PaletteKind::Default && quality & INVALID_QUALITY != 0 {
+                    0
+                } else {
+                    255
+                };
         }
     }
     Ok(rgba)
@@ -309,6 +368,7 @@ fn sidecar_document(
     height: usize,
     vmin: f64,
     vmax: f64,
+    palette: PaletteKind,
 ) -> Value {
     let legend = (0..5)
         .map(|index| {
@@ -331,9 +391,10 @@ fn sidecar_document(
         field.name,
         field.units.as_deref().unwrap_or("unknown"),
     );
-    json!({
+    let palette_identity = palette_identity(palette);
+    let mut document = json!({
         "schema_version": 1,
-        "palette": {"id": PALETTE_ID, "version": PALETTE_VERSION},
+        "palette": palette_identity,
         "vmin": vmin,
         "vmax": vmax,
         "shape": [height, width],
@@ -343,7 +404,60 @@ fn sidecar_document(
         "title": title,
         "legend": legend,
         "provenance": provenance_document(field),
-    })
+    });
+    if palette == PaletteKind::Rdcap {
+        document["frame_identity"] = json!({
+            "logical_id": provenance_value(field, "frame_logical_id"),
+            "station": provenance_value(field, "station"),
+            "key": provenance_value(field, "key"),
+            "raw_sha256": provenance_value(field, "raw_sha256"),
+        });
+        document["geometry"] = json!({
+            "affine": field.grid.affine,
+            "x_first": field.grid.x.first(),
+            "x_last": field.grid.x.last(),
+            "y_first": field.grid.y.first(),
+            "y_last": field.grid.y.last(),
+            "row_order": "north_to_south",
+            "pixel_registration": "T_top_left",
+        });
+        let annotation = &crate::rdcap_palette::palette().annotation;
+        document["annotation_rule"] = json!({
+            "version": annotation.rule_version,
+            "raw_value": annotation.raw_value,
+            "quality": annotation.quality,
+            "role": annotation.role,
+            "confidence": annotation.confidence,
+        });
+    }
+    document
+}
+
+fn palette_identity(palette: PaletteKind) -> Value {
+    match palette {
+        PaletteKind::Default => json!({"id": PALETTE_ID, "version": PALETTE_VERSION}),
+        PaletteKind::Rdcap => {
+            let palette = crate::rdcap_palette::palette();
+            json!({
+                "id": palette.id,
+                "version": palette.version,
+                "classification": palette.classification,
+                "units": palette.units,
+                "evidence": {
+                    "reference": palette.evidence.reference,
+                    "samples": palette.evidence.samples,
+                    "limitation": palette.evidence.limitation,
+                },
+            })
+        }
+    }
+}
+
+fn palette_rule_version(palette: PaletteKind) -> &'static str {
+    match palette {
+        PaletteKind::Default => "default-1",
+        PaletteKind::Rdcap => "rdcap-reflectivity-v1",
+    }
 }
 
 fn provenance_document(field: &RadarField) -> Value {
@@ -457,7 +571,7 @@ mod tests {
             vec![20.0, 10.0],
             vec![-20.0, 20.0],
         );
-        let rgba = render_pixels(&field, 2, 2, 0.0, 3.0).unwrap();
+        let rgba = render_pixels(&field, 2, 2, 0.0, 3.0, PaletteKind::Default).unwrap();
         assert_eq!(&rgba[0..3], &interpolate_color(2.0, 0.0, 3.0));
         assert_eq!(&rgba[4..7], &interpolate_color(3.0, 0.0, 3.0));
         assert_eq!(&rgba[8..11], &interpolate_color(0.0, 0.0, 3.0));
@@ -498,6 +612,72 @@ mod tests {
     }
 
     #[test]
+    fn rdcap_default_palette_is_discrete_and_preview_and_png_sidecar_share_the_rule() {
+        let palette = crate::rdcap_palette::palette();
+        let mut values = vec![f32::from(palette.under_threshold.less_than_dbz) - 0.01];
+        for class in &palette.classes {
+            values.push(class.lower_dbz - 0.01);
+            values.push(class.lower_dbz);
+        }
+        values.extend([f32::NAN, f32::NAN]);
+        let mut quality = vec![0; values.len()];
+        let missing_index = values.len() - 2;
+        let annotation_index = values.len() - 1;
+        quality[missing_index] = 1;
+        quality[annotation_index] = 65;
+        let x = (0..values.len()).map(|column| column as f64).collect::<Vec<_>>();
+        let mut field = field(values, quality, [1, x.len()], x, vec![0.0]);
+        field.provenance = vec![
+            "source=rdcap".into(),
+            "product=reflectivity".into(),
+            "station=TWN/RCHL".into(),
+            "key=1790834708000".into(),
+            "frame_logical_id=stable-frame-id".into(),
+            "raw_sha256=0123456789abcdef".into(),
+        ];
+
+        let preview = preview_field(&field, &Limits::default()).unwrap();
+        assert_eq!(preview.rule_version.as_deref(), Some("rdcap-reflectivity-v1"));
+        assert_eq!(&preview.rgba[..4], &[0, 0, 0, 0]);
+        for (index, class) in palette.classes.iter().enumerate() {
+            let pixel_index = 1 + index * 2 + 1;
+            assert_eq!(&preview.rgba[pixel_index * 4..pixel_index * 4 + 3], &class.rgb);
+            assert_eq!(preview.rgba[pixel_index * 4 + 3], 255);
+            let below_index = 1 + index * 2;
+            if index == 0 {
+                assert_eq!(preview.rgba[below_index * 4 + 3], 0);
+            } else {
+                assert_eq!(
+                    &preview.rgba[below_index * 4..below_index * 4 + 3],
+                    &palette.classes[index - 1].rgb
+                );
+            }
+        }
+        assert_eq!(preview.rgba[missing_index * 4 + 3], 0);
+        assert_eq!(preview.rgba[annotation_index * 4 + 3], 0);
+        let explicit = preview_field_with_options(
+            &field,
+            &Limits::default(),
+            &json!({"palette":"rdcap-reflectivity-v1", "vmin":10.0, "vmax":70.0}),
+        )
+        .unwrap();
+        assert_eq!(explicit.rule_version.as_deref(), Some("rdcap-reflectivity-v1"));
+        assert_eq!(explicit.rgba[3], 0, "weak values remain transparent below 5 dBZ");
+
+        let root = tempfile::tempdir().unwrap();
+        let output = root.path().join("rdcap.png");
+        write_png(&field, &output, &json!({})).unwrap();
+        assert_eq!(saved_rgba(&output), preview.rgba);
+        let sidecar: Value =
+            serde_json::from_slice(&std::fs::read(root.path().join("rdcap.render.json")).unwrap())
+                .unwrap();
+        assert_eq!(sidecar["palette"]["id"], "rdcap-reflectivity-v1");
+        assert_eq!(sidecar["frame_identity"]["logical_id"], "stable-frame-id");
+        assert_eq!(sidecar["geometry"]["pixel_registration"], "T_top_left");
+        assert_eq!(sidecar["annotation_rule"]["quality"], 65);
+    }
+
+    #[test]
     fn non_finite_values_and_quality_flags_are_transparent() {
         let field = field(
             vec![0.0, 1.0, f32::NAN, f32::INFINITY, 2.0],
@@ -506,7 +686,7 @@ mod tests {
             vec![],
             vec![],
         );
-        let rgba = render_pixels(&field, 5, 1, 0.0, 2.0).unwrap();
+        let rgba = render_pixels(&field, 5, 1, 0.0, 2.0, PaletteKind::Default).unwrap();
         assert_eq!(rgba[3], 255);
         assert_eq!(rgba[7], 0);
         assert_eq!(&rgba[8..12], &[0, 0, 0, 0]);

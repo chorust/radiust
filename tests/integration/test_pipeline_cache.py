@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from radiust import Client, FrameRef
 from radiust.config import load_config
+from radiust.errors import UnsupportedQueryError
 
 from tests.support.native_raw_cache import seed_native_raw_cache
 
@@ -74,10 +75,12 @@ def test_corrupt_raw_cache_entry_fails_closed_to_offline_miss(tmp_path):
 
     with (
         Client(config=config) as client,
-        pytest.raises(PermissionError, match="network access"),
+        pytest.raises(UnsupportedQueryError, match="network access") as caught,
         client.acquire(ref),
     ):
         pytest.fail("a digest-invalid cache entry must not produce a RawFrame")
+    assert caught.value.context.code == "network_restricted"
+    assert caught.value.context.stage == "acquire"
 
 
 def test_disabled_rust_cache_leaves_offline_acquisition_without_cache_files(tmp_path):
@@ -88,9 +91,11 @@ def test_disabled_rust_cache_leaves_offline_acquisition_without_cache_files(tmp_
     with Client(config=config) as client:
         for _ in range(2):
             with (
-                pytest.raises(PermissionError, match="network access"),
+                pytest.raises(UnsupportedQueryError, match="network access") as caught,
                 client.acquire(ref),
             ):
                 pytest.fail("network-disabled acquisition must not yield a raw frame")
+            assert caught.value.context.code == "network_restricted"
+            assert caught.value.context.stage == "acquire"
 
     assert not cache_dir.exists()

@@ -35,6 +35,14 @@ pub struct HttpBodyReceipt {
     pub sha256: String,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HttpGetPolicy {
+    /// Preserve the transport's existing transient-status retries.
+    RetryTransient,
+    /// Make one initial GET attempt and do not retry transient statuses.
+    SingleAttempt,
+}
+
 /// In-flight and completed GET responses shared only within one Engine
 /// discovery call. Create a fresh instance for the next query so listings do
 /// not become stale across user operations.
@@ -248,7 +256,9 @@ impl HttpTransport {
                         .await?;
                     continue;
                 }
-                return Err(CoreError::Transport(format!("HTTP status {}", status.as_u16())));
+                let retryable =
+                    matches!(status.as_u16(), 408 | 425 | 429) || status.is_server_error();
+                return Err(CoreError::HttpStatus { status: status.as_u16(), retryable });
             }
             if response.content_length().is_some_and(|length| length > self.max_bytes) {
                 return Err(CoreError::ResourceLimit(format!(
@@ -397,7 +407,16 @@ impl HttpTransport {
         headers: &[(&str, &str)],
         destination: impl AsRef<Path>,
     ) -> CoreResult<HttpBodyReceipt> {
-        self.get_to_path_inner(address, headers, destination, false, self.max_bytes).await
+        self.get_to_path_inner(
+            address,
+            headers,
+            destination,
+            false,
+            self.max_bytes,
+            HttpGetPolicy::RetryTransient,
+            None,
+        )
+        .await
     }
 
     /// Stream an artifact while restricting every redirect to the original
@@ -409,7 +428,16 @@ impl HttpTransport {
         headers: &[(&str, &str)],
         destination: impl AsRef<Path>,
     ) -> CoreResult<HttpBodyReceipt> {
-        self.get_to_path_inner(address, headers, destination, true, self.max_bytes).await
+        self.get_to_path_inner(
+            address,
+            headers,
+            destination,
+            true,
+            self.max_bytes,
+            HttpGetPolicy::RetryTransient,
+            None,
+        )
+        .await
     }
 
     /// Stream an artifact under a per-response cap no larger than the
@@ -421,8 +449,62 @@ impl HttpTransport {
         destination: impl AsRef<Path>,
         max_bytes: u64,
     ) -> CoreResult<HttpBodyReceipt> {
-        self.get_to_path_inner(address, headers, destination, true, max_bytes.min(self.max_bytes))
-            .await
+        self.get_to_path_inner(
+            address,
+            headers,
+            destination,
+            true,
+            max_bytes.min(self.max_bytes),
+            HttpGetPolicy::RetryTransient,
+            None,
+        )
+        .await
+    }
+
+    /// Stream an artifact with an explicit retry policy, while restricting
+    /// redirects to the original origin and charging every request to the
+    /// shared host and request budget.
+    pub async fn get_to_path_same_origin_limited_with_policy(
+        &self,
+        address: &str,
+        headers: &[(&str, &str)],
+        destination: impl AsRef<Path>,
+        max_bytes: u64,
+        policy: HttpGetPolicy,
+    ) -> CoreResult<HttpBodyReceipt> {
+        self.get_to_path_inner(
+            address,
+            headers,
+            destination,
+            true,
+            max_bytes.min(self.max_bytes),
+            policy,
+            None,
+        )
+        .await
+    }
+
+    /// Stream a single-attempt artifact while keeping every redirect on the
+    /// original origin and the reviewed endpoint path.
+    pub async fn get_to_path_same_origin_path_limited_with_policy(
+        &self,
+        address: &str,
+        headers: &[(&str, &str)],
+        destination: impl AsRef<Path>,
+        max_bytes: u64,
+        policy: HttpGetPolicy,
+        allowed_path: &str,
+    ) -> CoreResult<HttpBodyReceipt> {
+        self.get_to_path_inner(
+            address,
+            headers,
+            destination,
+            true,
+            max_bytes.min(self.max_bytes),
+            policy,
+            Some(allowed_path),
+        )
+        .await
     }
 
     async fn get_to_path_inner(
@@ -432,6 +514,8 @@ impl HttpTransport {
         destination: impl AsRef<Path>,
         same_origin_only: bool,
         max_bytes: u64,
+        policy: HttpGetPolicy,
+        allowed_redirect_path: Option<&str>,
     ) -> CoreResult<HttpBodyReceipt> {
         if max_bytes == 0 {
             return Err(CoreError::ResourceLimit("response exceeds 0".into()));
@@ -447,6 +531,9 @@ impl HttpTransport {
 
         let url = Url::parse(address).map_err(|e| CoreError::Transport(e.to_string()))?;
         self.validate_url(&url)?;
+        if allowed_redirect_path.is_some_and(|path| url.path() != path) {
+            return Err(CoreError::Transport("artifact URL is outside the reviewed path".into()));
+        }
         let request_headers = headers
             .iter()
             .map(|(name, value)| {
@@ -459,7 +546,11 @@ impl HttpTransport {
             .collect::<CoreResult<Vec<_>>>()?;
         let original_origin = url.origin().ascii_serialization();
 
-        for attempt in 0..3 {
+        let max_attempts = match policy {
+            HttpGetPolicy::RetryTransient => 3,
+            HttpGetPolicy::SingleAttempt => 1,
+        };
+        for attempt in 0..max_attempts {
             let mut current = url.clone();
             let mut redirects = 0_u8;
             let response = loop {
@@ -499,6 +590,11 @@ impl HttpTransport {
                             "cross-origin artifact redirects are not allowed".into(),
                         ));
                     }
+                    if allowed_redirect_path.is_some_and(|path| current.path() != path) {
+                        return Err(CoreError::Transport(
+                            "artifact redirect is outside the reviewed path".into(),
+                        ));
+                    }
                     redirects += 1;
                     continue;
                 }
@@ -508,15 +604,18 @@ impl HttpTransport {
             let (response, _host_permit, _request_permit) = response;
             let status = response.status();
             if !status.is_success() {
-                if (matches!(status.as_u16(), 408 | 425 | 429) || status.is_server_error())
-                    && attempt < 2
-                {
+                let retryable =
+                    matches!(status.as_u16(), 408 | 425 | 429) || status.is_server_error();
+                if retryable && attempt + 1 < max_attempts {
                     let delay = retry_delay(response.headers().get("retry-after"), attempt);
                     drop(response);
                     drop(_request_permit);
                     drop(_host_permit);
                     self.wait_retry(delay).await?;
                     continue;
+                }
+                if policy == HttpGetPolicy::SingleAttempt {
+                    return Err(CoreError::HttpStatus { status: status.as_u16(), retryable });
                 }
                 return Err(CoreError::Transport(format!("HTTP status {}", status.as_u16())));
             }

@@ -21,6 +21,7 @@ class ErrorContext:
     source: str | None = None
     frame_id: str | None = None
     retryable: bool = False
+    code: str | None = None
 
 
 class RadiustError(Exception):
@@ -36,6 +37,8 @@ class RadiustError(Exception):
         self.context = context or ErrorContext(
             stage=self.default_stage, retryable=self.default_retryable
         )
+        if self.context.code is not None:
+            self.code = self.context.code
         self.cause = cause
 
     @property

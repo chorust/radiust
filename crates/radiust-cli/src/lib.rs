@@ -128,6 +128,21 @@ enum Command {
         #[arg(long = "max-age")]
         max_age_secs: Option<f64>,
     },
+    /// Replay a committed raw manifest offline through the native decoder and writers.
+    Replay {
+        manifest: PathBuf,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(
+            long = "format",
+            value_delimiter = ',',
+            value_parser = ["netcdf", "geotiff", "png", "zarr"],
+            default_value = "png,netcdf,geotiff,zarr"
+        )]
+        formats: Vec<String>,
+        #[arg(long)]
+        overwrite: bool,
+    },
     /// Preview a local image or a selected NetCDF field.
     Cat {
         #[arg(long)]
@@ -353,14 +368,16 @@ fn build_query(
 fn supports_native_decoded(query: &Query) -> bool {
     matches!(
         (query.source.as_deref(), query.product.as_deref()),
-        (Some("rainviewer"), None | Some("composite")) | (Some("tw"), Some("grid"))
+        (Some("rainviewer"), None | Some("composite"))
+            | (Some("tw"), Some("grid"))
+            | (Some("rdcap"), None | Some("reflectivity"))
     )
 }
 
 fn supports_decoded_frame(frame: &radiust_core::model::FrameRef) -> bool {
     matches!(
         (frame.source.as_str(), frame.product.as_str()),
-        ("rainviewer", "composite") | ("tw", "grid")
+        ("rainviewer", "composite") | ("tw", "grid") | ("rdcap", "reflectivity")
     )
 }
 
@@ -1881,6 +1898,10 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             },
             &context,
         ),
+        Command::Replay { manifest, output, formats, overwrite } => commands::replay::run(
+            commands::replay::Args { manifest, output, formats, overwrite },
+            &context,
+        ),
         Command::Cat {
             file,
             variable,
@@ -2134,7 +2155,6 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::sync::{Notify, oneshot};
-    use url::Url;
 
     #[test]
     fn human_summary_replaces_terminal_control_characters() {
@@ -2703,7 +2723,9 @@ mod tests {
         assert!(supports_native_decoded(&query("rainviewer", None)));
         assert!(supports_native_decoded(&query("rainviewer", Some("composite"))));
         assert!(supports_native_decoded(&query("tw", Some("grid"))));
+        assert!(supports_native_decoded(&query("rdcap", Some("reflectivity"))));
         assert!(!supports_native_decoded(&query("tw", None)));
+        assert!(!supports_native_decoded(&query("rdcap", Some("composite"))));
         assert!(!supports_native_decoded(&query("au", Some("composite"))));
     }
 

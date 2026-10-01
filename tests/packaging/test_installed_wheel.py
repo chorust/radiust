@@ -86,7 +86,19 @@ assert importlib.util.find_spec("radiust.registry") is not None, "Rust-backed SD
 assert importlib.util.find_spec("radiust.sources") is None, "legacy Python source adapters leaked into the wheel"
 from radiust.registry import sources
 
-assert len(sources()) == 24, "SDK catalog facade diverged from the Rust source catalog"
+source_catalog = sources()
+assert len(source_catalog) == 25, "SDK catalog facade diverged from the Rust source catalog"
+rdcap = next(source for source in source_catalog if source.id == "rdcap")
+assert rdcap.metadata["country_capabilities"] == {
+    country: {
+        "discovery": "unverified",
+        "raw_acquisition": "unverified",
+        "science": "unverified",
+        "readback": "unverified",
+    }
+    for country in ("TWN", "JPN", "PHL")
+}
+assert rdcap.metadata["last_live_validation_attempt"]["status"] == "blocked_before_raw_acquisition"
 for module in (
     "radiust.batch",
     "radiust.cache",
@@ -306,14 +318,19 @@ with tempfile.TemporaryDirectory() as root:
 resource_root = resources.files("radiust.resources")
 catalog_data = json.loads(resource_root.joinpath("catalog.json").read_text(encoding="utf-8"))
 catalog = catalog_data.get("sources", catalog_data)
-assert len(catalog) == 24
+assert len(catalog) == 25
 source_resources = resource_root.joinpath("sources")
 source_resource_ids = {
     item.name.removesuffix(".json")
     for item in source_resources.iterdir()
     if item.name.endswith(".json")
 }
-assert {item["id"] for item in catalog} <= source_resource_ids
+assert {item["id"] for item in catalog if item["id"] != "rdcap"} <= source_resource_ids
+palette = json.loads(
+    resource_root.joinpath("palettes", "rdcap_reflectivity.json").read_text(encoding="utf-8")
+)
+assert palette["id"] == "rdcap-reflectivity-v1"
+assert len(palette["classes"]) == 15
 '''
 
 
@@ -448,6 +465,11 @@ def _assert_console_cli_matches_native(venv: Path, tmp_path: Path, root: Path) -
     )
     assert installed_cat_help.returncode == 0, installed_cat_help.stderr
     assert "--legacy-display" in installed_cat_help.stdout
+    installed_replay_help = subprocess.run(
+        [str(console), "replay", "--help"], cwd=tmp_path, env=env, capture_output=True, text=True
+    )
+    assert installed_replay_help.returncode == 0, installed_replay_help.stderr
+    assert "raw manifest" in installed_replay_help.stdout.lower()
     if native is not None:
         native_cat_help = subprocess.run(
             [str(native), "cat", "--help"], cwd=tmp_path, env=env, capture_output=True, text=True
@@ -455,6 +477,12 @@ def _assert_console_cli_matches_native(venv: Path, tmp_path: Path, root: Path) -
         assert native_cat_help.returncode == installed_cat_help.returncode
         assert native_cat_help.stdout == installed_cat_help.stdout
         assert native_cat_help.stderr == installed_cat_help.stderr
+        native_replay_help = subprocess.run(
+            [str(native), "replay", "--help"], cwd=tmp_path, env=env, capture_output=True, text=True
+        )
+        assert native_replay_help.returncode == installed_replay_help.returncode
+        assert native_replay_help.stdout == installed_replay_help.stdout
+        assert native_replay_help.stderr == installed_replay_help.stderr
     commands = (
         (["list", "sources", "--json"], 0),
         (["list", "sources", "--json", "--wheel-smoke-invalid-option"], 2),

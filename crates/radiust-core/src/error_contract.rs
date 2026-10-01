@@ -1,6 +1,6 @@
 //! Stable and redacted error representation shared by the CLI and bindings.
 
-use crate::errors::CoreError;
+use crate::errors::{CoreError, ProviderError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -29,6 +29,17 @@ pub enum ErrorCode {
     OutputConflict,
     Storage,
     Unsupported,
+    UnknownStation,
+    CatalogUnavailable,
+    NoMatchingTime,
+    AmbiguousIndex,
+    TicketExhausted,
+    SelectedFrameDisappeared,
+    UnexpectedBody,
+    DecodeUnverified,
+    InvalidGrid,
+    AccessDenied,
+    Timeout,
     Internal,
 }
 
@@ -71,6 +82,60 @@ impl ErrorReport {
             CoreError::Transport(_) => {
                 (ErrorCode::Transport, "transport request failed".to_owned(), true)
             }
+            CoreError::HttpStatus { status, retryable } => {
+                (ErrorCode::Transport, format!("HTTP request returned status {status}"), *retryable)
+            }
+            CoreError::Provider(error) => match error {
+                ProviderError::UnknownStation => (
+                    ErrorCode::UnknownStation,
+                    "station is not in the provider catalog".to_owned(),
+                    false,
+                ),
+                ProviderError::CatalogUnavailable => (
+                    ErrorCode::CatalogUnavailable,
+                    "provider catalog is unavailable".to_owned(),
+                    true,
+                ),
+                ProviderError::NoMatchingTime => (
+                    ErrorCode::NoMatchingTime,
+                    "provider has no matching observation time".to_owned(),
+                    false,
+                ),
+                ProviderError::AmbiguousIndex => (
+                    ErrorCode::AmbiguousIndex,
+                    "provider index contains ambiguous candidates".to_owned(),
+                    false,
+                ),
+                ProviderError::TicketExhausted => (
+                    ErrorCode::TicketExhausted,
+                    "provider file tickets were exhausted".to_owned(),
+                    true,
+                ),
+                ProviderError::SelectedFrameDisappeared => (
+                    ErrorCode::SelectedFrameDisappeared,
+                    "the selected provider frame is no longer available".to_owned(),
+                    false,
+                ),
+                ProviderError::UnexpectedBody => (
+                    ErrorCode::UnexpectedBody,
+                    "provider returned an unexpected body".to_owned(),
+                    false,
+                ),
+                ProviderError::DecodeUnverified => (
+                    ErrorCode::DecodeUnverified,
+                    "provider response format has not been verified".to_owned(),
+                    false,
+                ),
+                ProviderError::InvalidGrid => {
+                    (ErrorCode::InvalidGrid, "provider grid is invalid".to_owned(), false)
+                }
+                ProviderError::AccessDenied => {
+                    (ErrorCode::AccessDenied, "provider denied access".to_owned(), false)
+                }
+                ProviderError::Timeout => {
+                    (ErrorCode::Timeout, "provider request timed out".to_owned(), true)
+                }
+            },
             CoreError::Temporary(_) => {
                 (ErrorCode::Storage, "temporary data operation failed".to_owned(), false)
             }
@@ -124,5 +189,48 @@ mod tests {
         assert_eq!(report.message, "complete output already exists; overwrite is required");
         assert_eq!(report.stage, ErrorStage::Commit);
         assert!(!report.retryable);
+    }
+
+    #[test]
+    fn provider_errors_have_typed_safe_codes_and_retryability() {
+        let report = ErrorReport::from_core(
+            &CoreError::Provider(ProviderError::TicketExhausted),
+            ErrorStage::Acquire,
+        );
+        assert_eq!(report.code, ErrorCode::TicketExhausted);
+        assert_eq!(report.stage, ErrorStage::Acquire);
+        assert!(report.retryable);
+        assert_eq!(report.message, "provider file tickets were exhausted");
+
+        let report = ErrorReport::from_core(
+            &CoreError::Provider(ProviderError::InvalidGrid),
+            ErrorStage::Decode,
+        );
+        assert_eq!(report.code, ErrorCode::InvalidGrid);
+        assert!(!report.retryable);
+    }
+
+    #[test]
+    fn provider_error_reports_never_expose_request_details() {
+        let report = ErrorReport::from_core(
+            &CoreError::Provider(ProviderError::AccessDenied),
+            ErrorStage::Acquire,
+        );
+        let serialized = serde_json::to_string(&report).unwrap();
+        assert_eq!(report.code, ErrorCode::AccessDenied);
+        assert!(!serialized.contains("https://"));
+        assert!(!serialized.contains("ticket"));
+        assert!(!serialized.contains("response body"));
+    }
+
+    #[test]
+    fn http_status_preserves_status_and_retryability_without_provider_details() {
+        let report = ErrorReport::from_core(
+            &CoreError::HttpStatus { status: 503, retryable: true },
+            ErrorStage::Acquire,
+        );
+        assert_eq!(report.code, ErrorCode::Transport);
+        assert_eq!(report.message, "HTTP request returned status 503");
+        assert!(report.retryable);
     }
 }

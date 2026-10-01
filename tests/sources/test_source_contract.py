@@ -16,7 +16,8 @@ def test_python_metadata_facade_reads_the_native_rust_catalog():
     facade = {item.id: item for item in sources()}
 
     assert set(facade) == native_ids
-    assert len(facade) == 24
+    assert len(facade) == 25
+    assert "rdcap" in facade
     assert facade["uk"].availability == "retired"
     assert facade["tw"].default_product.id == "observation"
     assert facade["sg"].products[0].native_grid_kind == "cartesian"

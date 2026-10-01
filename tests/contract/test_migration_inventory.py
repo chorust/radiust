@@ -32,6 +32,7 @@ HEAD_HISTORICAL_CAPABILITY = {
     "vn": True,
     "windy": False,
     "wunderground": False,
+    "rdcap": False,
 }
 
 
@@ -103,7 +104,7 @@ def test_head_inventory_is_backed_by_the_rust_catalog_and_python_metadata_facade
     inventory_ids = {item["id"] for item in inventory["sources"]}
 
     assert len(inventory["sources"]) == 24
-    assert inventory_ids == set(native_sources) == set(facade_sources)
+    assert inventory_ids | {"rdcap"} == set(native_sources) == set(facade_sources)
     for item in inventory["sources"]:
         source_id = item["id"]
         native_info = native_sources[source_id]
@@ -130,6 +131,10 @@ def test_catalog_resources_keep_historical_capability_without_python_adapter_cla
     native = {item["id"]: item for item in native_source_catalog()["sources"]}
     assert set(native) == set(HEAD_HISTORICAL_CAPABILITY)
     for source_id, expected in HEAD_HISTORICAL_CAPABILITY.items():
+        if source_id == "rdcap":
+            products = {item["id"]: item for item in native[source_id]["products"]}
+            assert products and all(product["historical"] is expected for product in products.values())
+            continue
         resource = _json(ROOT / "python/radiust/resources/sources" / f"{source_id}.json")
         assert resource.get("historical") is expected, source_id
         products = {item["id"]: item for item in native[source_id]["products"]}

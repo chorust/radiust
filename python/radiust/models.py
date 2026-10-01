@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -22,6 +23,29 @@ ALLOWED_AVAILABILITY = {
     "upstream_unavailable",
     "retired",
 }
+RDCAP_COUNTRIES = frozenset({"TWN", "JPN", "PHL"})
+
+
+def _valid_rdcap_code(value: str) -> bool:
+    return bool(value) and value.isascii() and value.isalnum() and value.upper() == value
+
+
+def _valid_rdcap_station_id(value: str) -> bool:
+    if value.count("/") != 1:
+        return False
+    country, code = value.split("/", 1)
+    return country in RDCAP_COUNTRIES and _valid_rdcap_code(code)
+
+
+def _valid_rdcap_station_selection(value: str) -> bool:
+    return _valid_rdcap_station_id(value) or _valid_rdcap_code(value)
+
+
+def _validate_rdcap_station(value: str, *, selection: bool = False) -> str:
+    valid = _valid_rdcap_station_selection(value) if selection else _valid_rdcap_station_id(value)
+    if not valid:
+        raise ValueError("RDCAP station must be a country-qualified station id")
+    return value
 
 
 def _freeze_mapping(value: Any) -> Any:
@@ -75,10 +99,12 @@ class ProductInfo:
     default: bool = False
     time_binding_policy: str = "valid_time"
     mutable: bool = False
+    metadata: Mapping[str, Any] = dc_field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "variables", tuple(self.variables))
         object.__setattr__(self, "units", _freeze_mapping(self.units))
+        object.__setattr__(self, "metadata", _freeze_mapping(self.metadata))
         validate_identifier(self.id, "product id")
         if not self.variables:
             raise ValueError("product must declare at least one variable")
@@ -94,19 +120,26 @@ class ProductInfo:
 class StationInfo:
     id: str
     name: str
-    longitude: float
-    latitude: float
+    longitude: float | None
+    latitude: float | None
     altitude: float | None = None
     product_ids: tuple[str, ...] = ()
+    metadata: Mapping[str, Any] = dc_field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "product_ids", tuple(self.product_ids))
-        validate_identifier(self.id, "station id")
-        if not -180 <= self.longitude <= 180:
+        metadata = _freeze_mapping(self.metadata)
+        object.__setattr__(self, "metadata", metadata)
+        if metadata.get("source_id") == "rdcap":
+            _validate_rdcap_station(self.id)
+        else:
+            validate_identifier(self.id, "station id")
+        if self.longitude is not None and not -180 <= self.longitude <= 180:
             raise ValueError("longitude must be between -180 and 180")
-        if not -90 <= self.latitude <= 90:
+        if self.latitude is not None and not -90 <= self.latitude <= 90:
             raise ValueError("latitude must be between -90 and 90")
-        if not all(math.isfinite(v) for v in (self.longitude, self.latitude)):
+        coordinates = tuple(v for v in (self.longitude, self.latitude) if v is not None)
+        if not all(math.isfinite(v) for v in coordinates):
             raise ValueError("station coordinates must be finite")
 
 
@@ -120,9 +153,11 @@ class SourceInfo:
     required_extras: tuple[str, ...] = ()
     availability: str = "available"
     availability_evidence: str | None = None
+    metadata: Mapping[str, Any] = dc_field(default_factory=dict)
 
     def __post_init__(self) -> None:
         validate_identifier(self.id, "source id")
+        object.__setattr__(self, "metadata", _freeze_mapping(self.metadata))
         if self.availability not in ALLOWED_AVAILABILITY:
             raise ValueError(f"invalid availability: {self.availability}")
         if sum(p.default for p in self.products) > 1:
@@ -133,6 +168,12 @@ class SourceInfo:
         station_ids = [s.id for s in self.stations]
         if len(station_ids) != len(set(station_ids)):
             raise ValueError("duplicate station id")
+        for station in self.stations:
+            station_source = station.metadata.get("source_id")
+            if station_source is not None and station_source != self.id:
+                raise ValueError("station metadata source_id does not match its source")
+            if self.id == "rdcap" and station_source != "rdcap":
+                raise ValueError("RDCAP station metadata must identify source_id=rdcap")
 
     @property
     def default_product(self) -> ProductInfo | None:
@@ -158,6 +199,10 @@ class Query:
         if len(stations) != len(set(stations)):
             raise UnsupportedQueryError("stations must not contain duplicates")
         object.__setattr__(self, "stations", stations)
+        if self.source == "rdcap" and any(
+            not _valid_rdcap_station_selection(station) for station in stations
+        ):
+            raise UnsupportedQueryError("RDCAP station must be a country-qualified id or short code")
         choices = int(self.latest) + int(self.at is not None) + int(self.start is not None or self.end is not None)
         if choices != 1:
             raise UnsupportedQueryError("choose exactly one of latest, at, or start/end")
@@ -195,7 +240,10 @@ class FrameRef:
         validate_identifier(self.source, "source")
         validate_identifier(self.product, "product")
         if self.station is not None:
-            validate_identifier(self.station, "station")
+            if self.source == "rdcap":
+                _validate_rdcap_station(self.station)
+            else:
+                validate_identifier(self.station, "station")
         object.__setattr__(self, "valid_time", utc_datetime(self.valid_time))
         if self.base_time is not None:
             object.__setattr__(self, "base_time", utc_datetime(self.base_time))
@@ -321,6 +369,7 @@ class FrameResult:
 @dataclass(frozen=True, slots=True)
 class BatchResult:
     items: tuple[FrameResult, ...]
+    discovery_report: DiscoveryReport | None = None
 
     @property
     def succeeded(self) -> tuple[FrameResult, ...]:
@@ -335,10 +384,16 @@ class BatchResult:
         names = ("success", "written", "skipped", "failed", "cancelled", "not_started", "planned")
         return {name: sum(item.status == name for item in self.items) for name in names}
 
+    @property
+    def discovery_counts(self) -> dict[str, int] | None:
+        return self.discovery_report.counts if self.discovery_report is not None else None
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "schema_version": 1,
             "counts": self.counts,
+            "discovery_counts": self.discovery_counts,
+            "discovery_report": self.discovery_report.as_dict() if self.discovery_report else None,
             "items": [
                 {
                     "source": item.ref.source,
@@ -401,7 +456,7 @@ DISCOVERY_STATUSES = (
 
 @dataclass(frozen=True, slots=True)
 class DiscoveryTarget:
-    """One catalog source/product/station, or one source-level placeholder."""
+    """A source/product/station selector, or a source-level placeholder."""
 
     source: str
     product: str | None
@@ -412,7 +467,10 @@ class DiscoveryTarget:
         if self.product is not None:
             validate_identifier(self.product, "product")
         if self.station is not None:
-            validate_identifier(self.station, "station")
+            if self.source == "rdcap":
+                _validate_rdcap_station(self.station, selection=True)
+            else:
+                validate_identifier(self.station, "station")
             if self.product is None:
                 raise ValueError("station requires a product")
 
@@ -434,6 +492,8 @@ class DiscoveryItem:
         if self.status == "success":
             if self.frame is None or self.valid_time is None:
                 raise ValueError("success requires a unique frame and valid_time")
+            if self.target.source == "rdcap" and self.target.station is not None:
+                _validate_rdcap_station(self.target.station)
             if self.target.product is None or any(
                 self.frame.get(field) != getattr(self.target, field)
                 for field in ("source", "product", "station")
@@ -446,8 +506,11 @@ class DiscoveryItem:
 
     @classmethod
     def from_mapping(cls, item: Mapping[str, Any]) -> DiscoveryItem:
+        target = item.get("target")
+        if not isinstance(target, Mapping):
+            target = item
         return cls(
-            DiscoveryTarget(item["source"], item.get("product"), item.get("station")),
+            DiscoveryTarget(target["source"], target.get("product"), target.get("station")),
             item["status"], item.get("valid_time"), item.get("error"),
             item.get("frame"), item.get("capabilities"),
         )
@@ -470,18 +533,72 @@ class DiscoveryItem:
 
 @dataclass(frozen=True, slots=True)
 class DiscoveryReport:
-    """Full v1 envelope; one item per unique target and complete zero counts."""
+    """Full v1 envelope with unique frames or failure targets and complete counts."""
 
     items: tuple[DiscoveryItem, ...]
     interrupted: bool = False
     max_age: float | None = None
     run_id: str | None = None
+    query: Mapping[str, Any] | None = None
+    _native_frame_refs: tuple[Any | None, ...] = dc_field(default=(), repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "items", tuple(self.items))
-        targets = [item.target for item in self.items]
-        if len(targets) != len(set(targets)):
-            raise ValueError("duplicate discovery target")
+        items = tuple(self.items)
+        frame_refs = tuple(self._native_frame_refs)
+        if frame_refs and len(frame_refs) != len(items):
+            raise ValueError("native frame handles must match discovery item count")
+        paired = list(zip(items, frame_refs, strict=True)) if frame_refs else [(item, None) for item in items]
+        paired.sort(key=lambda pair: (
+            pair[0].target.source,
+            pair[0].target.product is not None,
+            pair[0].target.product or "",
+            pair[0].target.station is not None,
+            pair[0].target.station or "",
+        ))
+        items = tuple(item for item, _frame in paired)
+        if frame_refs:
+            frame_refs = tuple(frame for _item, frame in paired)
+        object.__setattr__(self, "items", items)
+        object.__setattr__(self, "_native_frame_refs", frame_refs)
+        identities = [
+            (item.target, item.valid_time, item.frame.get("base_time"))
+            if item.status == "success" and item.frame is not None
+            else (item.target,)
+            for item in items
+        ]
+        if len(identities) != len(set(identities)):
+            raise ValueError("duplicate discovery frame or failure target")
+
+    @classmethod
+    def from_mapping(
+        cls,
+        document: Mapping[str, Any],
+        *,
+        native_frame_refs: tuple[Any | None, ...] = (),
+    ) -> DiscoveryReport:
+        query = document.get("query")
+        max_age = query.get("max_age_secs", query.get("max_age")) if isinstance(query, Mapping) else None
+        return cls(
+            items=tuple(DiscoveryItem.from_mapping(item) for item in document.get("items", ())),
+            interrupted=bool(document.get("interrupted", False)),
+            max_age=max_age,
+            run_id=document.get("run_id"),
+            query=query if isinstance(query, Mapping) else None,
+            _native_frame_refs=native_frame_refs,
+        )
+
+    def frame(self, index: int) -> Any:
+        """Return an in-process native ref for a successful item, retaining its private locator."""
+        if index < 0 or index >= len(self.items):
+            raise IndexError("discovery item index is out of range")
+        if self.items[index].frame is None:
+            raise ValueError("discovery item has no frame")
+        if not self._native_frame_refs:
+            raise ValueError("this serialized report has no in-process frame handle")
+        frame = self._native_frame_refs[index]
+        if frame is None:
+            raise ValueError("discovery item has no native frame handle")
+        return frame
 
     @property
     def counts(self) -> dict[str, int]:
@@ -491,15 +608,12 @@ class DiscoveryReport:
         }}
 
     def as_dict(self) -> dict[str, Any]:
-        ordered = sorted(self.items, key=lambda item: (
-            item.target.source,
-            (item.target.product is not None, item.target.product or ""),
-            (item.target.station is not None, item.target.station or ""),
-            (item.valid_time is not None, item.valid_time or ""),
-        ))
         return {
             "schema_version": 1, "command": "discover", "run_id": self.run_id,
-            "query": {"source": "all", "latest": True, "max_age": self.max_age},
-            "counts": self.counts, "items": [item.as_dict() for item in ordered],
+            "query": dict(self.query) if self.query is not None else {"source": "all", "latest": True, "max_age": self.max_age},
+            "counts": self.counts, "items": [item.as_dict() for item in self.items],
             "error": None, "interrupted": self.interrupted,
         }
+
+    def to_json(self) -> str:
+        return json.dumps(safe_value(self.as_dict()), ensure_ascii=False, sort_keys=True)

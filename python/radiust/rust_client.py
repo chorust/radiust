@@ -29,7 +29,7 @@ from .errors import (
     TransportError,
     UnsupportedQueryError,
 )
-from .models import BatchResult, DownloadReport, FrameRef, FrameResult, Query
+from .models import BatchResult, DiscoveryReport, DownloadReport, FrameRef, FrameResult, Query
 
 ProgressCallback = Any
 _DOWNLOAD_PROCESSING_KEYS = {
@@ -356,6 +356,42 @@ def _frame_error(message: str | None) -> dict[str, Any] | None:
     return {"code": "native_error", "message": message}
 
 
+def _discovery_exception(item: Mapping[str, Any]) -> Exception:
+    status = str(item.get("status", "upstream_failed"))
+    error = item.get("error") or {}
+    error = error if isinstance(error, Mapping) else {}
+    message = error.get("message") or f"discovery {status}"
+    if status in {"cancelled", "not_started"}:
+        return asyncio.CancelledError(str(message))
+    error_type = {
+        "stale": StaleFrameError,
+        "ambiguous": AmbiguousFrameError,
+        "missing_credentials": AuthenticationError,
+        "retired": UnsupportedQueryError,
+        "network_restricted": TransportError,
+        "timeout": TransportError,
+        "upstream_failed": TransportError,
+    }.get(status, RadiustError)
+    code = error.get("code")
+    if status == "upstream_failed":
+        error_type = {
+            "unsupported": UnsupportedQueryError,
+            "resource_limit": ResourceLimitError,
+            "storage": StorageError,
+            "cache": StorageError,
+        }.get(code, error_type)
+    target = item.get("target") or {}
+    return error_type(
+        str(message),
+        context=ErrorContext(
+            stage=str(error.get("stage", "discover")),
+            source=target.get("source") if isinstance(target, Mapping) else None,
+            retryable=bool(error.get("retryable", False)),
+            code=str(code) if code else None,
+        ),
+    )
+
+
 async def _discover_frames(session: _bridge.CoreEngineSession, query: Any) -> list[Any]:
     report = await session.discover_report(query)
     document = json.loads(report.to_json())
@@ -365,32 +401,84 @@ async def _discover_frames(session: _bridge.CoreEngineSession, query: Any) -> li
         if status == "success" and item.get("frame") is not None:
             frames.append(report.frame(index))
         elif status != "no_data":
-            error = item.get("error") or {}
-            message = error.get("message") or f"discovery {status}"
-            if status in {"cancelled", "not_started"}:
-                raise asyncio.CancelledError(message)
-            error_type = {
-                "stale": StaleFrameError,
-                "ambiguous": AmbiguousFrameError,
-                "missing_credentials": AuthenticationError,
-                "retired": UnsupportedQueryError,
-                "network_restricted": TransportError,
-                "timeout": TransportError,
-                "upstream_failed": TransportError,
-            }.get(status, RadiustError)
-            if status == "upstream_failed":
-                error_type = {
-                    "unsupported": UnsupportedQueryError,
-                    "resource_limit": ResourceLimitError,
-                    "storage": StorageError,
-                    "cache": StorageError,
-                }.get(error.get("code"), error_type)
-            raise error_type(message, context=ErrorContext(
-                stage=error.get("stage", "discover"),
-                source=(item.get("target") or {}).get("source"),
-                retryable=error.get("retryable", False),
-            ))
+            raise _discovery_exception(item)
     return frames
+
+
+async def _typed_discovery_report(
+    session: _bridge.CoreEngineSession, query: Any
+) -> DiscoveryReport:
+    native = await session.discover_report(query)
+    document = json.loads(native.to_json())
+    items = document.get("items", ())
+    frame_refs = tuple(
+        native.frame(index) if item.get("status") == "success" else None
+        for index, item in enumerate(items)
+    )
+    return DiscoveryReport.from_mapping(document, native_frame_refs=frame_refs)
+
+
+def _batch_values(query_or_refs: Any) -> Iterable[Any]:
+    if _is_query(query_or_refs) or _is_frame(query_or_refs):
+        return (query_or_refs,)
+    if isinstance(query_or_refs, (str, bytes, bytearray)):
+        raise TypeError("batch input must contain Query or FrameRef values")
+    try:
+        return iter(query_or_refs)
+    except TypeError as exc:
+        raise TypeError("batch input must contain Query or FrameRef values") from exc
+
+
+def _merge_discovery_reports(reports: list[DiscoveryReport]) -> DiscoveryReport | None:
+    if not reports:
+        return None
+    if len(reports) == 1:
+        return reports[0]
+    items = tuple(item for report in reports for item in report.items)
+    frame_refs = tuple(ref for report in reports for ref in report._native_frame_refs)
+    queries = [dict(report.query) for report in reports if report.query is not None]
+    return DiscoveryReport(
+        items=items,
+        interrupted=any(report.interrupted for report in reports),
+        max_age=None,
+        run_id=None,
+        query={"queries": queries} if queries else None,
+        _native_frame_refs=frame_refs,
+    )
+
+
+async def _resolve_batch_inputs(
+    session: _bridge.CoreEngineSession,
+    query_or_refs: Any,
+    *,
+    progress: ProgressCallback | None,
+) -> tuple[list[Any], DiscoveryReport | None]:
+    frames: list[Any] = []
+    reports: list[DiscoveryReport] = []
+    values = _batch_values(query_or_refs)
+    if progress is not None:
+        progress("resolve", 0, None)
+    for value in values:
+        if _is_query(value):
+            report = await _typed_discovery_report(session, value)
+            reports.append(report)
+            frames.extend(
+                ref
+                for ref in report._native_frame_refs
+                if ref is not None
+            )
+        elif _is_frame(value):
+            frames.extend(_bridge._native_frames([value]))
+        else:
+            raise TypeError("batch input must contain Query or FrameRef values")
+        if progress is not None:
+            progress("resolve", len(frames), None)
+
+    discovery_report = _merge_discovery_reports(reports)
+    keys = [_frame_key(frame) for frame in frames]
+    if len(keys) != len(set(keys)):
+        raise ValueError("duplicate frame identity in batch")
+    return frames, discovery_report
 
 
 async def _resolve_frames(
@@ -616,8 +704,29 @@ class Client:
                 events.set_discovered_count(len(frames))
             return frames
 
+    async def _adiscover_report(
+        self, query: Any, *, progress: ProgressCallback | None = None
+    ) -> DiscoveryReport:
+        async with _operation_scope(self, progress, "discover") as events:
+            report = await _typed_discovery_report(self._session, query)
+            if events is not None:
+                events.set_discovered_count(report.counts["success"])
+            return report
+
     def discover(self, query: Any, *, progress: ProgressCallback | None = None) -> list[Any]:
         return self._run(self._adiscover(query, progress=progress))
+
+    def discover_report(
+        self, query: Any, *, progress: ProgressCallback | None = None
+    ) -> DiscoveryReport:
+        return self._run(self._adiscover_report(query, progress=progress))
+
+    def replay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
+        return self._run(self._areplay_raw_manifest(manifest_path))
+
+    async def _areplay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
+        async with _operation_scope(self, None, "decode"):
+            return await self._session.replay_raw_manifest(manifest_path)
 
     def acquire(self, ref: Any) -> _NativeAcquireContext:
         return _NativeAcquireContext(self, _bridge._native_frames([ref])[0])
@@ -699,7 +808,25 @@ class Client:
             raise ValueError("on_error must be collect/continue or raise/stop")
         if max_concurrency is not None and max_concurrency < 1:
             raise ValueError("max_concurrency must be positive")
-        frames = await _resolve_frames(self._session, query_or_refs, progress=progress)
+        frames, discovery_report = await _resolve_batch_inputs(
+            self._session, query_or_refs, progress=progress
+        )
+        discovery_failures = (
+            [item for item in discovery_report.items if item.status not in {"success", "no_data"}]
+            if discovery_report is not None
+            else []
+        )
+        if discovery_failures and on_error in {"raise", "stop"}:
+            cause = _discovery_exception(discovery_failures[0].as_dict())
+            raise BatchError(
+                "batch stopped after a discovery failure",
+                partial_result=BatchResult((), discovery_report),
+                cause=cause,
+            ) from cause
+        if not frames:
+            if discovery_report is not None:
+                return BatchResult((), discovery_report)
+            raise NoDataError("batch input returned no frames")
         if events is not None:
             events.set_total(len(frames))
         native_report = await self._session.fetch_many_decoded(
@@ -728,7 +855,7 @@ class Client:
         if events is not None:
             completed = sum(item.status != "not_started" for item in items)
             events.set_fetch_count(completed)
-        result = BatchResult(tuple(items))
+        result = BatchResult(tuple(items), discovery_report)
         if on_error in {"raise", "stop"} and result.failed:
             raise BatchError(
                 "batch stopped after the first failure",
@@ -1040,6 +1167,23 @@ class AsyncClient:
     async def discover(self, query: Any, *, progress: ProgressCallback | None = None) -> list[Any]:
         self._ensure_open()
         return await self._adiscover(query, progress=progress)
+
+    async def _adiscover_report(
+        self, query: Any, *, progress: ProgressCallback | None = None
+    ) -> DiscoveryReport:
+        self._ensure_open()
+        return await Client._adiscover_report(self, query, progress=progress)
+
+    async def discover_report(
+        self, query: Any, *, progress: ProgressCallback | None = None
+    ) -> DiscoveryReport:
+        self._ensure_open()
+        return await self._adiscover_report(query, progress=progress)
+
+    async def replay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
+        self._ensure_open()
+        async with _operation_scope(self, None, "decode"):
+            return await self._session.replay_raw_manifest(manifest_path)
 
     def acquire(self, ref: Any) -> _NativeAcquireContext:
         self._ensure_open()

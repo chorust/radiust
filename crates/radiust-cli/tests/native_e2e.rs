@@ -107,6 +107,53 @@ fn source_details_and_read_only_config_cache_commands_run_without_python() {
 }
 
 #[test]
+fn rdcap_listing_exposes_offline_directory_provenance_and_country_capabilities() {
+    let cli = NativeCli::new();
+    let source = json_report(&cli.run(&["list", "rdcap"]), 0);
+    assert_eq!(
+        source["result"]["metadata"]["country_capabilities"]["TWN"]["discovery"],
+        "unverified"
+    );
+
+    let stations = json_report(&cli.run(&["list", "stations", "rdcap"]), 0);
+    assert_eq!(stations["items"].as_array().unwrap().len(), 48);
+    assert_eq!(stations["items"][0]["catalog_status"], "offline_snapshot");
+    assert_eq!(stations["items"][0]["snapshot_date"], "2026-10-01");
+    assert!(stations["items"].as_array().unwrap().iter().any(|station| {
+        station["id"] == "PHL/BALE"
+            && station["country"] == "PHL"
+            && station["directory_statuses"] == serde_json::json!(["Inactive", "Active"])
+            && station["directory_conflicts"].as_array().is_some_and(|conflicts| {
+                conflicts.iter().any(|conflict| conflict["field"] == "Status")
+            })
+            && station["capabilities"]["raw_acquisition"] == "unverified"
+    }));
+
+    let discovery = json_report(&cli.run(&["discover", "all"]), 5);
+    assert_eq!(discovery["counts"]["total"], 74);
+    assert_eq!(discovery["counts"]["network_restricted"], 70);
+    let rdcap_items = discovery["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["source"] == "rdcap")
+        .collect::<Vec<_>>();
+    assert_eq!(rdcap_items.len(), 48);
+    assert!(rdcap_items.iter().all(|item| item["status"] == "network_restricted"));
+
+    let output = cli
+        .command()
+        .args(["list", "stations", "rdcap"])
+        .output()
+        .expect("run human RDCAP listing");
+    assert_eq!(output.status.code(), Some(0));
+    let human = String::from_utf8(output.stdout).unwrap();
+    for label in ["country", "status", "conflict", "snapshot_date", "capability"] {
+        assert!(human.contains(label), "missing {label} from human output:\n{human}");
+    }
+}
+
+#[test]
 fn discover_defaults_to_network_off_and_reports_restricted_sources() {
     let cli = NativeCli::new();
     let output = cli.run(&["discover", "au", "vn"]);

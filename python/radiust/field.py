@@ -30,6 +30,15 @@ def _grid_coords(grid: Grid, dims: tuple[str, str] | None = None) -> dict[str, A
     return {}
 
 
+def _quality_flag_attributes(quality: xr.DataArray) -> dict[str, Any]:
+    masks = [1, 2, 4, 8, 16, 32]
+    meanings = "missing outside_coverage unknown_color recovered interpolated below_detection"
+    if np.any(np.asarray(quality.values, dtype="uint16") & np.uint16(64)):
+        masks.append(64)
+        meanings += " source_annotation"
+    return {"flag_masks": np.asarray(masks, dtype="uint16"), "flag_meanings": meanings}
+
+
 def _is_categorical(field: RadarField) -> bool:
     attrs = field.data.attrs
     return (
@@ -104,7 +113,7 @@ def _bilinear(
     if dbz:
         with np.errstate(over="ignore", invalid="ignore"):
             working = np.power(10.0, working / 10.0)
-    invalid_flags = np.uint16(1 | 2 | 4 | 32)
+    invalid_flags = np.uint16(1 | 2 | 4 | 32 | 64)
     for target_row in range(target_x.shape[0]):
         for target_column in range(target_x.shape[1]):
             x_value = float(target_x[target_row, target_column])
@@ -180,12 +189,7 @@ class RadarField:
         dataset = self.data.to_dataset(name=self.variable)
         if self.quality is not None:
             dataset["quality"] = self.quality
-            dataset["quality"].attrs.update(
-                {
-                    "flag_masks": np.array([1, 2, 4, 8, 16, 32], dtype="uint16"),
-                    "flag_meanings": "missing outside_coverage unknown_color recovered interpolated below_detection",
-                }
-            )
+            dataset["quality"].attrs.update(_quality_flag_attributes(self.quality))
             dataset[self.variable].attrs.setdefault("ancillary_variables", "quality")
         for name, values in _grid_coords(self.grid, tuple(self.data.dims)).items():
             if name not in dataset.coords:
@@ -328,12 +332,7 @@ class RadarDataset:
         dataset = self.data.copy()
         if self.quality is not None and "quality" not in dataset.data_vars:
             dataset["quality"] = self.quality
-            dataset["quality"].attrs.update(
-                {
-                    "flag_masks": np.array([1, 2, 4, 8, 16, 32], dtype="uint16"),
-                    "flag_meanings": "missing outside_coverage unknown_color recovered interpolated below_detection",
-                }
-            )
+            dataset["quality"].attrs.update(_quality_flag_attributes(self.quality))
             for name in dataset.data_vars:
                 if name != "quality":
                     dataset[name].attrs.setdefault("ancillary_variables", "quality")

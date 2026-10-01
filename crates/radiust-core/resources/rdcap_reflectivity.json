@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "rdcap-reflectivity-v1",
+  "version": "1",
+  "source": "rdcap",
+  "product": "reflectivity",
+  "units": "dBZ",
+  "classification": "left-closed-right-open; final class includes values at or above 75 dBZ",
+  "under_threshold": {"less_than_dbz": 5, "rgba": [0, 0, 0, 0]},
+  "missing_rgba": [0, 0, 0, 0],
+  "annotation": {
+    "raw_value": 9999,
+    "quality": 65,
+    "rgba": [0, 0, 0, 0],
+    "role": "range_and_station_overlay",
+    "confidence": "inferred",
+    "rule_version": "rdcap-annotation-v1"
+  },
+  "evidence": {
+    "reference": "docs/rdcap-single-station-analysis.md",
+    "samples": [
+      "tests/fixtures/sources/rdcap/TWN/RCHL/grid.json",
+      "tests/fixtures/sources/rdcap/JPN/ISHI/grid.json",
+      "tests/fixtures/sources/rdcap/PHL/SUBI/grid.json"
+    ],
+    "limitation": "colors reproduce the observed provider display legend; they do not alter scientific values"
+  },
+  "classes": [
+    {"lower_dbz": 5, "raw_lower_threshold": 50, "rgb": [99, 82, 115]},
+    {"lower_dbz": 10, "raw_lower_threshold": 100, "rgb": [115, 99, 132]},
+    {"lower_dbz": 15, "raw_lower_threshold": 150, "rgb": [156, 156, 156]},
+    {"lower_dbz": 20, "raw_lower_threshold": 200, "rgb": [0, 206, 0]},
+    {"lower_dbz": 25, "raw_lower_threshold": 250, "rgb": [0, 173, 0]},
+    {"lower_dbz": 30, "raw_lower_threshold": 300, "rgb": [0, 148, 0]},
+    {"lower_dbz": 35, "raw_lower_threshold": 350, "rgb": [255, 255, 0]},
+    {"lower_dbz": 40, "raw_lower_threshold": 400, "rgb": [231, 198, 0]},
+    {"lower_dbz": 45, "raw_lower_threshold": 450, "rgb": [255, 148, 0]},
+    {"lower_dbz": 50, "raw_lower_threshold": 500, "rgb": [255, 99, 99]},
+    {"lower_dbz": 55, "raw_lower_threshold": 550, "rgb": [255, 0, 0]},
+    {"lower_dbz": 60, "raw_lower_threshold": 600, "rgb": [206, 0, 0]},
+    {"lower_dbz": 65, "raw_lower_threshold": 650, "rgb": [255, 0, 255]},
+    {"lower_dbz": 70, "raw_lower_threshold": 700, "rgb": [156, 49, 206]},
+    {"lower_dbz": 75, "raw_lower_threshold": 750, "rgb": [255, 255, 255]}
+  ]
+}

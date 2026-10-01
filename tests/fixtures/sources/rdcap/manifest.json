@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "fixture_set": "rdcap-single-station-research-v1",
+  "created_at": "2026-10-01T06:16:17.356Z",
+  "status": "offline_research_fixture_not_live_acceptance",
+  "provenance": {
+    "analysis_root": "validation-results/rdcap-analysis",
+    "catalog_source": "validation-results/rdcap-analysis/catalog.json",
+    "station_index_source": "validation-results/rdcap-analysis/station-summary.json",
+    "frame_evidence_source": "validation-results/rdcap-analysis/{RCHL,ISHI,SUBI}/frame.csv",
+    "acquisition_kind": "browser-observed/derived research samples",
+    "native_http_file_response_retained": false,
+    "tickets_or_temporary_credentials_retained": false,
+    "reconstructed_envelopes_are_original_responses": false,
+    "catalog_records": 49,
+    "comparison": {
+      "source": "validation-results/rdcap-analysis/comparison.json",
+      "station_id": "TWN/RCHL",
+      "reference_points": 8
+    },
+    "limitations": [
+      "frame.csv is browser-derived sample content, not a byte-for-byte native HTTP response",
+      "file-response.reconstructed.json is a reconstructed JSON string envelope, never an original HTTP response",
+      "index.redacted.reconstructed.json retains observed keys but omits every ticket value",
+      "offline fixtures do not prove native acquisition, live availability, or independent output readback"
+    ]
+  },
+  "stations": [
+    {
+      "country": "TWN",
+      "station_code": "RCHL",
+      "station_id": "TWN/RCHL",
+      "name": "Hua-Lien",
+      "selected_key_epoch_ms": 1790834708000,
+      "available_keys_epoch_ms": [
+        1790827798000,
+        1790828161000,
+        1790828525000,
+        1790828889000,
+        1790829253000,
+        1790829617000,
+        1790829981000,
+        1790830344000,
+        1790830708000,
+        1790831071000,
+        1790831434000,
+        1790831798000,
+        1790832162000,
+        1790832525000,
+        1790832889000,
+        1790833253000,
+        1790833617000,
+        1790833980000,
+        1790834344000,
+        1790834708000,
+        1790835072000
+      ],
+      "source_http_status": 200,
+      "source_error": null,
+      "sample_kind": "browser-derived research content; offline fixture only",
+      "files": {
+        "frame": {
+          "path": "tests/fixtures/sources/rdcap/TWN/RCHL/frame.csv",
+          "bytes": 45905,
+          "sha256": "9cabec9adc19b92bceb597ae45348ba25632802ce46b1aa47b6fb6cf77244bbd",
+          "evidence_source": "validation-results/rdcap-analysis/RCHL/frame.csv",
+          "classification": "browser_sample_content; not raw HTTP response bytes"
+        },
+        "grid": {
+          "path": "tests/fixtures/sources/rdcap/TWN/RCHL/grid.json",
+          "bytes": 984,
+          "sha256": "8286ebbf58510231dc515da2d7ef196b4e4b3e4049fdfc57dc8f0988cc0d26ce",
+          "evidence_source": "validation-results/rdcap-analysis/RCHL/grid.json"
+        },
+        "index": {
+          "path": "tests/fixtures/sources/rdcap/TWN/RCHL/index.redacted.reconstructed.json",
+          "bytes": 1526,
+          "sha256": "b614ba0d23c8d1d04503972c2ef33e444602783bbb2aa94fd3c040749d4fd25a",
+          "evidence_source": "validation-results/rdcap-analysis/station-summary.json + evidence.json",
+          "classification": "reconstructed; ticket values omitted"
+        },
+        "file_response_envelope": {
+          "path": "tests/fixtures/sources/rdcap/TWN/RCHL/file-response.reconstructed.json",
+          "bytes": 45914,
+          "sha256": "ba204fa05dfcd40d2de8572d9da4eb187359ba374d54815fc516a69c4a91a274",
+          "evidence_source": "validation-results/rdcap-analysis/RCHL/frame.csv",
+          "classification": "reconstructed JSON string envelope; not original HTTP response"
+        },
+        "comparison": {
+          "path": "tests/fixtures/sources/rdcap/TWN/RCHL/comparison.json",
+          "bytes": 1289,
+          "sha256": "45e1bfde6dd5204480ab34cbdd86a4038eb6ca8fb6c257ebebe62b994c35852f",
+          "evidence_source": "validation-results/rdcap-analysis/comparison.json",
+          "classification": "8-point web/reference comparison for this RCHL frame only"
+        }
+      }
+    },
+    {
+      "country": "JPN",
+      "station_code": "ISHI",
+      "station_id": "JPN/ISHI",
+      "name": "Ishigakijima",
+      "selected_key_epoch_ms": 1790834268000,
+      "available_keys_epoch_ms": [
+        1790827665000,
+        1790828265000,
+        1790828865000,
+        1790829464000,
+        1790830064000,
+        1790830665000,
+        1790831265000,
+        1790831865000,
+        1790832464000,
+        1790833065000,
+        1790833665000,
+        1790834268000
+      ],
+      "source_http_status": 200,
+      "source_error": null,
+      "sample_kind": "browser-derived research content; offline fixture only",
+      "files": {
+        "frame": {
+          "path": "tests/fixtures/sources/rdcap/JPN/ISHI/frame.csv",
+          "bytes": 43429,
+          "sha256": "0d53b6cad20e2a2ecca94f985dfa21e0a049ff3ddb5e5326f31b5c9b790dbf2f",
+          "evidence_source": "validation-results/rdcap-analysis/ISHI/frame.csv",
+          "classification": "browser_sample_content; not raw HTTP response bytes"
+        },
+        "grid": {
+          "path": "tests/fixtures/sources/rdcap/JPN/ISHI/grid.json",
+          "bytes": 991,
+          "sha256": "b8d65b30c6706f04b3cc8636ca926a03c4430c10e2d0be80f4d2208a69e17b55",
+          "evidence_source": "validation-results/rdcap-analysis/ISHI/grid.json"
+        },
+        "index": {
+          "path": "tests/fixtures/sources/rdcap/JPN/ISHI/index.redacted.reconstructed.json",
+          "bytes": 1013,
+          "sha256": "3c442b966e13d5a55d9c0a3559af8d40ac03c2522e67b902358934c4ff6b26a6",
+          "evidence_source": "validation-results/rdcap-analysis/station-summary.json + evidence.json",
+          "classification": "reconstructed; ticket values omitted"
+        },
+        "file_response_envelope": {
+          "path": "tests/fixtures/sources/rdcap/JPN/ISHI/file-response.reconstructed.json",
+          "bytes": 43438,
+          "sha256": "d1bc7d098e4bda896650bf7b356b4ec0eecc32399fc35ed9e16189d433f6aaba",
+          "evidence_source": "validation-results/rdcap-analysis/ISHI/frame.csv",
+          "classification": "reconstructed JSON string envelope; not original HTTP response"
+        }
+      }
+    },
+    {
+      "country": "PHL",
+      "station_code": "SUBI",
+      "station_id": "PHL/SUBI",
+      "name": "Subic",
+      "selected_key_epoch_ms": 1790833210000,
+      "available_keys_epoch_ms": [
+        1790827810000,
+        1790828410000,
+        1790829010000,
+        1790829610000,
+        1790830210000,
+        1790830810000,
+        1790831410000,
+        1790832010000,
+        1790832610000,
+        1790833210000
+      ],
+      "source_http_status": 200,
+      "source_error": null,
+      "sample_kind": "browser-derived research content; offline fixture only",
+      "files": {
+        "frame": {
+          "path": "tests/fixtures/sources/rdcap/PHL/SUBI/frame.csv",
+          "bytes": 72632,
+          "sha256": "458917d6007fed272568bc10f2c4d85c52a53c5d037350943aa6616f619bfafe",
+          "evidence_source": "validation-results/rdcap-analysis/SUBI/frame.csv",
+          "classification": "browser_sample_content; not raw HTTP response bytes"
+        },
+        "grid": {
+          "path": "tests/fixtures/sources/rdcap/PHL/SUBI/grid.json",
+          "bytes": 978,
+          "sha256": "d86017ca1c54f8b19389ee2d2a8efa532342392a35d34bbbd36d548cbc8eb572",
+          "evidence_source": "validation-results/rdcap-analysis/SUBI/grid.json"
+        },
+        "index": {
+          "path": "tests/fixtures/sources/rdcap/PHL/SUBI/index.redacted.reconstructed.json",
+          "bytes": 899,
+          "sha256": "b8733a53f643cb4eb6539d1b6c0c8287200564bd58f15fcca49796208caf684b",
+          "evidence_source": "validation-results/rdcap-analysis/station-summary.json + evidence.json",
+          "classification": "reconstructed; ticket values omitted"
+        },
+        "file_response_envelope": {
+          "path": "tests/fixtures/sources/rdcap/PHL/SUBI/file-response.reconstructed.json",
+          "bytes": 72641,
+          "sha256": "ae2ebbd26c385b1405c55ed93003532c96dedcd0cb9bb7c5fe7bcce6a38ddc68",
+          "evidence_source": "validation-results/rdcap-analysis/SUBI/frame.csv",
+          "classification": "reconstructed JSON string envelope; not original HTTP response"
+        }
+      }
+    }
+  ]
+}

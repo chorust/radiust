@@ -8,16 +8,20 @@ use crate::download::{
     DecodedFetchBatchReport, FetchBatchReport, FetchErrorPolicy, fetch_many_raw,
 };
 use crate::error_contract::{ErrorReport, ErrorStage};
-use crate::errors::CoreError;
+use crate::errors::{CoreError, ProviderError};
 use crate::grid::{Resampling, regrid_regular, supports_regrid_crs};
-use crate::identity::{ProcessingSpec, cache_key, logical_id, safe_ref};
+use crate::identity::{ProcessingSpec, apply_science_versions, cache_key, logical_id, safe_ref};
 use crate::limits::{Limits, RequestBudget};
 use crate::model::{
     ArtifactReceipt, DiscoveryItem, DiscoveryReport, DiscoveryStatus, DiscoveryTarget, FrameRef,
     Grid, Query, RadarField, RawArtifact, RawFrame, SafeError, TimeSelector, parse_utc_time,
 };
 use crate::runtime::{OperationContext, OperationKind, RuntimeEventReceiver, RuntimeEvents};
-use crate::source::catalog::{CatalogError, SourceCatalog};
+use crate::source::catalog::{
+    CatalogCapabilityStatus, CatalogError, CatalogMetadata, CatalogStation, SourceCatalog,
+    StationCatalogUpdate,
+};
+use crate::source::rdcap::{is_valid_station_id, resolve_station_selection};
 use crate::source::{SourceContext, SourceRegistry};
 use crate::storage::{LocalCommitRequest, LocalCommitStatus, LocalStore, StagedArtifact};
 use crate::transport::ftp::FtpTransport;
@@ -33,6 +37,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tokio::time::Instant;
 
 pub struct Engine {
     config: Arc<CoreConfig>,
@@ -45,6 +50,7 @@ pub struct Engine {
     ftp_transport: Arc<FtpTransport>,
     runtime_events: RuntimeEvents,
     raw_cache: tokio::sync::OnceCell<Option<Arc<Mutex<crate::cache::Cache>>>>,
+    raw_fetch_locks: Mutex<BTreeMap<String, std::sync::Weak<tokio::sync::Mutex<()>>>>,
 }
 
 impl Engine {
@@ -80,6 +86,7 @@ impl Engine {
             ftp_transport,
             runtime_events: RuntimeEvents::default(),
             raw_cache: tokio::sync::OnceCell::const_new(),
+            raw_fetch_locks: Mutex::new(BTreeMap::new()),
             config: Arc::new(config),
         })
     }
@@ -249,7 +256,7 @@ impl Engine {
         }
         if !matches!(
             (raw.frame.source.as_str(), raw.frame.product.as_str()),
-            ("rainviewer", "composite") | ("tw", "grid")
+            ("rainviewer", "composite") | ("tw", "grid") | ("rdcap", "reflectivity")
         ) {
             return Err(EngineError::UnsupportedScience(format!(
                 "{}/{}",
@@ -263,6 +270,7 @@ impl Engine {
             match (raw.frame.source.as_str(), raw.frame.product.as_str()) {
                 ("rainviewer", "composite") => crate::science::decode_rainviewer(&raw, &limits),
                 ("tw", "grid") => crate::science::decode_tw_grid(&raw, &limits),
+                ("rdcap", "reflectivity") => crate::science::decode_rdcap(&raw, &limits),
                 _ => unreachable!("source/product was checked before dispatch"),
             }
         })
@@ -786,12 +794,13 @@ impl Engine {
     ) -> Result<(LocalCommitStatus, String), (CoreError, ErrorStage)> {
         let revision =
             science_revision(&frame, &field).map_err(|error| (error, ErrorStage::Stage))?;
-        let spec = ProcessingSpec {
+        let mut spec = ProcessingSpec {
             format: format.to_owned(),
             variable,
             options,
             ..ProcessingSpec::default()
         };
+        apply_science_versions(&mut spec, &field);
         let limits = self.resource_limits();
         let permit = tokio::select! {
             permit = self.decode_workers.clone().acquire_owned() => {
@@ -859,6 +868,18 @@ impl Engine {
         }
         identity_validation.map_err(|_| EngineError::InvalidFrame)?;
 
+        let _raw_fetch_guard = if frame.source == "rdcap" {
+            let lock = self.raw_fetch_lock(&frame.logical_id);
+            Some(tokio::select! {
+                guard = lock.lock_owned() => guard,
+                _ = self.request_budget.cancellation.cancelled() => {
+                    return Err(CoreError::Cancelled.into());
+                }
+            })
+        } else {
+            None
+        };
+
         let temp_root =
             self.config.runtime.temp_root.clone().unwrap_or_else(|| self.default_temp_root("raw"));
         let fetch_query = Query {
@@ -899,6 +920,12 @@ impl Engine {
 
         if let Some(fetch) = source_fetch {
             let raw = fetch.await.map_err(|error| sanitize_fetch_error(error, &frame.source))?;
+            if raw.frame.logical_id != frame.logical_id {
+                return Err(EngineError::InvalidFrame);
+            }
+            if raw.frame.source == "rdcap" {
+                crate::source::rdcap::validate_binding(&raw.frame, &raw.artifacts)?;
+            }
             operation.progress(1, Some(1));
             self.store_cached_raw(&raw).await;
             return Ok(raw);
@@ -975,10 +1002,22 @@ impl Engine {
             .clone()
     }
 
+    fn raw_fetch_lock(&self, logical_id: &str) -> Arc<tokio::sync::Mutex<()>> {
+        let mut locks =
+            self.raw_fetch_locks.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        locks.retain(|_, lock| lock.strong_count() > 0);
+        if let Some(lock) = locks.get(logical_id).and_then(std::sync::Weak::upgrade) {
+            return lock;
+        }
+        let lock = Arc::new(tokio::sync::Mutex::new(()));
+        locks.insert(logical_id.to_owned(), Arc::downgrade(&lock));
+        lock
+    }
+
     async fn load_cached_raw(
         &self,
         cache: Arc<Mutex<crate::cache::Cache>>,
-        frame: FrameRef,
+        mut frame: FrameRef,
         temp_root: PathBuf,
     ) -> Result<Option<RawFrame>, CoreError> {
         let Some(frame_key) = raw_frame_cache_key(&frame) else {
@@ -1000,6 +1039,11 @@ impl Engine {
             {
                 let _ = cache.index.remove(&manifest_key);
                 return None;
+            }
+            frame.revision =
+                document.get("revision").and_then(serde_json::Value::as_str).map(str::to_owned);
+            if frame.source == "rdcap" {
+                frame.locator = crate::identity::safe_locator(&frame.locator);
             }
             let descriptors = document.get("artifacts")?.as_array()?;
             if descriptors.is_empty() {
@@ -1081,7 +1125,13 @@ impl Engine {
                     path,
                 });
             }
-            Some(Ok(RawFrame { frame, artifacts, private_locator: None }))
+            let raw = RawFrame { frame, artifacts, private_locator: None };
+            if raw.frame.source == "rdcap"
+                && crate::source::rdcap::validate_binding(&raw.frame, &raw.artifacts).is_err()
+            {
+                return None;
+            }
+            Some(Ok(raw))
         })
         .await
         .map_err(|_| CoreError::Temporary("cached artifact worker failed".into()))?;
@@ -1193,21 +1243,123 @@ impl Engine {
                 None => return Err(EngineError::InvalidQuery("a source must be selected")),
             }
         };
-        let mut targets = self.catalog.expand_targets(source_ids.as_deref())?;
+        let discovery_deadline = Duration::from_secs_f64(self.config.runtime.discovery_deadline);
+        let deadline_at = Instant::now() + discovery_deadline;
+        let request_coalescer = Arc::new(HttpRequestCoalescer::default());
+        let mut catalog = self.catalog.clone();
+        let rdcap_selected =
+            source_ids.as_ref().is_none_or(|ids| ids.iter().any(|source| source == "rdcap"));
+        let mut catalog_refresh_error = None;
+        let mut catalog_refreshed = false;
+
+        // Refresh once before expansion/filtering. The refresh uses the same
+        // Engine request budget and its elapsed time is deducted from the
+        // discovery deadline below.
+        if rdcap_selected {
+            let refresh_result = if !self.config.runtime.allow_network {
+                Err(CoreError::NetworkDisabled(
+                    "RDCAP catalog refresh requires network access".into(),
+                ))
+            } else if let Some(adapter) = self.sources.get("rdcap") {
+                let remaining = deadline_at.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    Err(CoreError::Provider(ProviderError::Timeout))
+                } else {
+                    let context =
+                        self.source_context(query.clone(), "rdcap", request_coalescer.clone());
+                    match tokio::time::timeout(remaining, adapter.refresh_station_catalog(context))
+                        .await
+                    {
+                        Ok(result) => result,
+                        Err(_) => Err(CoreError::Provider(ProviderError::Timeout)),
+                    }
+                }
+            } else {
+                Err(CoreError::Provider(ProviderError::CatalogUnavailable))
+            };
+
+            match refresh_result {
+                Ok(Some(update)) => {
+                    merge_station_catalog_update(&mut catalog, update)?;
+                    catalog_refreshed = true;
+                }
+                Ok(None) => {
+                    catalog_refresh_error =
+                        Some(CoreError::Provider(ProviderError::CatalogUnavailable));
+                }
+                Err(error) => catalog_refresh_error = Some(error),
+            }
+        }
+
+        let mut dispatch_query = query.clone();
+        let mut preflight_items = Vec::new();
+        if query.source.as_deref() == Some("rdcap") && !query.stations.is_empty() {
+            let station_ids = catalog
+                .source("rdcap")
+                .ok_or(EngineError::InvalidQuery("RDCAP catalog is unavailable"))?
+                .stations
+                .iter()
+                .map(|station| station.id.clone())
+                .collect::<Vec<_>>();
+            let mut normalized = Vec::with_capacity(query.stations.len());
+            let mut seen = HashSet::new();
+            let product = query
+                .product
+                .clone()
+                .or_else(|| catalog.default_product("rdcap").map(str::to_owned));
+            for selector in &query.stations {
+                match resolve_station_selection(selector, &station_ids) {
+                    Ok(station_id) => {
+                        if !seen.insert(station_id.clone()) {
+                            return Err(EngineError::InvalidQuery(
+                                "station list contains duplicates after RDCAP normalization",
+                            ));
+                        }
+                        normalized.push(station_id);
+                    }
+                    Err(provider_error) => {
+                        let error = if provider_error == ProviderError::AmbiguousIndex {
+                            CoreError::Provider(provider_error)
+                        } else if catalog_refreshed {
+                            CoreError::Provider(ProviderError::UnknownStation)
+                        } else {
+                            match catalog_refresh_error.as_ref() {
+                                Some(CoreError::Cancelled) => CoreError::Cancelled,
+                                Some(CoreError::Provider(ProviderError::Timeout)) => {
+                                    CoreError::Provider(ProviderError::Timeout)
+                                }
+                                _ => CoreError::Provider(ProviderError::CatalogUnavailable),
+                            }
+                        };
+                        preflight_items.push(core_error_item(
+                            DiscoveryTarget {
+                                source: "rdcap".into(),
+                                product: product.clone(),
+                                station: Some(selector.clone()),
+                            },
+                            error,
+                        ));
+                    }
+                }
+            }
+            dispatch_query.stations = normalized;
+        }
+
+        let mut targets = catalog.expand_targets(source_ids.as_deref())?;
         if query.product.is_none()
             && let Some([source]) = source_ids.as_deref()
-            && let Some(default_product) = self.catalog.default_product(source)
+            && let Some(default_product) = catalog.default_product(source)
         {
             targets.retain(|target| target.product.as_deref() == Some(default_product));
         }
         if let Some(product) = query.product.as_deref() {
             targets.retain(|target| target.product.as_deref() == Some(product));
         }
-        if !query.stations.is_empty() {
+        if !dispatch_query.stations.is_empty() {
             let mut expanded = Vec::new();
             for target in targets {
                 if target.station.is_some() {
-                    if query
+                    if dispatch_query
                         .stations
                         .iter()
                         .any(|station| Some(station.as_str()) == target.station.as_deref())
@@ -1215,27 +1367,30 @@ impl Engine {
                         expanded.push(target);
                     }
                 } else {
-                    expanded.extend(query.stations.iter().map(|station| DiscoveryTarget {
-                        station: Some(station.clone()),
-                        ..target.clone()
+                    expanded.extend(dispatch_query.stations.iter().map(|station| {
+                        DiscoveryTarget { station: Some(station.clone()), ..target.clone() }
                     }));
                 }
             }
             targets = expanded;
             targets.sort();
             targets.dedup();
+        } else if !query.stations.is_empty() {
+            // Every explicit station selector failed preflight. Do not let an
+            // empty normalized list turn into an unfiltered 48-station scan.
+            targets.retain(|target| target.source != "rdcap");
         }
 
-        let target_count = targets.len() as u64;
-        let mut completed_targets = 0_u64;
-        let mut items = Vec::with_capacity(targets.len());
+        let target_count = targets.len() as u64 + preflight_items.len() as u64;
+        let mut completed_targets = preflight_items.len() as u64;
+        let mut items = preflight_items;
         let mut runnable = Vec::new();
+        if completed_targets > 0 {
+            operation.progress(completed_targets, Some(target_count));
+        }
         for target in targets {
             let runnable_before = runnable.len();
-            if self
-                .catalog
-                .source(&target.source)
-                .is_some_and(|source| source.availability == "retired")
+            if catalog.source(&target.source).is_some_and(|source| source.availability == "retired")
             {
                 items.push(status_item(
                     target,
@@ -1276,40 +1431,53 @@ impl Engine {
             }
         }
 
-        let request_coalescer = Arc::new(HttpRequestCoalescer::default());
-        let query_for_adapters = query.clone();
+        let query_for_adapters = dispatch_query.clone();
         let adapters = runnable
             .into_iter()
             .map(|(target, adapter)| (target, adapter))
             .collect::<std::collections::BTreeMap<_, _>>();
         let runnable_targets = adapters.keys().cloned().collect::<Vec<_>>();
-        let dispatched = run_source_fair_with_deadline(
-            runnable_targets,
-            self.config.runtime.discovery_workers,
-            seed,
-            self.request_budget.cancellation.clone(),
-            Some(Duration::from_secs_f64(self.config.runtime.discovery_deadline)),
-            |target| target.source.clone(),
-            {
-                let adapters = &adapters;
-                move |target| {
-                    let adapter = adapters[&target].clone();
-                    let context = self.source_context(
-                        query_for_adapters.clone(),
-                        &target.source,
-                        request_coalescer.clone(),
-                    );
-                    async move { adapter.discover(target, context).await }
-                }
-            },
-        )
-        .await;
+        let remaining = deadline_at.saturating_duration_since(Instant::now());
+        let dispatched: Vec<(DiscoveryTarget, DiscoveryOutcome<Vec<FrameRef>, CoreError>)> = if self
+            .request_budget
+            .cancellation
+            .is_cancelled()
+        {
+            runnable_targets
+                .into_iter()
+                .map(|target| (target, DiscoveryOutcome::Cancelled))
+                .collect()
+        } else if remaining.is_zero() {
+            runnable_targets.into_iter().map(|target| (target, DiscoveryOutcome::Timeout)).collect()
+        } else {
+            run_source_fair_with_deadline(
+                runnable_targets,
+                self.config.runtime.discovery_workers,
+                seed,
+                self.request_budget.cancellation.clone(),
+                Some(remaining),
+                |target| target.source.clone(),
+                {
+                    let adapters = &adapters;
+                    move |target| {
+                        let adapter = adapters[&target].clone();
+                        let context = self.source_context(
+                            query_for_adapters.clone(),
+                            &target.source,
+                            request_coalescer.clone(),
+                        );
+                        async move { adapter.discover(target, context).await }
+                    }
+                },
+            )
+            .await
+        };
 
         for (target, outcome) in dispatched {
             match outcome {
                 DiscoveryOutcome::Completed(Ok(frames)) => {
                     items.extend(select_target_frames(
-                        &query,
+                        &dispatch_query,
                         target,
                         frames,
                         multi_source,
@@ -1379,6 +1547,156 @@ impl Engine {
             ftp_transport: self.ftp_transport.clone(),
             request_coalescer,
         }
+    }
+}
+
+fn merge_station_catalog_update(
+    catalog: &mut SourceCatalog,
+    update: StationCatalogUpdate,
+) -> Result<(), EngineError> {
+    if update.source_id != "rdcap" || update.stations.is_empty() {
+        return Err(CoreError::Provider(ProviderError::CatalogUnavailable).into());
+    }
+    let source_index = catalog
+        .sources
+        .iter()
+        .position(|source| source.id == update.source_id)
+        .ok_or(CoreError::Provider(ProviderError::CatalogUnavailable))?;
+    let valid_products = catalog.sources[source_index]
+        .products
+        .iter()
+        .map(|product| product.id.as_str())
+        .collect::<HashSet<_>>();
+    let default_product = catalog.default_product("rdcap").map(str::to_owned);
+    let mut live_stations = BTreeMap::new();
+    for mut station in update.stations {
+        if !is_valid_station_id(&station.id)
+            || station.product_ids.iter().any(|product| !valid_products.contains(product.as_str()))
+        {
+            return Err(CoreError::Provider(ProviderError::UnexpectedBody).into());
+        }
+        if station.product_ids.is_empty()
+            && let Some(default_product) = default_product.as_ref()
+        {
+            station.product_ids.push(default_product.clone());
+        }
+        if live_stations.insert(station.id.clone(), station).is_some() {
+            return Err(CoreError::Provider(ProviderError::UnexpectedBody).into());
+        }
+    }
+
+    let source = &mut catalog.sources[source_index];
+    let mut merged = BTreeMap::new();
+    for mut snapshot_station in std::mem::take(&mut source.stations) {
+        if let Some(live_station) = live_stations.remove(&snapshot_station.id) {
+            snapshot_station = merge_station(snapshot_station, live_station, "present");
+        } else {
+            snapshot_station.metadata = merge_catalog_metadata(
+                snapshot_station.metadata.take(),
+                None,
+                "not_seen_in_refresh",
+            );
+        }
+        merged.insert(snapshot_station.id.clone(), snapshot_station);
+    }
+    for (station_id, mut live_station) in live_stations {
+        live_station.metadata =
+            merge_catalog_metadata(None, live_station.metadata.take(), "new_from_live_directory");
+        merged.insert(station_id, live_station);
+    }
+    source.stations = merged.into_values().collect();
+    source.metadata = merge_catalog_metadata(source.metadata.take(), update.metadata, "refreshed");
+    Ok(())
+}
+
+fn merge_station(
+    snapshot: CatalogStation,
+    mut live: CatalogStation,
+    state: &str,
+) -> CatalogStation {
+    let coordinate_conflict = live.metadata.as_ref().is_some_and(|metadata| {
+        metadata.directory_conflicts.iter().any(|conflict| conflict.field == "Longitude/Latitude")
+    });
+    let station_code = snapshot.id.rsplit('/').next().unwrap_or_default();
+    if live.name.trim().is_empty() || live.name.eq_ignore_ascii_case(station_code) {
+        live.name = snapshot.name.clone();
+    }
+    live.longitude = if coordinate_conflict { None } else { live.longitude.or(snapshot.longitude) };
+    live.latitude = if coordinate_conflict { None } else { live.latitude.or(snapshot.latitude) };
+    for product in snapshot.product_ids {
+        if !live.product_ids.contains(&product) {
+            live.product_ids.push(product);
+        }
+    }
+    live.product_ids.sort();
+    live.metadata = merge_catalog_metadata(snapshot.metadata, live.metadata.take(), state);
+    live
+}
+
+fn merge_catalog_metadata(
+    snapshot: Option<CatalogMetadata>,
+    live: Option<CatalogMetadata>,
+    live_state: &str,
+) -> Option<CatalogMetadata> {
+    let snapshot_present = snapshot.is_some();
+    if snapshot.is_none() && live.is_none() {
+        let mut metadata = CatalogMetadata::default();
+        metadata.extensions.insert("snapshot_catalog_state".into(), json!("absent"));
+        metadata.extensions.insert("live_catalog_state".into(), json!(live_state));
+        return Some(metadata);
+    }
+    let mut merged = snapshot.unwrap_or_default();
+    let snapshot_extensions = merged.extensions.clone();
+    if let Some(live) = live {
+        merged.country = live.country.or(merged.country);
+        merged.recent_query = live.recent_query.or(merged.recent_query);
+        for conflict in live.directory_conflicts {
+            let already_present = merged.directory_conflicts.iter().any(|existing| {
+                existing.station_id == conflict.station_id
+                    && existing.field == conflict.field
+                    && existing.values == conflict.values
+            });
+            if !already_present {
+                merged.directory_conflicts.push(conflict);
+            }
+        }
+        for provenance in live.provenance {
+            if !merged.provenance.iter().any(|existing| {
+                existing.source == provenance.source
+                    && existing.reference == provenance.reference
+                    && existing.observed_at == provenance.observed_at
+            }) {
+                merged.provenance.push(provenance);
+            }
+        }
+        for (country, live_capabilities) in live.country_capabilities {
+            let capabilities = merged.country_capabilities.entry(country).or_default();
+            merge_capability(&mut capabilities.discovery, live_capabilities.discovery);
+            merge_capability(&mut capabilities.raw_acquisition, live_capabilities.raw_acquisition);
+            merge_capability(&mut capabilities.science, live_capabilities.science);
+            merge_capability(&mut capabilities.readback, live_capabilities.readback);
+        }
+        for (key, value) in live.extensions {
+            if snapshot_extensions.get(&key).is_some_and(|snapshot| snapshot != &value) {
+                merged
+                    .extensions
+                    .insert(format!("snapshot_{key}"), snapshot_extensions[&key].clone());
+            }
+            merged.extensions.insert(key, value);
+        }
+    }
+    merged.extensions.insert(
+        "snapshot_catalog_state".into(),
+        json!(if snapshot_present { "present" } else { "absent" }),
+    );
+    merged.extensions.insert("live_catalog_state".into(), json!(live_state));
+    Some(merged)
+}
+
+fn merge_capability(target: &mut CatalogCapabilityStatus, live: CatalogCapabilityStatus) {
+    if live != CatalogCapabilityStatus::Unverified || *target == CatalogCapabilityStatus::Unverified
+    {
+        *target = live;
     }
 }
 
@@ -1646,6 +1964,9 @@ fn artifact_requests(frame: &FrameRef) -> Result<Vec<ArtifactRequest>, EngineErr
 }
 
 fn raw_frame_cache_key(frame: &FrameRef) -> Option<String> {
+    if frame.source == "rdcap" {
+        return cache_key(frame, Some("rdcap-raw-v1"), "1", "1").ok();
+    }
     let revision = frame.revision.as_deref()?;
     if matches!(frame.source.as_str(), "bmkg" | "opensnow" | "rainviewer" | "windy")
         || frame.locator.get("artifacts").and_then(serde_json::Value::as_array).is_some_and(
@@ -1733,6 +2054,8 @@ fn sanitize_fetch_error(error: CoreError, source: &str) -> CoreError {
         CoreError::NetworkDisabled(_) => {
             CoreError::NetworkDisabled(format!("source {source} artifact acquisition is disabled"))
         }
+        CoreError::HttpStatus { status, retryable } => CoreError::HttpStatus { status, retryable },
+        CoreError::Provider(error) => CoreError::Provider(error),
         CoreError::ResourceLimit(message) => CoreError::ResourceLimit(message),
         CoreError::Temporary(message) => CoreError::Temporary(message),
         _ => CoreError::Transport(format!("source {source} artifact request failed")),
@@ -1798,14 +2121,12 @@ fn core_error_item(target: DiscoveryTarget, error: CoreError) -> DiscoveryItem {
         .ok()
         .and_then(|value| value.as_str().map(str::to_owned))
         .unwrap_or_else(|| "internal".to_owned());
-    let status = if code == "network_restricted" {
-        DiscoveryStatus::NetworkRestricted
-    } else if code == "cancelled" {
-        DiscoveryStatus::Cancelled
-    } else if code == "transport" {
-        DiscoveryStatus::UpstreamFailed
-    } else {
-        DiscoveryStatus::UpstreamFailed
+    let status = match code.as_str() {
+        "network_restricted" => DiscoveryStatus::NetworkRestricted,
+        "cancelled" => DiscoveryStatus::Cancelled,
+        "timeout" => DiscoveryStatus::Timeout,
+        "ambiguous_index" => DiscoveryStatus::Ambiguous,
+        _ => DiscoveryStatus::UpstreamFailed,
     };
     DiscoveryItem {
         target,
@@ -1942,26 +2263,32 @@ fn select_target_frames(
                         })
                         .collect::<Vec<_>>();
                 }
-                FrameSelection::NoData => status_item(
-                    target,
-                    DiscoveryStatus::NoData,
-                    "no_data",
-                    "no matching frame is available",
-                ),
+                FrameSelection::NoData => {
+                    let (code, message) = if target.source == "rdcap" {
+                        ("no_matching_time", "no RDCAP frame matches the requested time")
+                    } else {
+                        ("no_data", "no matching frame is available")
+                    };
+                    status_item(target, DiscoveryStatus::NoData, code, message)
+                }
                 FrameSelection::Stale => status_item(
                     target,
                     DiscoveryStatus::Stale,
                     "stale",
                     "latest frame is older than --max-age",
                 ),
-                FrameSelection::Ambiguous(count) => status_item(
-                    target,
-                    DiscoveryStatus::Ambiguous,
-                    "ambiguous",
-                    &format!(
-                        "{count} candidates for source/product/station; select a single source"
-                    ),
-                ),
+                FrameSelection::Ambiguous(count) => {
+                    let code =
+                        if target.source == "rdcap" { "ambiguous_index" } else { "ambiguous" };
+                    status_item(
+                        target,
+                        DiscoveryStatus::Ambiguous,
+                        code,
+                        &format!(
+                            "{count} candidates for source/product/station; select a single source"
+                        ),
+                    )
+                }
             };
             vec![item]
         })
@@ -2026,10 +2353,70 @@ mod tests {
             .discover_seeded(Query { source: Some("all".into()), ..Query::default() }, 7)
             .await
             .unwrap();
-        assert_eq!(report.counts.total, 26);
+        assert_eq!(report.counts.total, 74);
         assert_eq!(report.counts.missing_credentials, 3);
         assert_eq!(report.counts.retired, 1);
-        assert_eq!(report.counts.network_restricted, 22);
+        assert_eq!(report.counts.network_restricted, 70);
+    }
+
+    #[test]
+    fn directory_merge_separates_live_state_from_retained_snapshot_provenance() {
+        let mut catalog = SourceCatalog::builtin().unwrap();
+        let live_bale = CatalogStation {
+            id: "PHL/BALE".into(),
+            name: "Baler".into(),
+            longitude: Some(121.6331),
+            latitude: Some(15.7502),
+            product_ids: vec!["reflectivity".into()],
+            metadata: Some(CatalogMetadata {
+                extensions: BTreeMap::from([
+                    ("directory_record_ids".into(), json!(["5031"])),
+                    ("directory_statuses".into(), json!(["Active"])),
+                ]),
+                ..CatalogMetadata::default()
+            }),
+        };
+        let added = CatalogStation {
+            id: "PHL/NEW1".into(),
+            name: "New Radar".into(),
+            longitude: None,
+            latitude: None,
+            product_ids: vec!["reflectivity".into()],
+            metadata: None,
+        };
+        merge_station_catalog_update(
+            &mut catalog,
+            StationCatalogUpdate {
+                source_id: "rdcap".into(),
+                stations: vec![live_bale, added],
+                metadata: None,
+            },
+        )
+        .unwrap();
+
+        let source = catalog.source("rdcap").unwrap();
+        assert_eq!(source.stations.len(), 49);
+        let bale = source.stations.iter().find(|station| station.id == "PHL/BALE").unwrap();
+        let bale_metadata = bale.metadata.as_ref().unwrap();
+        assert_eq!(bale_metadata.extensions["snapshot_catalog_state"], "present");
+        assert_eq!(bale_metadata.extensions["live_catalog_state"], "present");
+        assert_eq!(
+            bale_metadata.extensions["snapshot_directory_statuses"],
+            json!(["Inactive", "Active"])
+        );
+        assert_eq!(bale_metadata.extensions["directory_statuses"], json!(["Active"]));
+
+        let retained = source.stations.iter().find(|station| station.id == "TWN/RCHL").unwrap();
+        assert_eq!(
+            retained.metadata.as_ref().unwrap().extensions["live_catalog_state"],
+            "not_seen_in_refresh"
+        );
+        let added = source.stations.iter().find(|station| station.id == "PHL/NEW1").unwrap();
+        assert_eq!(added.metadata.as_ref().unwrap().extensions["snapshot_catalog_state"], "absent");
+        assert_eq!(
+            added.metadata.as_ref().unwrap().extensions["live_catalog_state"],
+            "new_from_live_directory"
+        );
     }
 
     #[tokio::test]
@@ -2286,6 +2673,115 @@ mod tests {
         }
     }
 
+    struct CachedRdcapAdapter {
+        fetches: Arc<AtomicUsize>,
+    }
+
+    impl SourceAdapter for CachedRdcapAdapter {
+        fn source_id(&self) -> &'static str {
+            "rdcap"
+        }
+
+        fn discover(
+            self: Arc<Self>,
+            _target: DiscoveryTarget,
+            _context: SourceContext,
+        ) -> BoxFuture<'static, crate::errors::CoreResult<Vec<FrameRef>>> {
+            Box::pin(async { Ok(Vec::new()) })
+        }
+
+        fn fetch_raw(
+            self: Arc<Self>,
+            mut frame: FrameRef,
+            _context: SourceContext,
+            temp_root: PathBuf,
+        ) -> Option<BoxFuture<'static, crate::errors::CoreResult<RawFrame>>> {
+            let fetches = self.fetches.clone();
+            Some(Box::pin(async move {
+                use std::io::Write;
+
+                fetches.fetch_add(1, Ordering::SeqCst);
+                tokio::time::sleep(Duration::from_millis(40)).await;
+                std::fs::create_dir_all(&temp_root)
+                    .map_err(|_| CoreError::Temporary("test staging is unavailable".into()))?;
+                let content = serde_json::to_vec(&"cached rdcap payload").unwrap();
+                let content_sha256 = hex::encode(Sha256::digest(&content));
+                frame.revision = Some(content_sha256.clone());
+                let response = tempfile::Builder::new()
+                    .prefix("rdcap-cache-response-")
+                    .tempfile_in(&temp_root)
+                    .map_err(|_| CoreError::Temporary("test response staging failed".into()))?;
+                let mut response = response;
+                response
+                    .write_all(&content)
+                    .and_then(|()| response.as_file().sync_all())
+                    .map_err(|_| CoreError::Temporary("test response staging failed".into()))?;
+                let response_path = response.into_temp_path();
+                let response_receipt = crate::transport::http::HttpBodyReceipt {
+                    size_bytes: content.len() as u64,
+                    sha256: content_sha256,
+                };
+                let binding = crate::source::rdcap::binding_bytes(&frame, &response_receipt)?;
+                let binding_digest = hex::encode(Sha256::digest(&binding));
+                let mut binding_file = tempfile::Builder::new()
+                    .prefix("rdcap-cache-binding-")
+                    .tempfile_in(&temp_root)
+                    .map_err(|_| CoreError::Temporary("test binding staging failed".into()))?;
+                binding_file
+                    .write_all(&binding)
+                    .and_then(|()| binding_file.as_file().sync_all())
+                    .map_err(|_| CoreError::Temporary("test binding staging failed".into()))?;
+                let binding_path = binding_file.into_temp_path();
+                Ok(RawFrame {
+                    frame,
+                    artifacts: vec![
+                        RawArtifact {
+                            receipt: ArtifactReceipt {
+                                name: "file-response.json".into(),
+                                media_type: "application/json".into(),
+                                size_bytes: response_receipt.size_bytes,
+                                sha256: response_receipt.sha256,
+                            },
+                            path: response_path,
+                        },
+                        RawArtifact {
+                            receipt: ArtifactReceipt {
+                                name: "binding.json".into(),
+                                media_type: "application/json".into(),
+                                size_bytes: binding.len() as u64,
+                                sha256: binding_digest,
+                            },
+                            path: binding_path,
+                        },
+                    ],
+                    private_locator: None,
+                })
+            }))
+        }
+    }
+
+    fn cached_rdcap_frame(ticket: &str) -> FrameRef {
+        let mut frame = FrameRef {
+            source: "rdcap".into(),
+            product: "reflectivity".into(),
+            station: Some("TWN/RCHL".into()),
+            valid_time: "2026-10-01T06:05:08.000000Z".into(),
+            base_time: None,
+            logical_id: String::new(),
+            revision: None,
+            locator_version: "rdcap-csr-v1".into(),
+            locator: json!({
+                "country": "TWN",
+                "station_code": "RCHL",
+                "key": "1790834708000",
+                "url": format!("https://rdcap.cwa.gov.tw/file?ft={ticket}"),
+                "headers": {"Referer": "https://rdcap.cwa.gov.tw/data_access/radar_display/TWN/RCHL"},
+            }),
+        };
+        frame.logical_id = crate::identity::logical_id(&frame).unwrap();
+        frame
+    }
+
     struct DynamicStationAdapter;
 
     impl SourceAdapter for DynamicStationAdapter {
@@ -2351,6 +2847,7 @@ mod tests {
             "opensnow",
             "ph",
             "pt",
+            "rdcap",
             "rainviewer",
             "sg",
             "th",
@@ -2380,8 +2877,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(maximum.load(Ordering::SeqCst), 2);
-        assert_eq!(report.counts.success, 22);
-        assert_eq!(report.items.len(), 26);
+        assert_eq!(report.counts.success, 70);
+        assert_eq!(report.items.len(), 74);
         assert_eq!(report.items.first().unwrap().target.source, "au");
     }
 
@@ -2543,6 +3040,83 @@ mod tests {
         assert_eq!(cached.artifacts[0].receipt.name, "cached.png");
         assert_eq!(cached.artifacts[0].receipt.size_bytes, 7);
         assert_eq!(std::fs::read(&cached.artifacts[0].path).unwrap(), b"payload");
+    }
+
+    #[tokio::test]
+    async fn concurrent_rdcap_raw_fetches_share_one_result_across_ticket_rotation() {
+        let workspace = tempfile::tempdir().unwrap();
+        let fetches = Arc::new(AtomicUsize::new(0));
+        let mut overrides = SourceRegistry::default();
+        overrides.register(Arc::new(CachedRdcapAdapter { fetches: fetches.clone() })).unwrap();
+        let mut config = CoreConfig::default();
+        config.runtime.allow_network = true;
+        config.runtime.temp_root = Some(workspace.path().join("staging"));
+        config.cache.dir = workspace.path().join("cache");
+        let engine = Engine::new(config, overrides).unwrap();
+        let first_frame = cached_rdcap_frame("ticket-one");
+        let second_frame = cached_rdcap_frame("ticket-two");
+        assert_eq!(first_frame.logical_id, second_frame.logical_id);
+
+        let (first, second) =
+            tokio::join!(engine.fetch_raw(first_frame), engine.fetch_raw(second_frame));
+        let first = first.unwrap();
+        let second = second.unwrap();
+
+        assert_eq!(fetches.load(Ordering::SeqCst), 1);
+        assert_eq!(first.frame.revision, second.frame.revision);
+        assert_eq!(first.artifacts.len(), 2);
+        assert_eq!(second.artifacts.len(), 2);
+        assert_eq!(
+            std::fs::read(&first.artifacts[0].path).unwrap(),
+            std::fs::read(&second.artifacts[0].path).unwrap()
+        );
+        assert!(!serde_json::to_string(&second.public_receipt()).unwrap().contains("ticket-two"));
+    }
+
+    #[tokio::test]
+    async fn rdcap_raw_only_commit_is_offline_loadable_and_idempotent() {
+        let workspace = tempfile::tempdir().unwrap();
+        let fetches = Arc::new(AtomicUsize::new(0));
+        let mut overrides = SourceRegistry::default();
+        overrides.register(Arc::new(CachedRdcapAdapter { fetches: fetches.clone() })).unwrap();
+        let mut config = CoreConfig::default();
+        config.runtime.allow_network = true;
+        config.runtime.temp_root = Some(workspace.path().join("staging"));
+        config.storage.output = workspace.path().join("output");
+        config.cache.dir = workspace.path().join("cache");
+        let engine = Engine::new(config, overrides).unwrap();
+        let frame = cached_rdcap_frame("private-raw-only-ticket");
+
+        let first = engine
+            .download_raw_only(vec![frame.clone()], FetchErrorPolicy::Collect, false, false)
+            .await;
+        assert_eq!(first.written, 1);
+        assert_eq!(first.failed, 0);
+        let manifest =
+            workspace.path().join(format!("output/frames/{}/raw-manifest.json", frame.logical_id));
+        let manifest_text = std::fs::read_to_string(&manifest).unwrap();
+        assert!(!manifest_text.contains("private-raw-only-ticket"));
+        assert!(!manifest_text.contains("Referer"));
+        let raw = crate::raw_manifest::load(
+            &manifest,
+            &workspace.path().join("offline-staging"),
+            &limits_from_config(&engine.config.runtime),
+        )
+        .unwrap();
+        assert_eq!(raw.artifacts.len(), 2);
+        assert_eq!(
+            raw.frame.revision.as_deref(),
+            Some(
+                hex::encode(Sha256::digest(serde_json::to_vec(&"cached rdcap payload").unwrap()))
+                    .as_str()
+            )
+        );
+
+        let second =
+            engine.download_raw_only(vec![frame], FetchErrorPolicy::Collect, false, false).await;
+        assert_eq!(second.skipped, 1);
+        assert_eq!(second.written, 0);
+        assert_eq!(fetches.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]

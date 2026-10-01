@@ -16,6 +16,7 @@ mod opensnow;
 mod ph;
 mod pt;
 pub(crate) mod rainviewer;
+pub(crate) mod rdcap;
 mod sg;
 mod th;
 mod th_royalrain;
@@ -35,6 +36,7 @@ pub use wunderground::WundergroundSourceAdapter;
 use crate::errors::CoreResult;
 use crate::limits::{Limits, RequestBudget};
 use crate::model::{DiscoveryTarget, FrameRef, Query, RawFrame};
+use crate::source::catalog::StationCatalogUpdate;
 use crate::transport::ftp::FtpTransport;
 use crate::transport::http::{HttpRequestCoalescer, HttpTransport};
 use futures_util::future::BoxFuture;
@@ -65,6 +67,17 @@ pub struct SourceContext {
 /// without retaining borrowed CLI or Python state.
 pub trait SourceAdapter: Send + Sync {
     fn source_id(&self) -> &'static str;
+
+    /// Optionally refresh the provider's station directory once before Engine
+    /// expands and filters discovery targets. The same request budget,
+    /// cancellation token, network policy, and source-scoped options used by
+    /// normal discovery are available through `SourceContext`.
+    fn refresh_station_catalog(
+        self: Arc<Self>,
+        _context: SourceContext,
+    ) -> BoxFuture<'static, CoreResult<Option<StationCatalogUpdate>>> {
+        Box::pin(async { Ok(None) })
+    }
 
     /// Host allow-list for generic raw HTTP acquisition. Providers without a
     /// reviewed acquisition path leave this disabled.
@@ -138,6 +151,7 @@ impl SourceRegistry {
         registry.adapters.insert("opensnow".into(), Arc::new(OpenSnowSourceAdapter));
         registry.adapters.insert("ph".into(), Arc::new(ph::PhSourceAdapter));
         registry.adapters.insert("pt".into(), Arc::new(pt::PtSourceAdapter));
+        registry.adapters.insert("rdcap".into(), Arc::new(rdcap::RdcapSourceAdapter::default()));
         registry
             .adapters
             .insert("rainviewer".into(), Arc::new(rainviewer::RainViewerSourceAdapter));
@@ -205,6 +219,7 @@ mod tests {
         assert!(registry.get("ph").is_some());
         assert!(registry.get("pt").is_some());
         assert!(registry.get("rainviewer").is_some());
+        assert!(registry.get("rdcap").is_some());
         assert!(registry.get("sg").is_some());
         assert!(registry.get("th").is_some());
         assert!(registry.get("th_royalrain").is_some());
@@ -214,7 +229,7 @@ mod tests {
         assert!(registry.get("vn").is_some());
         assert!(registry.get("windy").is_some());
         assert!(registry.get("wunderground").is_some());
-        assert_eq!(registry.adapters.len(), 24);
+        assert_eq!(registry.adapters.len(), 25);
     }
 
     #[test]

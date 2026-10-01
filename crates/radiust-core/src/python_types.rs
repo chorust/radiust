@@ -5,12 +5,16 @@ use crate::download::{
     DecodedFetchBatchReport, DecodedFetchItem, DecodedFetchStream, DecodedGrid, DecodedProcessing,
     DownloadBatchReport, DownloadStatus, FetchBatchReport, FetchErrorPolicy, FetchStatus,
 };
-use crate::engine::Engine;
+use crate::engine::{Engine, EngineError};
+use crate::error_contract::{ErrorCode, ErrorReport, ErrorStage};
+use crate::errors::{CoreError, ProviderError};
 use crate::grid::Resampling;
 use crate::model::{DiscoveryReport, FrameRef, Grid, Query, RadarDataset, RadarField, RawFrame};
 use crate::runtime::RuntimeEventReceiver;
 use crate::source::SourceRegistry;
-use pyo3::exceptions::{PyOSError, PyRuntimeError, PyValueError};
+use pyo3::exceptions::{
+    PyInterruptedError, PyOSError, PyPermissionError, PyRuntimeError, PyValueError,
+};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyType};
 use serde::Serialize;
@@ -456,7 +460,7 @@ impl PyDiscoveryReport {
     }
 
     fn to_json(&self) -> PyResult<String> {
-        to_json(&self.inner)
+        to_json(&self.inner.safe_document())
     }
 }
 
@@ -973,7 +977,7 @@ impl PyEngine {
             let report = engine
                 .discover(query)
                 .await
-                .map_err(|error| PyValueError::new_err(error.to_string()))?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Discover))?;
             let report = PyDiscoveryReport::from_report(report)?;
             Python::attach(|py| Py::new(py, report))
         })
@@ -987,7 +991,10 @@ impl PyEngine {
         let frame = Python::attach(|py| frame.borrow(py).inner.clone());
         let engine = self.inner.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let raw = engine.fetch_raw(frame).await.map_err(engine_error_to_py)?;
+            let raw = engine
+                .fetch_raw(frame)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
             Python::attach(|py| {
                 Py::new(py, PyRawFrame { inner: Arc::new(Mutex::new(Some(Arc::new(raw)))) })
             })
@@ -1004,7 +1011,7 @@ impl PyEngine {
             let raw = engine
                 .load_raw_manifest(PathBuf::from(manifest_path))
                 .await
-                .map_err(engine_error_to_py)?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Validate))?;
             Python::attach(|py| {
                 Py::new(py, PyRawFrame { inner: Arc::new(Mutex::new(Some(Arc::new(raw)))) })
             })
@@ -1019,7 +1026,10 @@ impl PyEngine {
         let raw = Python::attach(|py| raw.borrow(py).get_inner())?;
         let engine = self.inner.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let field = engine.decode_science(raw).await.map_err(engine_error_to_py)?;
+            let field = engine
+                .decode_science(raw)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Decode))?;
             Python::attach(|py| {
                 Py::new(py, PyRadarField { backing: RadarFieldBacking::Owned(Arc::new(field)) })
             })
@@ -1036,7 +1046,7 @@ impl PyEngine {
             let field = engine
                 .replay_raw_manifest(PathBuf::from(manifest_path))
                 .await
-                .map_err(engine_error_to_py)?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Decode))?;
             Python::attach(|py| {
                 Py::new(py, PyRadarField { backing: RadarFieldBacking::Owned(Arc::new(field)) })
             })
@@ -1056,7 +1066,10 @@ impl PyEngine {
             .ok_or_else(|| PyValueError::new_err("resampling must be nearest or bilinear"))?;
         let engine = self.inner.clone();
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let field = engine.regrid(field, target, method).await.map_err(engine_error_to_py)?;
+            let field = engine
+                .regrid(field, target, method)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Regrid))?;
             Python::attach(|py| {
                 Py::new(py, PyRadarField { backing: RadarFieldBacking::Owned(Arc::new(field)) })
             })
@@ -1087,7 +1100,7 @@ impl PyEngine {
             let report = engine
                 .write_science_to(frame, field, output_root, &format, overwrite, options, variable)
                 .await
-                .map_err(engine_error_to_py)?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Commit))?;
             Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
         })
     }
@@ -1249,7 +1262,7 @@ impl PyEngine {
                     include_raw,
                 )
                 .await
-                .map_err(engine_error_to_py)?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
             Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
         })
     }
@@ -1292,7 +1305,7 @@ impl PyEngine {
                     include_raw,
                 )
                 .await
-                .map_err(engine_error_to_py)?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
             Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
         })
     }
@@ -1335,7 +1348,7 @@ impl PyEngine {
                     include_raw,
                 )
                 .await
-                .map_err(engine_error_to_py)?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
             Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
         })
     }
@@ -1378,23 +1391,82 @@ impl PyEngine {
                     include_raw,
                 )
                 .await
-                .map_err(engine_error_to_py)?;
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
             Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
         })
     }
 }
 
-fn engine_error_to_py(error: crate::engine::EngineError) -> PyErr {
-    let message = error.to_string();
-    match error {
-        crate::engine::EngineError::Core(error) => super::python::core_error_to_py(error),
-        crate::engine::EngineError::InvalidFrame
-        | crate::engine::EngineError::InvalidQuery(_)
-        | crate::engine::EngineError::InvalidConfiguration
-        | crate::engine::EngineError::UnsupportedSource(_)
-        | crate::engine::EngineError::UnsupportedScience(_) => PyValueError::new_err(message),
-        _ => PyOSError::new_err(message),
-    }
+fn engine_error_to_py(error: EngineError, stage: ErrorStage) -> PyErr {
+    let report = match &error {
+        EngineError::Core(error) => ErrorReport::from_core(error, stage),
+        EngineError::InvalidQuery(_) | EngineError::Query(_) => ErrorReport {
+            code: ErrorCode::InvalidQuery,
+            message: crate::safety::safe_text(&error.to_string()),
+            stage: ErrorStage::Validate,
+            retryable: false,
+        },
+        EngineError::UnsupportedSource(_)
+        | EngineError::UnsupportedScience(_)
+        | EngineError::UnsupportedVariable { .. }
+        | EngineError::UnsupportedRegrid { .. } => ErrorReport {
+            code: ErrorCode::Unsupported,
+            message: crate::safety::safe_text(&error.to_string()),
+            stage,
+            retryable: false,
+        },
+        EngineError::InvalidFrame | EngineError::InvalidConfiguration => ErrorReport {
+            code: ErrorCode::InvalidQuery,
+            message: crate::safety::safe_text(&error.to_string()),
+            stage: ErrorStage::Validate,
+            retryable: false,
+        },
+        EngineError::Catalog(_) | EngineError::RuntimeUnavailable => ErrorReport {
+            code: ErrorCode::Internal,
+            message: "native operation failed".into(),
+            stage,
+            retryable: false,
+        },
+    };
+    let py_error = match &error {
+        EngineError::Core(CoreError::Cancelled) => {
+            PyInterruptedError::new_err(report.message.clone())
+        }
+        EngineError::Core(CoreError::NetworkDisabled(_))
+        | EngineError::Core(CoreError::Provider(ProviderError::AccessDenied)) => {
+            PyPermissionError::new_err(report.message.clone())
+        }
+        EngineError::Core(CoreError::ResourceLimit(_)) => {
+            PyValueError::new_err(report.message.clone())
+        }
+        EngineError::Core(_) => PyOSError::new_err(report.message.clone()),
+        EngineError::InvalidFrame
+        | EngineError::InvalidQuery(_)
+        | EngineError::Query(_)
+        | EngineError::InvalidConfiguration
+        | EngineError::UnsupportedSource(_)
+        | EngineError::UnsupportedScience(_)
+        | EngineError::UnsupportedVariable { .. }
+        | EngineError::UnsupportedRegrid { .. } => PyValueError::new_err(report.message.clone()),
+        EngineError::Catalog(_) | EngineError::RuntimeUnavailable => {
+            PyOSError::new_err(report.message.clone())
+        }
+    };
+    let code = serde_json::to_value(report.code)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_else(|| "internal".into());
+    let stage = serde_json::to_value(report.stage)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .unwrap_or_else(|| "validate".into());
+    Python::attach(|py| {
+        let value = py_error.value(py);
+        let _ = value.setattr("radiust_code", code);
+        let _ = value.setattr("radiust_stage", stage);
+        let _ = value.setattr("radiust_retryable", report.retryable);
+    });
+    py_error
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {

@@ -43,7 +43,11 @@ def to_xarray(value: Any) -> Any:
             data_vars[f"{record['name']}_quality"] = (
                 dims,
                 quality,
-                {"long_name": f"quality flags for {record['name']}", "flag_dtype": "uint16"},
+                {
+                    "long_name": f"quality flags for {record['name']}",
+                    "flag_dtype": "uint16",
+                    **_quality_flag_attributes(record, quality, np),
+                },
             )
         _, _, _, _, coords = _field_arrays(fields[0], np)
         dataset = xr.Dataset(
@@ -58,13 +62,22 @@ def to_xarray(value: Any) -> Any:
 
     if hasattr(value, "metadata_json"):
         array, quality, dims, attrs, coords = _field_arrays(value, np)
-        coords["quality"] = (dims, quality)
+        record = _field_metadata(value)
+        coords["quality"] = xr.DataArray(
+            quality,
+            dims=dims,
+            attrs=_quality_flag_attributes(record, quality, np),
+        )
         return xr.DataArray(array, dims=dims, coords=coords, attrs=attrs, name=attrs["long_name"])
 
     document = _document(value)
     if isinstance(document, dict) and {"name", "values", "quality", "shape", "grid"} <= document.keys():
         array, quality, dims, attrs, coords = _field_arrays(document, np)
-        coords["quality"] = (dims, quality)
+        coords["quality"] = xr.DataArray(
+            quality,
+            dims=dims,
+            attrs=_quality_flag_attributes(document, quality, np),
+        )
         return xr.DataArray(array, dims=dims, coords=coords, attrs=attrs, name=document["name"])
 
     raise TypeError("to_xarray expects a Rust RadarField or RadarDataset")
@@ -93,6 +106,17 @@ def _field_metadata(field: Any) -> dict[str, Any]:
     if not isinstance(metadata, dict):
         raise ValueError("Rust RadarDataset contains an invalid field")
     return metadata
+
+
+def _quality_flag_attributes(record: dict[str, Any], quality: Any, np: Any) -> dict[str, Any]:
+    masks = [1, 2, 4, 8, 16, 32]
+    meanings = "missing outside_coverage unknown_color recovered interpolated below_detection"
+    provenance = record.get("provenance", [])
+    has_rdcap_annotation = any(entry == "source=rdcap" for entry in provenance) if isinstance(provenance, list) else False
+    if has_rdcap_annotation or np.any(np.asarray(quality, dtype="uint16") & np.uint16(64)):
+        masks.append(64)
+        meanings += " source_annotation"
+    return {"flag_masks": np.asarray(masks, dtype="uint16"), "flag_meanings": meanings}
 
 
 def _field_arrays(field: Any, np: Any) -> tuple[Any, Any, tuple[str, ...], dict[str, Any], dict[str, Any]]:

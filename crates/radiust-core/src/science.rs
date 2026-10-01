@@ -11,6 +11,9 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::sync::OnceLock;
 
+mod rdcap;
+pub use rdcap::decode_rdcap;
+
 const UNIVERSAL_BLUE_RGBA: &str = r#"
 63615914 66635a19 69665c1e 6c685d24 6f6b5f29 726e612e 75706234
 78736439 7c75653e 7f786744 827b6949 857d6a4e 88806c54 8b826d59

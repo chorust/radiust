@@ -80,6 +80,7 @@ def test_native_cli_uses_rust_catalog_without_python_network_calls(monkeypatch):
     assert result.exit_code == 0, result.output
     document = json.loads(result.output)
     ids = {item["id"] for item in document["items"]}
-    assert len(ids) == 24
+    assert len(ids) == 25
+    assert "rdcap" in ids
     assert "stub" not in ids
     assert counter.network == 0

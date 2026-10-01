@@ -7,7 +7,7 @@
 
 use crate::config::CoreConfig;
 use crate::engine::Engine;
-use crate::errors::CoreError;
+use crate::errors::{CoreError, ProviderError};
 use crate::identity::{ArtifactBytes, ProcessingSpec};
 use crate::limits::Limits;
 use crate::model::{FrameRef, Query};
@@ -28,9 +28,12 @@ pub(crate) fn core_error_to_py(error: CoreError) -> PyErr {
         CoreError::NetworkDisabled(_) => PyPermissionError::new_err(message),
         CoreError::ResourceLimit(_) => PyValueError::new_err(message),
         CoreError::Cancelled => PyInterruptedError::new_err(message),
+        CoreError::Provider(ProviderError::AccessDenied) => PyPermissionError::new_err(message),
         CoreError::Transport(_)
+        | CoreError::HttpStatus { .. }
         | CoreError::Temporary(_)
         | CoreError::Cache(_)
+        | CoreError::Provider(_)
         | CoreError::OutputConflict
         | CoreError::Storage(_)
         | CoreError::CommitOutcomeUnknown => PyOSError::new_err(message),
@@ -222,7 +225,8 @@ fn discover_json<'py>(
             .discover(query)
             .await
             .map_err(|error| PyValueError::new_err(error.to_string()))?;
-        serde_json::to_string(&report).map_err(|error| PyValueError::new_err(error.to_string()))
+        serde_json::to_string(&report.safe_document())
+            .map_err(|error| PyValueError::new_err(error.to_string()))
     })
 }
 

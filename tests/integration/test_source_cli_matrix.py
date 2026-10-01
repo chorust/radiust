@@ -17,8 +17,9 @@ def test_source_cli_list_covers_the_head_inventory() -> None:
     report = json.loads(result.output)
     catalog_ids = {item["id"] for item in report["items"]}
     inventory_ids = {item["id"] for item in INVENTORY["sources"]}
-    assert catalog_ids == inventory_ids
-    assert len(catalog_ids) == 24
+    assert inventory_ids <= catalog_ids
+    assert len(catalog_ids) == 25
+    assert "rdcap" in catalog_ids
 
     fixture_ids = set()
     for item in INVENTORY["sources"]:

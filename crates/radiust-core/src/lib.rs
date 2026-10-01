@@ -18,6 +18,7 @@ pub mod model;
 pub mod output;
 pub mod preview;
 pub mod raw_manifest;
+mod rdcap_palette;
 pub mod runtime;
 pub mod safety;
 pub mod science;

@@ -228,6 +228,8 @@ fn list(items: &[Value], p: &Presentation) -> String {
         &["id", "availability", "products", "description"]
     } else if items[0].get("variables").is_some() {
         &["id", "variables", "units", "default", "historical", "mutable"]
+    } else if items[0].get("country").is_some() {
+        &["id", "country", "name", "status", "conflict", "snapshot_date", "capability"]
     } else {
         &["id", "name", "latitude", "longitude", "product_ids"]
     };
@@ -236,6 +238,8 @@ fn list(items: &[Value], p: &Presentation) -> String {
         "source"
     } else if items[0].get("variables").is_some() {
         "product"
+    } else if items[0].get("country").is_some() {
+        "station"
     } else {
         "station"
     };

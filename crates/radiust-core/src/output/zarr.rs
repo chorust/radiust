@@ -21,8 +21,10 @@ use crate::limits::Limits;
 use crate::model::{RadarDataset, RadarField, parse_utc_time};
 
 const CHUNK_EDGE: usize = 512;
-const QUALITY_FLAGS: [u16; 6] = [1, 2, 4, 8, 16, 32];
-const QUALITY_MEANINGS: &str =
+const QUALITY_FLAGS: [u16; 7] = [1, 2, 4, 8, 16, 32, 64];
+const LEGACY_QUALITY_FLAGS: [u16; 6] = [1, 2, 4, 8, 16, 32];
+const QUALITY_MEANINGS: &str = "missing outside_coverage unknown_color recovered interpolated below_detection source_annotation";
+const LEGACY_QUALITY_MEANINGS: &str =
     "missing outside_coverage unknown_color recovered interpolated below_detection";
 
 fn storage_error(message: impl Into<String>) -> CoreError {
@@ -693,8 +695,7 @@ fn validate_field_metadata(
             || required_string(&quality.attributes, "long_name")? != "quality flags"
             || required_string(&quality.attributes, "coordinates")?
                 != auxiliary_coordinates(None, true)
-            || quality.attributes.get("flag_masks") != Some(&json!(QUALITY_FLAGS))
-            || required_string(&quality.attributes, "flag_meanings")? != QUALITY_MEANINGS
+            || !valid_quality_flag_metadata(&quality.attributes)?
         {
             return Err(storage_error("Zarr quality metadata is invalid"));
         }
@@ -730,6 +731,15 @@ fn validate_field_metadata(
     }
 
     Ok(fields)
+}
+
+fn valid_quality_flag_metadata(attributes: &Map<String, Value>) -> CoreResult<bool> {
+    let masks = attributes
+        .get("flag_masks")
+        .ok_or_else(|| storage_error("Zarr quality flag masks are missing"))?;
+    let meanings = required_string(attributes, "flag_meanings")?;
+    Ok((masks == &json!(LEGACY_QUALITY_FLAGS) && meanings == LEGACY_QUALITY_MEANINGS)
+        || (masks == &json!(QUALITY_FLAGS) && meanings == QUALITY_MEANINGS))
 }
 
 fn parse_zarr_time_origin(units: &str) -> CoreResult<DateTime<Utc>> {

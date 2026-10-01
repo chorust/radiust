@@ -19,7 +19,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-const SOURCE_IDS: [&str; 24] = [
+const SOURCE_IDS: [&str; 25] = [
     "au",
     "bmkg",
     "ca",
@@ -35,6 +35,7 @@ const SOURCE_IDS: [&str; 24] = [
     "ph",
     "pt",
     "rainviewer",
+    "rdcap",
     "sg",
     "th",
     "th_royalrain",
@@ -46,7 +47,7 @@ const SOURCE_IDS: [&str; 24] = [
     "wunderground",
 ];
 
-const NATIVE_ADAPTER_IDS: [&str; 24] = [
+const NATIVE_ADAPTER_IDS: [&str; 25] = [
     "au",
     "bmkg",
     "ca",
@@ -62,6 +63,7 @@ const NATIVE_ADAPTER_IDS: [&str; 24] = [
     "ph",
     "pt",
     "rainviewer",
+    "rdcap",
     "sg",
     "th",
     "th_royalrain",
@@ -73,7 +75,7 @@ const NATIVE_ADAPTER_IDS: [&str; 24] = [
     "wunderground",
 ];
 
-const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 26] = [
+const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 74] = [
     ("au", "composite", None),
     ("bmkg", "composite", None),
     ("ca", "rain", None),
@@ -90,6 +92,54 @@ const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 26] = [
     ("ph", "composite", None),
     ("pt", "composite", None),
     ("rainviewer", "composite", None),
+    ("rdcap", "reflectivity", Some("JPN/AKIT")),
+    ("rdcap", "reflectivity", Some("JPN/FUNC")),
+    ("rdcap", "reflectivity", Some("JPN/HAIG")),
+    ("rdcap", "reflectivity", Some("JPN/HAKO")),
+    ("rdcap", "reflectivity", Some("JPN/ISHI")),
+    ("rdcap", "reflectivity", Some("JPN/ITOK")),
+    ("rdcap", "reflectivity", Some("JPN/KASH")),
+    ("rdcap", "reflectivity", Some("JPN/KURU")),
+    ("rdcap", "reflectivity", Some("JPN/KUSH")),
+    ("rdcap", "reflectivity", Some("JPN/MAKI")),
+    ("rdcap", "reflectivity", Some("JPN/MISA")),
+    ("rdcap", "reflectivity", Some("JPN/MURO")),
+    ("rdcap", "reflectivity", Some("JPN/NAGO")),
+    ("rdcap", "reflectivity", Some("JPN/SAPP")),
+    ("rdcap", "reflectivity", Some("JPN/SEFU")),
+    ("rdcap", "reflectivity", Some("JPN/SEND")),
+    ("rdcap", "reflectivity", Some("JPN/TAKA")),
+    ("rdcap", "reflectivity", Some("JPN/TANE")),
+    ("rdcap", "reflectivity", Some("JPN/TOJI")),
+    ("rdcap", "reflectivity", Some("JPN/YAHI")),
+    ("rdcap", "reflectivity", Some("PHL/APAR")),
+    ("rdcap", "reflectivity", Some("PHL/BAGU")),
+    ("rdcap", "reflectivity", Some("PHL/BALE")),
+    ("rdcap", "reflectivity", Some("PHL/BASC")),
+    ("rdcap", "reflectivity", Some("PHL/BOHO")),
+    ("rdcap", "reflectivity", Some("PHL/DAET")),
+    ("rdcap", "reflectivity", Some("PHL/GUIU")),
+    ("rdcap", "reflectivity", Some("PHL/HINA")),
+    ("rdcap", "reflectivity", Some("PHL/ILOI")),
+    ("rdcap", "reflectivity", Some("PHL/MACT")),
+    ("rdcap", "reflectivity", Some("PHL/QUEZ")),
+    ("rdcap", "reflectivity", Some("PHL/SUBI")),
+    ("rdcap", "reflectivity", Some("PHL/TAGA")),
+    ("rdcap", "reflectivity", Some("PHL/TAMP")),
+    ("rdcap", "reflectivity", Some("PHL/VIRA")),
+    ("rdcap", "reflectivity", Some("TWN/RCAA")),
+    ("rdcap", "reflectivity", Some("TWN/RCCG")),
+    ("rdcap", "reflectivity", Some("TWN/RCCK")),
+    ("rdcap", "reflectivity", Some("TWN/RCCU")),
+    ("rdcap", "reflectivity", Some("TWN/RCGI")),
+    ("rdcap", "reflectivity", Some("TWN/RCHL")),
+    ("rdcap", "reflectivity", Some("TWN/RCKT")),
+    ("rdcap", "reflectivity", Some("TWN/RCLY")),
+    ("rdcap", "reflectivity", Some("TWN/RCMD")),
+    ("rdcap", "reflectivity", Some("TWN/RCMK")),
+    ("rdcap", "reflectivity", Some("TWN/RCNT")),
+    ("rdcap", "reflectivity", Some("TWN/RCSL")),
+    ("rdcap", "reflectivity", Some("TWN/RCWF")),
     ("sg", "composite", None),
     ("th", "composite", None),
     ("th_royalrain", "cappi", None),
@@ -102,7 +152,7 @@ const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 26] = [
     ("wunderground", "composite", None),
 ];
 
-const RAW_HOOK_SOURCES: [&str; 6] = ["au", "ph", "rainviewer", "th", "tw", "windy"];
+const RAW_HOOK_SOURCES: [&str; 7] = ["au", "ph", "rainviewer", "rdcap", "th", "tw", "windy"];
 const CREDENTIALS: [(&str, &str); 3] =
     [("id", "token"), ("id_sidarma", "api_key"), ("wunderground", "api_key")];
 
@@ -253,7 +303,7 @@ fn catalog_lists_all_sources_and_expands_the_exact_discovery_target_matrix() {
         })
         .collect::<Vec<_>>();
     assert_eq!(actual, DISCOVERY_TARGETS);
-    assert_eq!(targets.len(), 26);
+    assert_eq!(targets.len(), 74);
 }
 
 #[test]
@@ -376,7 +426,8 @@ async fn raw_acquisition_hooks_and_scientific_decoders_match_the_implemented_cap
     assert_eq!(raw_hooks, RAW_HOOK_SOURCES);
 
     let engine = offline_engine(CoreConfig::default());
-    let supported = BTreeSet::from([("rainviewer", "composite"), ("tw", "grid")]);
+    let supported =
+        BTreeSet::from([("rainviewer", "composite"), ("rdcap", "reflectivity"), ("tw", "grid")]);
     for (source, product, _) in DISCOVERY_TARGETS {
         if !supported.contains(&(source, product)) {
             let raw = RawFrame {
@@ -425,7 +476,7 @@ async fn offline_discovery_preserves_retirement_credentials_and_network_prefligh
         .await
         .expect("offline discover all");
 
-    assert_eq!(report.counts.total, 26);
+    assert_eq!(report.counts.total, 74);
     for item in &report.items {
         let expected = if item.target.source == "uk" {
             DiscoveryStatus::Retired
@@ -438,7 +489,7 @@ async fn offline_discovery_preserves_retirement_credentials_and_network_prefligh
     }
     assert_eq!(report.counts.retired, 1);
     assert_eq!(report.counts.missing_credentials, 3);
-    assert_eq!(report.counts.network_restricted, 22);
+    assert_eq!(report.counts.network_restricted, 70);
 
     let mut configured = CoreConfig::default();
     for (source, field) in CREDENTIALS {
@@ -455,7 +506,7 @@ async fn offline_discovery_preserves_retirement_credentials_and_network_prefligh
         .await
         .expect("credentialed offline discover all");
     assert_eq!(credentialed.counts.retired, 1);
-    assert_eq!(credentialed.counts.network_restricted, 25);
+    assert_eq!(credentialed.counts.network_restricted, 73);
     assert_eq!(credentialed.counts.missing_credentials, 0);
     let serialized = serde_json::to_string(&credentialed).unwrap();
     for (source, _) in CREDENTIALS {

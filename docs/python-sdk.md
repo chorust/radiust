@@ -41,9 +41,9 @@ with radiust.Client() as client:
 
 `fetch()` 返回 Rust 持有的 `_core.RadarField` 或 `_core.RadarDataset`。成功结果独立于 Client 生命周期；`fetch()` 只获取和解码，不发布正式输出。`acquire()` 返回的 `RawFrame` 仅在上下文内有效。同步 `Client` 复用一个事件循环和 Rust Engine；异步代码使用 `AsyncClient`。
 
-批量入口保持输入顺序并为每帧生成结果；`iter_fetch` 按完成顺序产生结果，预取数量有界。`on_error="collect"` 收集逐帧错误，`on_error="raise"` 或 `"stop"` 抛出带 `partial_result` 的 `BatchError`。重复的逻辑帧输入会在获取前被拒绝。
+批量入口保持输入顺序并为每帧生成结果；`iter_fetch` 按完成顺序产生结果，预取数量有界。对包含 `Query` 的 `fetch_many()`，`on_error="collect"` 或 `"continue"` 会保留完整发现终态并继续获取成功 refs；返回的 `BatchResult.discovery_report` 保存逐目标报告，`discovery_counts` 是其状态计数。`no_data` 也会出现在发现报告中，但不会生成虚构的 frame。发现状态计数与 frame 结果的 `BatchResult.counts` 分开统计。`on_error="raise"` 或 `"stop"` 遇到发现失败时会抛出带 `partial_result` 的 `BatchError`，其中仍含完整发现报告和可用的成功 frame 句柄；发现阶段失败时不会开始获取这些成功 frame。输入只有 `FrameRef` 时没有发现报告，这两个属性为 `None`。重复的逻辑帧输入会在获取前被拒绝。
 
-`download()` 经 Rust Engine 写入本地目录或对象存储，支持 raw-only、PNG、NetCDF、GeoTIFF 和 Zarr v2；科学格式只对已验收的来源/产品开放。`raw=True` 可将验证过的原始 artifact 与解码成果放进同一次正式提交。解码下载支持 `variable`、`grid`、`bbox`、`resolution` 和 `resampling` 参数；当前 geographic 下载重网格只对已验证的 RainViewer EPSG:4326 数据开放。绑定结果的 `RadarField.regrid()`/`RadarDataset.regrid()` 与 Rust `Engine::regrid()` 另支持 EPSG:4326↔EPSG:3857 的 Web Mercator 坐标变换；其他 datum/projection 转换（包括 TW EPSG:3821 到 EPSG:4326）仍明确失败，未验收来源也不会升级为科学可用。对象存储目标使用 `s3://bucket/prefix` 或 `oss://bucket/prefix`，并须在配置中显式启用 `runtime.allow_network`，通过 `storage` 配置提供 endpoint/region 和凭据；URI 本身不能包含凭据。解码格式支持安全的 `output_template` 字段 `{source}`、`{product}`、`{station}`、`{valid_time}`、`{base_time}`、`{date}`、`{hour}`、`{variant_id}` 与 `{ext}`；本地模板必须生成相对路径，不能越过输出根目录。非空 `encoder_options` 目前不支持。远端 generation/pointer 提交流水线已有内存故障合同，真实 AWS S3/阿里云 OSS 尚未验收；尚不支持的来源能力也会返回有界错误。
+`download()` 经 Rust Engine 写入本地目录或对象存储，支持 raw-only、PNG、NetCDF、GeoTIFF 和 Zarr v2；科学格式只对已实现相应 decoder 的来源/产品开放，RDCAP 科学值仍须结合本节的逐国在线验收状态使用。`raw=True` 可将验证过的原始 artifact 与解码成果放进同一次正式提交。解码下载支持 `variable`、`grid`、`bbox`、`resolution` 和 `resampling` 参数；RainViewer EPSG:4326 geographic 下载有既有验证，RDCAP 解码场为 EPSG:4326 原生网格，但三国在线发现、获取和科学读回仍未验收。绑定结果的 `RadarField.regrid()`/`RadarDataset.regrid()` 与 Rust `Engine::regrid()` 支持 EPSG:4326↔EPSG:3857 的 Web Mercator 坐标变换；其他 datum/projection 转换（包括 TW EPSG:3821 到 EPSG:4326）仍明确失败。对象存储目标使用 `s3://bucket/prefix` 或 `oss://bucket/prefix`，并须在配置中显式启用 `runtime.allow_network`，通过 `storage` 配置提供 endpoint/region 和凭据；URI 本身不能包含凭据。解码格式支持安全的 `output_template` 字段 `{source}`、`{product}`、`{station}`、`{valid_time}`、`{base_time}`、`{date}`、`{hour}`、`{variant_id}` 与 `{ext}`；本地模板必须生成相对路径，不能越过输出根目录。RDCAP 的 `{station}`（例如 `TWN/RCHL`）会编码为单个路径分量 `TWN%2FRCHL`。模板仅用于解码输出；raw-only 与模板组合会被拒绝。非空 `encoder_options` 目前不支持。远端 generation/pointer 提交流水线已有内存故障合同，真实 AWS S3/阿里云 OSS 尚未验收；尚不支持的来源能力也会返回有界错误。
 
 `Client.write()` 和 `AsyncClient.write()` 接收 Rust `RadarField` 或 `RadarDataset`，将已解码对象通过 Rust PNG、NetCDF4、GeoTIFF 或 Zarr v2 writer 发布到本地 manifest-last store。调用方必须传入产生该对象的 `FrameRef`；字段时间必须与帧时间相同。多变量 Dataset 必须用 `variable=` 选择一个变量。重复写入完整且身份相同的成果会返回 `skipped`；目前内存对象写入不接受 `raw=True`、远端 URI 或地理重网格选项。
 
@@ -58,7 +58,36 @@ with radiust.Client() as client:
 
 顶层 `radiust.RadarField` 与 `radiust.RadarDataset` 是 PyO3 绑定类型，字段数组由 Rust 持有。需要 NumPy/xarray 时显式调用 `radiust.to_xarray(value)`；它保留 `float32` 值、`uint16` quality、坐标、CRS、UTC 时间和 provenance。基础安装导入这些绑定类型不需要 NumPy/xarray；`to_xarray()` 需安装 `radiust[science]`。`radiust[zarr]` 安装 Python Zarr v2 互操作依赖。
 
-质量位为：bit 0 `missing`、bit 1 `outside_coverage`、bit 2 `unknown_color`、bit 3 `recovered`、bit 4 `interpolated`、bit 5 `below_detection`。零只表示没有已知质量异常，不能把缺测或透明像元静默变成无雨。
+质量位为：bit 0 `missing`、bit 1 `outside_coverage`、bit 2 `unknown_color`、bit 3 `recovered`、bit 4 `interpolated`、bit 5 `below_detection`、bit 6 `source_annotation`。bit 0–5 的既有含义保持不变；RDCAP 原始值 9999 按当前跨站样本推断为图面标记时，解码值为 NaN、quality 为 65（bit 0 与 bit 6 同时设置）。NetCDF、GeoTIFF provenance 和 Zarr 写出新增 mask 64/meaning `source_annotation`，读取器仍接受旧六位布局。零只表示没有已知质量异常，不能把缺测或透明像元静默变成无雨。`to_xarray()` 保留 `uint16` quality 及其 masks/meanings。
+
+## RDCAP 单站 API 与当前边界
+
+`rdcap/reflectivity` 提供台湾、日本和菲律宾的完整站点 ID（如 `TWN/RCHL`、`JPN/ISHI`、`PHL/SUBI`），内置离线目录快照有 48 个去重站点。快照中的逐国 discovery、raw acquisition、science、readback 能力仍标为 `unverified`；离线目录可用于查站，不能代表实时索引或在线服务可用。当前支持近期 `latest`、精确 `at` 和时间范围查询，不承诺历史归档。联网操作必须显式设置 `runtime.allow_network: true`。
+
+`discover_report()` 返回逐目标终态的 `DiscoveryReport`，含 `items`、`counts`、安全错误字段和 `to_json()`。JSON 不含私有 locator/ticket；成功项只有在原进程内的报告上才能用 `frame(index)` 取得带私有 locator 的 `FrameRef`。从 JSON 重建的报告不携带该进程内句柄。错误报告保留安全 `code`、`stage`、`retryable` 字段；SDK 的 `RadiustError.context` 提供对应错误上下文。现有 `discover()` 仍返回 refs。对单站可这样使用：
+
+```python
+import radiust
+
+query = radiust.Query(
+    "rdcap", product="reflectivity", stations=("TWN/RCHL",), latest=True
+)
+with radiust.Client(config={"runtime": {"allow_network": True}}) as client:
+    report = client.discover_report(query)
+    print(report.to_json())  # 安全 JSON，不含 ticket/locator
+    if report.items and report.items[0].status == "success":
+        ref = report.frame(0)
+        with client.acquire(ref) as raw:
+            field = client.decode(raw)
+```
+
+`AsyncClient` 提供同名 `await discover_report()` 和 `await replay_raw_manifest()`，且 `await fetch_many()` 具有相同的 `BatchResult.discovery_report` / `discovery_counts` 行为。`Client.replay_raw_manifest(path)` / `AsyncClient.replay_raw_manifest(path)` 通过 Rust Engine 校验 raw manifest、binding、路径和摘要后离线解码为独立内存 field，不需要网络或 ticket；应传入一次成功 raw 下载实际生成的 manifest 路径。篡改内容、路径越界或身份不一致会失败。单次 `discover_report()` 与 query 批量报告均保留成功、无数据和错误目标。
+
+RDCAP 默认科学 palette 为 `rdcap-reflectivity-v1`：15 个下界包含档，阈值 5、10、…、75 dBZ，最后一档包含所有 ≥75 dBZ 值；低于 5 dBZ 的有限科学值仍保留在 field 中，但 PNG 显示透明。缺测与 annotation 也透明；PNG sidecar 记录 palette、annotation rule、decoder 和几何身份。科学 preview 与 PNG writer 使用同一默认渲染规则。此 palette 来自当前研究样本对 provider legend 的复现，不能作为三国在线服务验收证据；PNG 是显示结果，需保留连续数值时使用 NetCDF、GeoTIFF 或 Zarr。
+
+`Client.write()` / `AsyncClient.write()` 可将解码后的 RDCAP field 写为 PNG、NetCDF、GeoTIFF 或 Zarr v2；必须传入产生该 field 的同一 `ref`。内存 field 的 `write()` 只支持本地输出和 native grid，不接受 raw 附加、对象存储或重网格参数。要保存实际响应字节并生成可重放 manifest，使用 `download(..., raw=True)` 或 `download(..., raw_only=True)`，然后将已提交 manifest 交给 `replay_raw_manifest()`。三国标准入口 live raw、science 和独立读回仍未验收；见 [RDCAP 验证指南](../specs/004-rdcap-single-station/quickstart.md) 中 T028/T053 状态。
+
+原生 CLI 的 `radiust replay <raw-manifest.json>` 可禁网校验并重放本地 manifest，默认输出 PNG、NetCDF、GeoTIFF 和 Zarr v2；用 `--format` 指定逗号分隔的子集，重复提交会标为 `skipped`。
 
 ## 来源扩展
 

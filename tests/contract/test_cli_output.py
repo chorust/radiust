@@ -22,9 +22,13 @@ def test_list_products_json_serializes_frozen_product_metadata(source):
 
 
 def test_download_accepts_output_and_cache_options(tmp_path):
+    config = tmp_path / "offline.yaml"
+    config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
     result = CliRunner().invoke(
         main,
         [
+            "--conf",
+            str(config),
             "download",
             "au",
             "--latest",
@@ -95,17 +99,24 @@ def test_unsupported_remote_output_fails_before_discovery():
 
 
 def test_list_discover_and_download_have_visible_command_identity():
+    import tempfile
+    from pathlib import Path
+
     runner = CliRunner()
-    expected = (
-        (["list", "sources"], "LIST", "source", "Total:", 0),
-        (["discover", "all"], "DISCOVER", "source", "Items:", 5),
-        (["download", "au", "--latest", "--dry-run"], "DOWNLOAD", "Unexpected operation failure", "error:", 2),
-    )
-    for argv, title, identity, summary, exit_code in expected:
-        result = runner.invoke(main, argv)
-        assert result.exit_code == exit_code, result.output
-        assert result.output.startswith(title + "\n")
-        assert identity in result.output and summary in result.output
+    with tempfile.TemporaryDirectory() as directory:
+        config = Path(directory) / "offline.yaml"
+        config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
+        config_args = ["--conf", str(config)]
+        expected = (
+            ([*config_args, "list", "sources"], "LIST", "source", "Total:", 0),
+            ([*config_args, "discover", "all"], "DISCOVER", "source", "Items:", 5),
+            ([*config_args, "download", "au", "--latest", "--dry-run"], "DOWNLOAD", "Unexpected operation failure", "error:", 2),
+        )
+        for argv, title, identity, summary, exit_code in expected:
+            result = runner.invoke(main, argv)
+            assert result.exit_code == exit_code, result.output
+            assert result.output.startswith(title + "\n")
+            assert identity in result.output and summary in result.output
 
 
 def test_doctor_config_cache_human_reports_use_labeled_groups(tmp_path):

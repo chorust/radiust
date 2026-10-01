@@ -1,6 +1,6 @@
 //! Stable cross-language identity rules for frames, revisions, processing and outputs.
 
-use crate::model::FrameRef;
+use crate::model::{FrameRef, RadarField};
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -262,6 +262,13 @@ pub fn processing_identity(spec: &ProcessingSpec) -> Value {
         "encoder_version": spec.encoder_version,
         "options": spec.options,
     })
+}
+
+pub(crate) fn apply_science_versions(spec: &mut ProcessingSpec, field: &RadarField) {
+    if field.provenance.iter().any(|entry| entry == "source=rdcap") {
+        spec.decoder_version = "rdcap-csr-v1".into();
+        spec.resource_version = "rdcap-reflectivity-v1+rdcap-annotation-v1".into();
+    }
 }
 
 pub fn processing_hash(spec: &ProcessingSpec) -> Result<String, IdentityError> {

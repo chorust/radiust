@@ -18,8 +18,8 @@ def test_native_catalog_lists_all_head_sources_without_network():
     payload = _list_sources()
     ids = {item["id"] for item in payload["items"]}
 
-    assert payload["counts"]["items"] == 24
-    assert len(ids) == 24
+    assert payload["counts"]["items"] == 25
+    assert len(ids) == 25
     assert {"my", "tw", "rainviewer", "bmkg"} <= ids
 
 
@@ -39,7 +39,7 @@ def test_native_catalog_does_not_enumerate_or_load_python_entry_points(monkeypat
     monkeypatch.setattr(metadata, "entry_points", listing)
     payload = _list_sources()
 
-    assert len(payload["items"]) == 24
+    assert len(payload["items"]) == 25
     assert enumerated == []
     assert loaded == []
 
@@ -57,7 +57,7 @@ def test_builtin_catalog_is_independent_of_current_directory(tmp_path, monkeypat
     payload = _list_sources()
     ids = {item["id"] for item in payload["items"]}
 
-    assert payload["counts"]["items"] == 24
+    assert payload["counts"]["items"] == 25
     assert "cwd-shadow" not in ids
     assert {"rainviewer", "id_sidarma", "fr"} <= ids
 
