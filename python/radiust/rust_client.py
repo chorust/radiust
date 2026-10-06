@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import hashlib
 import json
 import os
 import threading
@@ -581,6 +582,12 @@ def _write_field(value: Any, *, variable: str | None) -> Any:
     raise TypeError("write expects a Rust RadarField or RadarDataset")
 
 
+def _is_raster_result(value: Any) -> bool:
+    return isinstance(getattr(value, "input_json", None), str) and getattr(
+        value, "data_kind", None
+    ) in {"pixel_dbz", "native"}
+
+
 def _download_policy(on_error: str) -> str:
     if on_error in {"collect", "continue"}:
         return "collect"
@@ -721,18 +728,24 @@ class Client:
     ) -> DiscoveryReport:
         return self._run(self._adiscover_report(query, progress=progress))
 
-    def replay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
-        return self._run(self._areplay_raw_manifest(manifest_path))
+    def replay_raw_manifest(
+        self, manifest_path: str | os.PathLike[str], *, mode: str | None = None
+    ) -> Any:
+        return self._run(self._areplay_raw_manifest(manifest_path, mode=mode))
 
-    async def _areplay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
+    async def _areplay_raw_manifest(
+        self, manifest_path: str | os.PathLike[str], *, mode: str | None = None
+    ) -> Any:
         async with _operation_scope(self, None, "decode"):
-            return await self._session.replay_raw_manifest(manifest_path)
+            if mode is None:
+                return await self._session.replay_raw_manifest(manifest_path)
+            return await self._session.replay_raw_manifest(manifest_path, mode=mode)
 
     def acquire(self, ref: Any) -> _NativeAcquireContext:
         return _NativeAcquireContext(self, _bridge._native_frames([ref])[0])
 
-    def decode(self, raw: Any) -> Any:
-        coroutine = self._adecode(raw)
+    def decode(self, raw: Any, *, mode: str = "science") -> Any:
+        coroutine = self._adecode(raw, mode=mode)
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -742,14 +755,64 @@ class Client:
         coroutine.close()
         raise AsyncContextError("Client cannot be used from another event loop; use AsyncClient")
 
-    async def _adecode(self, raw: Any) -> Any:
+    async def _adecode(self, raw: Any, *, mode: str = "science") -> Any:
+        if mode not in {"science", "gray", "dbz"}:
+            raise ValueError("mode must be science, gray, or dbz")
         async with _operation_scope(self, None, "decode"):
+            if mode == "gray":
+                return await self._session.decode_gray(raw)
+            if mode == "dbz":
+                return await self._session.decode_dbz(raw)
             return await self._session.decode_science(raw)
 
-    def fetch(self, query: Any, *, progress: ProgressCallback | None = None) -> Any:
-        return self._run(self._afetch(query, progress=progress))
+    def decode_gray(self, raw: Any) -> Any:
+        return self.decode(raw, mode="gray")
 
-    async def _afetch(self, query: Any, *, progress: ProgressCallback | None) -> Any:
+    def decode_dbz(self, raw: Any) -> Any:
+        return self.decode(raw, mode="dbz")
+
+    def decode_gray_file(
+        self, path: str | os.PathLike[str], *, frame_index: int | None = None
+    ) -> Any:
+        return self._run(self._adecode_gray_file(path, frame_index=frame_index))
+
+    def read_dbz(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        variable: str | None = None,
+        valid_time: str | None = None,
+    ) -> Any:
+        return self._run(self._aread_dbz(path, variable=variable, valid_time=valid_time))
+
+    async def _aread_dbz(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        variable: str | None = None,
+        valid_time: str | None = None,
+    ) -> Any:
+        async with _operation_scope(self, None, "decode"):
+            return await self._session.read_dbz_file(
+                path, variable=variable, valid_time=valid_time
+            )
+
+    async def _adecode_gray_file(
+        self, path: str | os.PathLike[str], *, frame_index: int | None = None
+    ) -> Any:
+        async with _operation_scope(self, None, "decode"):
+            return await self._session.decode_gray_file(path, frame_index)
+
+    def fetch(
+        self, query: Any, *, mode: str = "science", progress: ProgressCallback | None = None
+    ) -> Any:
+        return self._run(self._afetch(query, mode=mode, progress=progress))
+
+    async def _afetch(
+        self, query: Any, *, mode: str = "science", progress: ProgressCallback | None
+    ) -> Any:
+        if mode not in {"science", "gray", "dbz"}:
+            raise ValueError("mode must be science, gray, or dbz")
         async with _operation_scope(self, progress, "fetch") as events:
             if _is_frame(query):
                 ref = _bridge._native_frames([query])[0]
@@ -759,12 +822,17 @@ class Client:
                     events.set_discovered_count(len(refs))
                 ref = _single(refs)
             async with _NativeAcquireContext(self, ref) as raw:
+                if mode == "gray":
+                    return await self._session.decode_gray(raw)
+                if mode == "dbz":
+                    return await self._session.decode_dbz(raw)
                 return await self._session.decode_science(raw)
 
     def fetch_many(
         self,
         query_or_refs: Any,
         *,
+        mode: str = "science",
         on_error: str = "collect",
         max_concurrency: int | None = None,
         progress: ProgressCallback | None = None,
@@ -772,6 +840,7 @@ class Client:
         return self._run(
             self._afetch_many(
                 query_or_refs,
+                mode=mode,
                 on_error=on_error,
                 max_concurrency=max_concurrency,
                 progress=progress,
@@ -782,6 +851,7 @@ class Client:
         self,
         query_or_refs: Any,
         *,
+        mode: str,
         on_error: str,
         max_concurrency: int | None,
         progress: ProgressCallback | None,
@@ -789,6 +859,7 @@ class Client:
         async with _operation_scope(self, progress, "fetch_many") as events:
             return await self._afetch_many_inner(
                 query_or_refs,
+                mode=mode,
                 on_error=on_error,
                 max_concurrency=max_concurrency,
                 progress=progress,
@@ -799,11 +870,14 @@ class Client:
         self,
         query_or_refs: Any,
         *,
+        mode: str,
         on_error: str,
         max_concurrency: int | None,
         progress: ProgressCallback | None,
         events: _ProgressEventBridge | None,
     ) -> BatchResult:
+        if mode not in {"science", "gray", "dbz"}:
+            raise ValueError("mode must be science, gray, or dbz")
         if on_error not in {"collect", "raise", "continue", "stop"}:
             raise ValueError("on_error must be collect/continue or raise/stop")
         if max_concurrency is not None and max_concurrency < 1:
@@ -829,11 +903,19 @@ class Client:
             raise NoDataError("batch input returned no frames")
         if events is not None:
             events.set_total(len(frames))
-        native_report = await self._session.fetch_many_decoded(
-            frames,
-            on_error=_download_policy(on_error),
-            max_concurrency=max_concurrency,
-        )
+        if mode == "science":
+            native_report = await self._session.fetch_many_decoded(
+                frames,
+                on_error=_download_policy(on_error),
+                max_concurrency=max_concurrency,
+            )
+        else:
+            native_report = await self._session.fetch_many_mode(
+                frames,
+                mode=mode,
+                on_error=_download_policy(on_error),
+                max_concurrency=max_concurrency,
+            )
         items: list[FrameResult] = []
         first_error: Exception | None = None
         for index in range(native_report.total):
@@ -849,8 +931,16 @@ class Client:
                 error = _frame_error(native_item.error)
             if status == "failed" and first_error is None:
                 first_error = RuntimeError(native_item.error or "native batch operation failed")
+            mode_info_json = getattr(native_item, "mode_info_json", None)
+            mode_info = json.loads(mode_info_json()) if callable(mode_info_json) and mode_info_json() else None
+            if mode == "dbz" and callable(getattr(native_item, "raster_result", None)):
+                data = native_item.raster_result()
+            elif mode == "gray" and callable(getattr(native_item, "gray_result", None)):
+                data = native_item.gray_result()
+            else:
+                data = native_item.data()
             items.append(
-                FrameResult(native_item.frame(), status, error=error, data=native_item.data())
+                FrameResult(native_item.frame(), status, error=error, data=data, mode_info=mode_info)
             )
         if events is not None:
             completed = sum(item.status != "not_started" for item in items)
@@ -868,6 +958,7 @@ class Client:
         self,
         query_or_refs: Any,
         *,
+        mode: str = "science",
         on_error: str = "collect",
         max_prefetch: int | None = None,
     ) -> Any:
@@ -878,6 +969,7 @@ class Client:
             query_or_refs,
             on_error=on_error,
             max_prefetch=max_prefetch,
+            mode=mode,
         )
         return stream
 
@@ -893,6 +985,7 @@ class Client:
         *,
         output: str | os.PathLike[str] = "./data",
         format: str = "netcdf",
+        mode: str = "science",
         raw: bool = False,
         raw_only: bool = False,
         overwrite: bool = False,
@@ -910,6 +1003,7 @@ class Client:
                 query_or_refs,
                 output=output,
                 format=format,
+                mode=mode,
                 raw=raw,
                 raw_only=raw_only,
                 overwrite=overwrite,
@@ -926,6 +1020,7 @@ class Client:
         *,
         output: str | os.PathLike[str],
         format: str,
+        mode: str,
         raw: bool,
         raw_only: bool,
         overwrite: bool,
@@ -939,6 +1034,7 @@ class Client:
                 query_or_refs,
                 output=output,
                 format=format,
+                mode=mode,
                 raw=raw,
                 raw_only=raw_only,
                 overwrite=overwrite,
@@ -955,6 +1051,7 @@ class Client:
         *,
         output: str | os.PathLike[str],
         format: str,
+        mode: str,
         raw: bool,
         raw_only: bool,
         overwrite: bool,
@@ -964,11 +1061,27 @@ class Client:
         processing: Mapping[str, Any],
         events: _ProgressEventBridge | None,
     ) -> DownloadReport:
+        if mode not in {"science", "dbz"}:
+            raise ValueError("download mode must be 'science' or 'dbz'")
         if raw and raw_only:
             raise ValueError("raw and raw_only are mutually exclusive")
+        if mode == "dbz" and raw_only:
+            raise UnsupportedQueryError("raw_only cannot be combined with mode='dbz'")
         if raw_only and output_template is not None:
             raise UnsupportedQueryError("output_template currently applies to decoded outputs only")
         native_processing = _native_download_processing(processing)
+        if mode == "dbz":
+            if output_template is not None:
+                raise UnsupportedQueryError("output_template is not supported with mode='dbz'")
+            if native_processing.get("variable") not in {None, "reflectivity"}:
+                raise UnsupportedQueryError("mode='dbz' requires variable='reflectivity'")
+            if (
+                native_processing.get("grid", "native") != "native"
+                or native_processing.get("bbox") is not None
+                or native_processing.get("resolution") is not None
+                or native_processing.get("resampling", "nearest") != "nearest"
+            ):
+                raise UnsupportedQueryError("mode='dbz' currently requires the native pixel grid")
         if raw_only and (
             native_processing.get("variable") is not None
             or native_processing.get("grid", "native") != "native"
@@ -984,11 +1097,22 @@ class Client:
         output_text = os.fspath(output)
         if "://" in output_text and not output_text.lower().startswith(("s3://", "oss://")):
             raise StorageError("remote output targets require an s3:// or oss:// URI")
+        if mode == "dbz" and "://" in output_text:
+            raise StorageError("mode='dbz' currently requires a local output root")
         policy = _download_policy(on_error)
         frames = await _resolve_frames(self._session, query_or_refs, progress=progress)
         if events is not None:
             events.set_total(len(frames))
-        if raw_only:
+        if mode == "dbz":
+            native = await self._session.download_dbz_mode(
+                frames,
+                on_error=policy,
+                overwrite=overwrite,
+                output_root=output_text,
+                format=format,
+                include_raw=raw,
+            )
+        elif raw_only:
             native = await self._session.download_raw_only(
                 frames,
                 on_error=policy,
@@ -1033,7 +1157,7 @@ class Client:
         ref: Any = None,
         raw: bool = False,
         **options: Any,
-    ) -> DownloadReport:
+    ) -> Any:
         return self._run(
             self._awrite(
                 field,
@@ -1081,10 +1205,20 @@ class Client:
     ) -> DownloadReport:
         if raw:
             raise ValueError("write accepts decoded values only; use download(..., raw=True)")
-        if ref is None:
-            raise ValueError("write requires the source FrameRef used to produce the value")
         if format not in {"png", "netcdf", "geotiff", "zarr"}:
             raise ValueError("format must be png, netcdf, geotiff, or zarr")
+        if _is_raster_result(field):
+            return await Client._awrite_raster_result(
+                self,
+                field,
+                output=output,
+                format=format,
+                overwrite=overwrite,
+                ref=ref,
+                options=options,
+            )
+        if ref is None:
+            raise ValueError("write requires the source FrameRef used to produce the value")
         variable = options.get("variable")
         if variable is not None and not isinstance(variable, str):
             raise TypeError("variable must be a string")
@@ -1120,6 +1254,79 @@ class Client:
             output_text,
         )
         return _download_report(native, command="write")
+
+    async def _awrite_raster_result(
+        self,
+        result: Any,
+        *,
+        output: str | os.PathLike[str],
+        format: str,
+        overwrite: bool,
+        ref: Any,
+        options: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        if not callable(getattr(result, "input_json", None)) and not isinstance(
+            getattr(result, "input_json", None), str
+        ):
+            raise TypeError("write expects a Rust RasterResult")
+        if (
+            options.get("grid", "native") != "native"
+            or options.get("bbox") is not None
+            or options.get("resolution") is not None
+            or options.get("resampling", "nearest") != "nearest"
+        ):
+            raise UnsupportedQueryError(
+                "receipt-bound raster writes do not support grid reprocessing"
+            )
+        variable = options.get("variable")
+        mode_info = json.loads(result.mode_info_json)
+        if variable is not None and variable != mode_info.get("variable"):
+            raise ValueError("variable does not match the selected raster result")
+        output_text = os.fspath(output)
+        if "://" in output_text:
+            raise StorageError("receipt-bound raster writes currently require a local output directory")
+        options_for_writer = {
+            key: value
+            for key, value in options.items()
+            if key not in {"name", "grid", "bbox", "resolution", "resampling", "variable"}
+        }
+        try:
+            options_json = json.dumps(
+                _json_value(dict(options_for_writer)), ensure_ascii=False, allow_nan=False
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError("writer options must be finite JSON values") from exc
+        output_name = options.get("name")
+        if output_name is None:
+            input_value = json.loads(result.input_json)
+            processing_json = getattr(result, "processing_json", None)
+            processing_value = (
+                json.loads(processing_json) if isinstance(processing_json, str) else None
+            )
+            selected_input = {"input": input_value, "processing": processing_value}
+            seed = hashlib.sha256(
+                json.dumps(
+                    selected_input,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            ).hexdigest()
+            extension = {"png": "png", "netcdf": "nc", "geotiff": "tif", "zarr": "zarr"}[
+                format
+            ]
+            output_name = f"rasters/{seed[:24]}.{extension}"
+        if not isinstance(output_name, str) or not output_name:
+            raise ValueError("name must be a non-empty relative output path")
+        return await self._session.write_raster(
+            result,
+            output_name=output_name,
+            format=format,
+            options_json=options_json,
+            overwrite=overwrite,
+            output_root=output_text,
+            ref=ref,
+        )
 
     def close(self) -> None:
         if self._closed:
@@ -1180,27 +1387,48 @@ class AsyncClient:
         self._ensure_open()
         return await self._adiscover_report(query, progress=progress)
 
-    async def replay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
+    async def replay_raw_manifest(
+        self, manifest_path: str | os.PathLike[str], *, mode: str | None = None
+    ) -> Any:
         self._ensure_open()
         async with _operation_scope(self, None, "decode"):
-            return await self._session.replay_raw_manifest(manifest_path)
+            if mode is None:
+                return await self._session.replay_raw_manifest(manifest_path)
+            return await self._session.replay_raw_manifest(manifest_path, mode=mode)
 
     def acquire(self, ref: Any) -> _NativeAcquireContext:
         self._ensure_open()
         return _NativeAcquireContext(self, _bridge._native_frames([ref])[0])
 
-    async def decode(self, raw: Any) -> Any:
+    async def decode(self, raw: Any, *, mode: str = "science") -> Any:
         self._ensure_open()
-        return await Client._adecode(self, raw)
+        return await Client._adecode(self, raw, mode=mode)
 
-    async def fetch(self, query: Any, *, progress: ProgressCallback | None = None) -> Any:
+    async def decode_gray(self, raw: Any) -> Any:
         self._ensure_open()
-        return await Client._afetch(self, query, progress=progress)
+        return await Client._adecode(self, raw, mode="gray")
+
+    async def decode_dbz(self, raw: Any) -> Any:
+        self._ensure_open()
+        return await Client._adecode(self, raw, mode="dbz")
+
+    async def decode_gray_file(
+        self, path: str | os.PathLike[str], *, frame_index: int | None = None
+    ) -> Any:
+        self._ensure_open()
+        return await Client._adecode_gray_file(self, path, frame_index=frame_index)
+
+    async def fetch(
+        self, query: Any, *, mode: str = "science", progress: ProgressCallback | None = None
+    ) -> Any:
+        self._ensure_open()
+        return await Client._afetch(self, query, mode=mode, progress=progress)
 
     async def fetch_many(
         self,
         query_or_refs: Any,
         *,
+        mode: str = "science",
         on_error: str = "collect",
         max_concurrency: int | None = None,
         progress: ProgressCallback | None = None,
@@ -1214,6 +1442,7 @@ class AsyncClient:
         return await Client._afetch_many(
             helper,
             query_or_refs,
+            mode=mode,
             on_error=on_error,
             max_concurrency=max_concurrency,
             progress=progress,
@@ -1223,6 +1452,7 @@ class AsyncClient:
         self,
         query_or_refs: Any,
         *,
+        mode: str = "science",
         on_error: str = "collect",
         max_prefetch: int | None = None,
     ) -> Any:
@@ -1234,6 +1464,7 @@ class AsyncClient:
             query_or_refs,
             on_error=on_error,
             max_prefetch=max_prefetch,
+            mode=mode,
         )
         self._streams.add(stream)
         return stream
@@ -1250,6 +1481,7 @@ class AsyncClient:
         *,
         output: str | os.PathLike[str] = "./data",
         format: str = "netcdf",
+        mode: str = "science",
         raw: bool = False,
         raw_only: bool = False,
         overwrite: bool = False,
@@ -1273,6 +1505,7 @@ class AsyncClient:
             query_or_refs,
             output=output,
             format=format,
+            mode=mode,
             raw=raw,
             raw_only=raw_only,
             overwrite=overwrite,
@@ -1292,7 +1525,7 @@ class AsyncClient:
         ref: Any = None,
         raw: bool = False,
         **options: Any,
-    ) -> DownloadReport:
+    ) -> Any:
         self._ensure_open()
         async with _operation_scope(self, None, "write"):
             return await Client._awrite_inner(
@@ -1304,6 +1537,19 @@ class AsyncClient:
                 ref=ref,
                 raw=raw,
                 options=options,
+            )
+
+    async def read_dbz(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        variable: str | None = None,
+        valid_time: str | None = None,
+    ) -> Any:
+        self._ensure_open()
+        async with _operation_scope(self, None, "decode"):
+            return await self._session.read_dbz_file(
+                path, variable=variable, valid_time=valid_time
             )
 
     async def aclose(self) -> None:

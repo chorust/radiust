@@ -125,7 +125,7 @@ fn rdcap_raw_manifest_rejects_binding_station_time_and_content_mismatches() {
         &Limits::default(),
     )
     .unwrap_err();
-    assert!(matches!(error, radiust_core::errors::CoreError::Storage(_)));
+    assert!(matches!(error, radiust_core::errors::CoreError::Integrity(_)));
 }
 
 #[cfg(unix)]
@@ -146,5 +146,5 @@ fn rdcap_raw_manifest_rejects_symlinked_payloads() {
         &Limits::default(),
     )
     .unwrap_err();
-    assert!(matches!(error, radiust_core::errors::CoreError::Storage(_)));
+    assert!(matches!(error, radiust_core::errors::CoreError::Integrity(_)));
 }

@@ -1,53 +1,26 @@
-"""Run the native Rust offline display-rule comparison tool.
-
-This wrapper keeps the historical validation command stable. Decoding, rule
-verification, display transforms, pixel comparisons, and report generation all
-run in ``radiust-core``; Python only forwards arguments to Cargo.
-"""
+"""Compatibility entry point for the canonical gray comparison command."""
 
 from __future__ import annotations
 
-import argparse
 import subprocess
 import sys
 from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", type=Path, default=Path("tests/fixtures/legacy-display/manifest.json"))
-    parser.add_argument("--fixture-root", type=Path, default=None)
-    parser.add_argument("--report", type=Path, default=Path("validation-results/legacy-display.json"))
-    args = parser.parse_args(argv)
-
     repo_root = Path(__file__).resolve().parents[2]
-    manifest = args.manifest if args.manifest.is_absolute() else repo_root / args.manifest
-    fixture_root = args.fixture_root or manifest.parent
-    if not fixture_root.is_absolute():
-        fixture_root = repo_root / fixture_root
-    report = args.report if args.report.is_absolute() else repo_root / args.report
+    canonical = Path(__file__).with_name("compare_gray.py")
     command = [
-        "cargo",
-        "run",
-        "--quiet",
-        "--offline",
-        "--locked",
-        "-p",
-        "radiust-core",
-        "--example",
-        "compare_legacy_display",
-        "--",
-        "--manifest",
-        str(manifest),
-        "--fixture-root",
-        str(fixture_root),
+        sys.executable,
+        str(canonical),
         "--report",
-        str(report),
+        "validation-results/legacy-display.json",
+        *(sys.argv[1:] if argv is None else argv),
     ]
     try:
         return subprocess.run(command, cwd=repo_root, check=False).returncode
     except OSError as exc:
-        print(f"could not run the native display comparison: {type(exc).__name__}", file=sys.stderr)
+        print(f"could not run the compatibility gray comparison: {type(exc).__name__}", file=sys.stderr)
         return 2
 
 

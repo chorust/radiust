@@ -1,0 +1,939 @@
+{
+  "schema_version": 1,
+  "created_for": "005-gray-dbz-decoding",
+  "hash_algorithm": "sha256",
+  "baseline": "implementation-start worktree bytes",
+  "protected_files": [
+    {
+      "path": "crates/radiust-core/tests/legacy_display_parity.rs",
+      "sha256": "817632cbdc92da5133356715d27adbd08b5a25d04ead067dbe8b7837d1845519",
+      "size_bytes": 11404,
+      "scope": "legacy-validation-evidence"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/au.json",
+      "sha256": "ae18ef4c2444f9e9b2fe9d29cb868413a4eec3d7125f4e380190a5a2f7929c7d",
+      "size_bytes": 3345,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/bmkg.json",
+      "sha256": "477906a5683e8f3ed09f0bf17c8963e225c7e4da29985243281e46499b5b3923",
+      "size_bytes": 3036,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/ca.json",
+      "sha256": "cb0f59f6dea984884173db36dcb54fa69c6a5d9dd4e40912692a5abf6b7a6b20",
+      "size_bytes": 5061,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/es.json",
+      "sha256": "47b3c91d8699291524d15a0ad588bfc9005e52ceab5c164d8c8f0e17f18f5134",
+      "size_bytes": 3891,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/au__composite.json",
+      "sha256": "faed39f983936f0a05fae796cfec3a5ee9ac5733c5e5e8640adcc4ad21a57b6a",
+      "size_bytes": 1693,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/ca__rain.json",
+      "sha256": "cdaed8314b71f80bb9deefee46eda2a2d053ef2d6d5adf4e1e2e4f5b2a9ede8b",
+      "size_bytes": 2730,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/es__composite.json",
+      "sha256": "32457c9962ff2674636d5deb923457d564349088b85f38c0d9ba2e568b974ef4",
+      "size_bytes": 2851,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/fr__composite.json",
+      "sha256": "e98bd5bb23d63a1b6e5648be82bacfc7efda362724a08f335907bc041902c329",
+      "size_bytes": 2405,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/id__composite.json",
+      "sha256": "b341f3e0438a845c9ed51ac2b4b00148286fb97566f00b15559e35bbe1b38b3a",
+      "size_bytes": 1708,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/kr__composite.json",
+      "sha256": "47958ee6319c4df039fbd8c83255a4b98dc1ce4f109eebfa5285c10c0e0dec6e",
+      "size_bytes": 1699,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/my__composite__east.json",
+      "sha256": "2e344db4c8a44ee244ad9bc0933d818e32a272dce4014a3581cf2fd15097f340",
+      "size_bytes": 1441,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/my__composite__peninsular.json",
+      "sha256": "fdcd9797e996529df2b7c9f9f79b644d9ea987fa9965bdb864355e508ef702a5",
+      "size_bytes": 1720,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/nz__rain.json",
+      "sha256": "2eed3a4d503a08200d4f129b7c84ace1a7ce34ac97822a341669248a955cef20",
+      "size_bytes": 2674,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/pt__composite.json",
+      "sha256": "fa002570e3f3bd61a70ad5ee4593ae339d21541f785844945e46a5d875c700c6",
+      "size_bytes": 2383,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/sg__composite.json",
+      "sha256": "f62d0c109c9b910caa412998c1e17129a116cf8e9eb3cc3b0de750ca6c7536c0",
+      "size_bytes": 1705,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/th__composite__kkn240Loop.json",
+      "sha256": "40e2e3d1ed24d3d122f060afbdd35765c342a25147f1684fd0243c43238826d2",
+      "size_bytes": 2961,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/th_royalrain__cappi.json",
+      "sha256": "dc582cc4e2333704e47c303b35cb8baa703320e9ca1e9a9db03bfa8d9f800bf1",
+      "size_bytes": 3120,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/tw__observation.json",
+      "sha256": "aa4846d4dee7a650f2fa330532fafd5e7e409ba11fddc067861dcc2fb5a0fdc6",
+      "size_bytes": 1723,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/evidence/vn__cmax.json",
+      "sha256": "fad5cdf5ed4dc9feabef3d30e476bc0febb37ab2c57e0c8e3834a5bf0713be1f",
+      "size_bytes": 1693,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/fr.json",
+      "sha256": "b500743a52f99610bfee873dc7316dca1d4dd103eb0d6955ed83ae9c96404be0",
+      "size_bytes": 819,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/id.json",
+      "sha256": "420cad74f59662dbf479e86e12f0651661ccca13b58d55b2c2ad0c1f945e7d4f",
+      "size_bytes": 3172,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/index.json",
+      "sha256": "f8278fce8aa23b94a9c43c1bcba6f0b90ff7aede7d4bd253e4a4ce48f222c5e3",
+      "size_bytes": 9520,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/kr.json",
+      "sha256": "480d34ca13626595b09c5a21cdd2a50401af30f9b603465d3d2a3132a4dbf23f",
+      "size_bytes": 4070,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/my-east.json",
+      "sha256": "f145713d2fc99d8cb965ed9d269edc85927a96bc822ffda2a0ddb4e3cdf73d4b",
+      "size_bytes": 3315,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/my.json",
+      "sha256": "e4da282fb0ecba1abd582180ff8500e1942fcc0f12a0edb22604a61a4da2202b",
+      "size_bytes": 3336,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/nz.json",
+      "sha256": "a103af918cc482553239482d0a52d9595b49799dfbf574836225214885c78c9a",
+      "size_bytes": 11876,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/ph.json",
+      "sha256": "ee621b85e53a3bdcf5470118fb853526304e45ed22dbe5e6e4f6d9385ff45bb8",
+      "size_bytes": 3133,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/pt.json",
+      "sha256": "de9ffb10c61b6901cd45bba7a3ea5546184d48497e64c3f70e7f63a16e6efa53",
+      "size_bytes": 806,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/rainviewer.json",
+      "sha256": "99d7e3172311f8e606bfab3c5d8ee1ff1e36fa21069c7209e157b886fb7435c0",
+      "size_bytes": 1167,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/sg.json",
+      "sha256": "6b55fad7d859ad0c284e98c027c36bce4e8e89e67b97bae5b8fccbf0e8cf52f4",
+      "size_bytes": 4661,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/th.json",
+      "sha256": "a4dcf5e4af868acb73150b853e5befc021fe3446e379c6bc90100535cf9992a8",
+      "size_bytes": 6619,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/th_royalrain.json",
+      "sha256": "ea766dba707c10510285dec9024feff29679cacc022e91c8b1c6d528c869be21",
+      "size_bytes": 7635,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/tw.json",
+      "sha256": "28f19e1808e43b66ab23f305a8b4034e678726aeaa571cc3bfa912c62ef8304c",
+      "size_bytes": 6939,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/vn.json",
+      "sha256": "010a69207943317ae2a5102c9c5cec728dd015d67460d369222beb44070f66a7",
+      "size_bytes": 3475,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "python/radiust/resources/legacy_display/windy.json",
+      "sha256": "5bbefdf0226877c257cb0cb34e7e202bfd96ee6756fe5611ea71e2b533e57a4e",
+      "size_bytes": 1156,
+      "scope": "legacy-display-resource"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/checklists/requirements.md",
+      "sha256": "9bc29ab75c0066ddcf603c8717fef90f360cb8855178781a89ce0ac0a01b747a",
+      "size_bytes": 2531,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/contracts/cli.md",
+      "sha256": "60963d804971fa411fa4b2c3d0f079cac2f351a0db5d23cdfd021955fa2e1561",
+      "size_bytes": 7104,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/contracts/encoding.md",
+      "sha256": "03bacbe8a8b968cb47f4b2c6b126e61ef5f97f889158d0d051c8bfb66c2c14ec",
+      "size_bytes": 4426,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/contracts/python-sdk.md",
+      "sha256": "2838316065dc6823ba44a02e5ff3be84f0f3c034bb0c86a54b9de6490bd13f02",
+      "size_bytes": 7677,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/contracts/storage.md",
+      "sha256": "833a14cbc1224435e28828d9bbfe5ef7f63142adebdba2bf3a15d69933640dea",
+      "size_bytes": 8273,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/data-model.md",
+      "sha256": "05064ebc03be574fe6b7ed6fb41944e09a9e11014695defcdbe9690f61260aab",
+      "size_bytes": 12163,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/plan.md",
+      "sha256": "a74cd66e0f4fb3e88a6e0a16ead1023512d088c6ec41209ab1ad2b7276a29546",
+      "size_bytes": 16106,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/quickstart.md",
+      "sha256": "4f249f11f2857bab96ae6a3e2f78a1ab8f488d8d7722d8b42ec096ea39571fba",
+      "size_bytes": 14083,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/research.md",
+      "sha256": "56007b8ecf4d87b2b5bd7eb7838cf90a35b70a85ea3a58fcbef76f9a5964fa2f",
+      "size_bytes": 24339,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/source-inventory.md",
+      "sha256": "ba6af67e0902e025a602e626a44ae66648b90ae902efb3df132bbd255eb6c13f",
+      "size_bytes": 7779,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/spec.md",
+      "sha256": "296053078e1e908f7be8cb94344a374ef8cc5e99fd82d46f0f660736f9cb2ef0",
+      "size_bytes": 25051,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/001-radiust-v1-migration/tasks.md",
+      "sha256": "81583a01aac8009726d842a19d24b801f872103b371ff6744d11cdeaa215ca5b",
+      "size_bytes": 68038,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/checklists/requirements.md",
+      "sha256": "ceef5354622fc40e07a8fa86d4c5b3a167781a7b475af3544efd884f1f0d0fa5",
+      "size_bytes": 2606,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/contracts/cli.md",
+      "sha256": "658220257a12ceb90fd83213b5fe1cd68f32f248a5bce3885c517c2a72bd5870",
+      "size_bytes": 3962,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/contracts/discovery-report.md",
+      "sha256": "a174924d0068046d1e1c0e6f78ed098af580d09c491fcf6f39bff433e65270f7",
+      "size_bytes": 2302,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/contracts/legacy-display.md",
+      "sha256": "59de57a95b1f7ed36388f94195ce347b146d8adbdb16c64d1ebe3e604299070f",
+      "size_bytes": 2444,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/data-model.md",
+      "sha256": "d4d322b3dd761f3842b60c41fff59b395fb3875948618e5f2589f123aef87e90",
+      "size_bytes": 4631,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/plan.md",
+      "sha256": "c75403b4e4eb5c1b53581e85c099dfa6a819b5c92cbe2ea480eca8ba7d2488bd",
+      "size_bytes": 9170,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/quickstart.md",
+      "sha256": "8a81e44f725af83de9d990abc06b2ea3cea9eca98f332353fe6bef63a6c783c8",
+      "size_bytes": 5944,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/research.md",
+      "sha256": "d23aa3c26592753ce8a4323a032e0a734c720e1d4d85b5b3ef22f48958d1cf09",
+      "size_bytes": 9207,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/spec.md",
+      "sha256": "77398faba9fd05e78840ce3464c923c568cf031f6c3d4650f462f2b75fa9e4fa",
+      "size_bytes": 23134,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/002-cli-experience/tasks.md",
+      "sha256": "6afca8ca20eeee56d233116cdeffbbce9c310fa9217964325903c23ea65a1239",
+      "size_bytes": 30912,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/checklists/requirements.md",
+      "sha256": "14e5bb8fb7325da13e4bdac2bdc21faecee3b47a9ac134b1f54b8451645b6622",
+      "size_bytes": 1467,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/contracts/cli.md",
+      "sha256": "a7b4c151e5cba391cac565b0c61de161a7ac48fcb63e6fcf3bccc7f42a34ec95",
+      "size_bytes": 8298,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/contracts/core-sdk.md",
+      "sha256": "d4893821ca0ba6ba0ad971bcec58533f08aa85d563cf6002442501e39a9788f9",
+      "size_bytes": 4772,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/contracts/persistence.md",
+      "sha256": "99a69a0e710d2f3e4d9cc1a9b2d2ad494ef99ffde483a8c891997982e76f8038",
+      "size_bytes": 5316,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/data-model.md",
+      "sha256": "2143b38d68ac7b0990789e4413c281566205f696630e75e6bce1251deea56dd6",
+      "size_bytes": 7780,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/plan.md",
+      "sha256": "845f314fcfb16a7005c8f8026befe09428902c424c3aebb56949d4bc1a0fdb63",
+      "size_bytes": 7306,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/quickstart.md",
+      "sha256": "0ce4e13982a1b43d3b90d557edde9dc8c3e84774dd0973a0487724f2097f2b50",
+      "size_bytes": 7387,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/research.md",
+      "sha256": "9a2f722d199fae9214c3f8ee7af0e9cb16379ff8720bd958402636a74bbd0344",
+      "size_bytes": 13021,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/spec.md",
+      "sha256": "af4c9241b9c9609edaf8d7b5bde8ba9314bdf7faf352b3303e90be1540267005",
+      "size_bytes": 14148,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/003-rust-core-performance/tasks.md",
+      "sha256": "2a5a432e8c18a5d88fe21548b8777606e25030103baaf39fa6f2f45b59a97701",
+      "size_bytes": 68571,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/checklists/requirements.md",
+      "sha256": "1321fb96d7dc9b8f09c42001a26aaa2846db72dece0fb22b6ad948451b419da6",
+      "size_bytes": 2334,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/contracts/cli-sdk.md",
+      "sha256": "47378904b3231262d308d0e2b4b7eacf9a022a7bc58f8afb45d2b0b0f1025bb2",
+      "size_bytes": 7294,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/contracts/provider-protocol.md",
+      "sha256": "fe9ed5a4114c175e67934d2d22405d21b583efc70364ec3526f650e0dbe671be",
+      "size_bytes": 6118,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/contracts/science-persistence.md",
+      "sha256": "aa44e3bc1485b5069418c7adc7e2b11c932f9a017145bc5f96e8778fc6e9d8bb",
+      "size_bytes": 5700,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/data-model.md",
+      "sha256": "20c1099aeb7236c40d80ea1cd3c81a960acd423fc77c254a46865b0701351e73",
+      "size_bytes": 6657,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/plan.md",
+      "sha256": "63b9aa6a8df2b1f082e736308fe05866f07204ab3ba6dfff6bc553b2bf758317",
+      "size_bytes": 8206,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/quickstart.md",
+      "sha256": "e7d45e566061329b7483de26fd161e12bf934903f6b3fcfe535c0a1eca37e440",
+      "size_bytes": 10685,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/research.md",
+      "sha256": "2d6a9474675b5230ce7ce0c1698cec3f74276277d314bfc09dd1f5d0308b55b2",
+      "size_bytes": 14644,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/roadmap-reviews/brief-20261001-182124-640795.md",
+      "sha256": "ea1c368a23250fe221c365f87aa5198bb75438b45b608e897e37c68700e7896e",
+      "size_bytes": 12589,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/roadmap-reviews/debrief-20261001T142659Z.md",
+      "sha256": "79310c3cc85981d6d3964bb567f65975c41a5dff387af4588cacff27859bbf65",
+      "size_bytes": 4674,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/spec.md",
+      "sha256": "b4425863f9f6ed0389e9e1074752c9a2375d75d7d47818d5f5b931bb590686e7",
+      "size_bytes": 19989,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "specs/004-rdcap-single-station/tasks.md",
+      "sha256": "d7263256f634c7d8fcf1f938095a674b4119b0606399b6dfdb53f5a204bc24f3",
+      "size_bytes": 32963,
+      "scope": "existing-spec-artifact"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/au/old-gray.png",
+      "sha256": "6b0fb6c5982e693d3602f3081d863047b34cb6963771c16296fe225b9f49d7bb",
+      "size_bytes": 9773,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/au/rule.json",
+      "sha256": "ae18ef4c2444f9e9b2fe9d29cb868413a4eec3d7125f4e380190a5a2f7929c7d",
+      "size_bytes": 3345,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/au/source.png",
+      "sha256": "90cb0eeb4a8fecbaf0aa2559fc3d5b98a0a5f79c5078db1d707b24be25f4d777",
+      "size_bytes": 4026,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/bmkg/blocked-evidence.json",
+      "sha256": "1c9a4aded97932f8911135bc3288427a4e6e590c115b1c9a6eb5cf0f121c8c30",
+      "size_bytes": 1552,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/bmkg/rule.json",
+      "sha256": "477906a5683e8f3ed09f0bf17c8963e225c7e4da29985243281e46499b5b3923",
+      "size_bytes": 3036,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/ca/old-gray.png",
+      "sha256": "e62850f08c272124243047564814ceca7927091646cbe4772feee9cb0f5804e7",
+      "size_bytes": 41036,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/ca/rule.json",
+      "sha256": "cb0f59f6dea984884173db36dcb54fa69c6a5d9dd4e40912692a5abf6b7a6b20",
+      "size_bytes": 5061,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/ca/source.gif",
+      "sha256": "90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0",
+      "size_bytes": 23687,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/es/old-gray.png",
+      "sha256": "ed839f92ae78dd47e7cd87644e2e94d6d075e35b421cf485f9b1400a2b9b424c",
+      "size_bytes": 5143,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/es/rule.json",
+      "sha256": "47b3c91d8699291524d15a0ad588bfc9005e52ceab5c164d8c8f0e17f18f5134",
+      "size_bytes": 3891,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/es/source.png",
+      "sha256": "baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f",
+      "size_bytes": 8681,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/fr/old-gray.png",
+      "sha256": "f95614658cfe6076b3f09d65f35d3273586ceca48f78da75c489da67f41182be",
+      "size_bytes": 19625,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/fr/rule.json",
+      "sha256": "b500743a52f99610bfee873dc7316dca1d4dd103eb0d6955ed83ae9c96404be0",
+      "size_bytes": 819,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/fr/source.png",
+      "sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248",
+      "size_bytes": 68614,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/id/old-gray.png",
+      "sha256": "d1ac36a242cebce37c018d74f62b42a602cebd672b17aa373d88301ccecaa98e",
+      "size_bytes": 8499,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/id/rule.json",
+      "sha256": "420cad74f59662dbf479e86e12f0651661ccca13b58d55b2c2ad0c1f945e7d4f",
+      "size_bytes": 3172,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/id/source.png",
+      "sha256": "b7788761625d9557ceb12c13a2d92cbcaa034777d21c52cc6e7349ba15913170",
+      "size_bytes": 165687,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/kr/old-gray.png",
+      "sha256": "bd31d4a27af6fb5e28cdd5621a135daf22e26a6b150f31e395bc5bb3e22afa50",
+      "size_bytes": 665,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/kr/rule.json",
+      "sha256": "480d34ca13626595b09c5a21cdd2a50401af30f9b603465d3d2a3132a4dbf23f",
+      "size_bytes": 4070,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/kr/source.png",
+      "sha256": "a6c98d630fcd635d96ee75b63350e74978cd0d8749c1a701f9e7c27a2ce88c01",
+      "size_bytes": 25177,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/manifest.json",
+      "sha256": "7933d1c0cadd38ac2ac379820587025a9ee39ed27dbc072e4b2b01fa379d25ae",
+      "size_bytes": 36825,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/archive-candidates.json",
+      "sha256": "f4ac992d69207be5652d3f1d9ef2ee2cfd3878e039271f284f4449cb222b269e",
+      "size_bytes": 5562,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/archive-old-gray.png",
+      "sha256": "76c994921452c1f996017dc63c9171b58681406d128afe55c62f406bb4bb17af",
+      "size_bytes": 18241,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/mycomp72-replay-rule.json",
+      "sha256": "0b31134104626c4e62cf3f28775bbd25dc2b0af65982c986f2d0c9f9a1d3cdec",
+      "size_bytes": 3593,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/replay-comparison.json",
+      "sha256": "f636d0f096daaba81ec7fcc2fbdf799d5ff316298ca26b376426e4778d1b3ba8",
+      "size_bytes": 1993,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/replay-manifest.json",
+      "sha256": "f231485742973dfd8ecb9cf46f786f99050399650b47d1f5e10bd5bddb26738b",
+      "size_bytes": 1585,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/replay-old-code.png",
+      "sha256": "446a5a539deaef9a497fd3e53c9be4e3a790dddff0117fe63e5709bb118e1918",
+      "size_bytes": 25053,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/rule.json",
+      "sha256": "f145713d2fc99d8cb965ed9d269edc85927a96bc822ffda2a0ddb4e3cdf73d4b",
+      "size_bytes": 3315,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/east/source.png",
+      "sha256": "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a",
+      "size_bytes": 171012,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/old-gray.png",
+      "sha256": "efe5ed56ccdfeb7c64dba11b0a400557323642a553dc971bd840d75c51ce806b",
+      "size_bytes": 13259,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/rule.json",
+      "sha256": "e4da282fb0ecba1abd582180ff8500e1942fcc0f12a0edb22604a61a4da2202b",
+      "size_bytes": 3336,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/my/source.png",
+      "sha256": "a60936811a91ae5f776759fc4072965c321eebc73431b78d3fba7fb1ebd7e68f",
+      "size_bytes": 132622,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/nz/old-gray.png",
+      "sha256": "3a975385c218dd946631fabd8650f90b52b09af801de127b91dcee27b55145c4",
+      "size_bytes": 39110,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/nz/rule.json",
+      "sha256": "a103af918cc482553239482d0a52d9595b49799dfbf574836225214885c78c9a",
+      "size_bytes": 11876,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/nz/source.gif",
+      "sha256": "0d98e9bc3ac0cd1b25d303a1b40db3641e316fc85db75554b0b8053c9607f85e",
+      "size_bytes": 340557,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/ph/blocked-evidence.json",
+      "sha256": "5791da0488362f4b55c4980a0735211fed4892c9e58fc58c4089f1a1bef53496",
+      "size_bytes": 1862,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/ph/rule.json",
+      "sha256": "ee621b85e53a3bdcf5470118fb853526304e45ed22dbe5e6e4f6d9385ff45bb8",
+      "size_bytes": 3133,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/pt/old-gray.png",
+      "sha256": "11b88c2741d6c5f17368b59685c1d12e02af0fc27a90262a7f784e89a548d654",
+      "size_bytes": 28794,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/pt/rule.json",
+      "sha256": "de9ffb10c61b6901cd45bba7a3ea5546184d48497e64c3f70e7f63a16e6efa53",
+      "size_bytes": 806,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/pt/source.png",
+      "sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa",
+      "size_bytes": 24754,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/rainviewer/blocked-evidence.json",
+      "sha256": "ae32757bdffd3e2b2649525161ae32d03f54510aa4811a170011fc4e82553aba",
+      "size_bytes": 4736,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/rainviewer/rule.json",
+      "sha256": "99d7e3172311f8e606bfab3c5d8ee1ff1e36fa21069c7209e157b886fb7435c0",
+      "size_bytes": 1167,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/sg/old-gray.png",
+      "sha256": "9b7119629aba0b072cc34ae8ec20fe6f3e39a1b360e8e7ff6c3b8bb8d88f347d",
+      "size_bytes": 18698,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/sg/rule.json",
+      "sha256": "6b55fad7d859ad0c284e98c027c36bce4e8e89e67b97bae5b8fccbf0e8cf52f4",
+      "size_bytes": 4661,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/sg/source.png",
+      "sha256": "3f679cc016808e94516b779981bde2c4c251df09185f03edd381d29b9b701eb0",
+      "size_bytes": 3370,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/th/kkn240Loop/old-gray.png",
+      "sha256": "38b0cf109397f6eca4dd678147df81ab6bf34e5fbf3f87f3010cecfce991e812",
+      "size_bytes": 12826,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/th/kkn240Loop/rule.json",
+      "sha256": "a4dcf5e4af868acb73150b853e5befc021fe3446e379c6bc90100535cf9992a8",
+      "size_bytes": 6619,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/th/kkn240Loop/source.gif",
+      "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+      "size_bytes": 2666961,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/th_royalrain/old-gray.png",
+      "sha256": "21b36968ecae5efe3a4530f5795d0fd31ffdd999b0ab04f6b4199d13e55ce9d6",
+      "size_bytes": 6921,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/th_royalrain/rule.json",
+      "sha256": "ea766dba707c10510285dec9024feff29679cacc022e91c8b1c6d528c869be21",
+      "size_bytes": 7635,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/th_royalrain/source.png",
+      "sha256": "8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd",
+      "size_bytes": 635825,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/tw/old-gray.png",
+      "sha256": "c25201bdbf5a6c8d72a50f723d5cdf34b4a9012887386adbbf44742ba686b34b",
+      "size_bytes": 75175,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/tw/rule.json",
+      "sha256": "28f19e1808e43b66ab23f305a8b4034e678726aeaa571cc3bfa912c62ef8304c",
+      "size_bytes": 6939,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/tw/source.png",
+      "sha256": "c0de1e3dfecbe36a4265693fa577c679cdef51827dfe22d0ee55fa4366eeb690",
+      "size_bytes": 700446,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/tw/unmatched-archive-evidence.json",
+      "sha256": "4ea2fcf597735b6c6b55830b162f3a34ed9b83ee199654e2ac7f2c0e72550fac",
+      "size_bytes": 5434,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/vn/old-gray.png",
+      "sha256": "0339b4b4df717bdfca2e733119d7962d572c98d2a6b5956e3a1caa88ff25a8d2",
+      "size_bytes": 1357,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/vn/rule.json",
+      "sha256": "010a69207943317ae2a5102c9c5cec728dd015d67460d369222beb44070f66a7",
+      "size_bytes": 3475,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/vn/source.png",
+      "sha256": "d9af0c585255e0e9e710b6e3177d9fb2baf4332f79b06da6bd475011464634b1",
+      "size_bytes": 23881,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/windy/blocked-evidence.json",
+      "sha256": "3c15cf1c0ec72d49cdd03d5224ca38069d53e074e5a5c14e5c6b85d273ee3dc6",
+      "size_bytes": 4674,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/legacy-display/windy/rule.json",
+      "sha256": "5bbefdf0226877c257cb0cb34e7e202bfd96ee6756fe5611ea71e2b533e57a4e",
+      "size_bytes": 1156,
+      "scope": "legacy-gray-fixture"
+    },
+    {
+      "path": "tests/fixtures/sources/ca/fixture.json",
+      "sha256": "4d601dc67b7eb488a01d9e77187c9f74d368395e6d98f91ed76caca54cb8e3b1",
+      "size_bytes": 1009,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/ca/raw/CASFT.gif",
+      "sha256": "90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0",
+      "size_bytes": 23687,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/es/fixture.json",
+      "sha256": "9b9a9498b4c689aea178c3863da505840e9e9bd8f5d79fabc122de47a0c68ce4",
+      "size_bytes": 1075,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/es/raw/ESCOMP.png",
+      "sha256": "baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f",
+      "size_bytes": 8681,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/fr/fixture.json",
+      "sha256": "ba885525de1e6e19658e5d2e834e8d84ca4ff41048706541783189b5139495ea",
+      "size_bytes": 2118,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/fr/raw/FRCOMP.png",
+      "sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248",
+      "size_bytes": 68614,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/nz/fixture.json",
+      "sha256": "5024f3f047ba7dca23708b2daf84f1fadbb671c834125541ff92fa0a5e4b2d33",
+      "size_bytes": 979,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/nz/raw/NZAU2.gif",
+      "sha256": "0d98e9bc3ac0cd1b25d303a1b40db3641e316fc85db75554b0b8053c9607f85e",
+      "size_bytes": 340557,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/pt/fixture.json",
+      "sha256": "114f74c26a99c88e77e4a6f95eb9adef9dbfffcfd07a211e1dc01a8413b6ceb3",
+      "size_bytes": 2725,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/pt/raw/PTST2.png",
+      "sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa",
+      "size_bytes": 24754,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/th/fixture.json",
+      "sha256": "6255a0c16ef50e036bbe420807d370fd366b7a1859b12befbff885a4155eb37a",
+      "size_bytes": 2466,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/th/raw/kkn240Loop.gif",
+      "sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+      "size_bytes": 2666961,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/th_royalrain/fixture.json",
+      "sha256": "9cd8c92972334f16758fe96b6819c33f8712ae300fda260a9bdd651116d94d53",
+      "size_bytes": 1046,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "tests/fixtures/sources/th_royalrain/raw/takhli.png",
+      "sha256": "8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd",
+      "size_bytes": 635825,
+      "scope": "referenced-raw-gray-rule-or-validation-evidence"
+    },
+    {
+      "path": "validation-results/legacy-display.json",
+      "sha256": "f7cd466e0bb5356edc9655fc3d137b2960b3ea566dd80d56e0857e305f5b9d9d",
+      "size_bytes": 40880,
+      "scope": "legacy-validation-evidence"
+    }
+  ],
+  "unavailable_referenced_paths": []
+}

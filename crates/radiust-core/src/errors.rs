@@ -30,6 +30,15 @@ pub enum ProviderError {
 
 #[derive(Clone, Debug, Error)]
 pub enum CoreError {
+    #[error("gray encoding is invalid: {reason}")]
+    InvalidGrayEncoding {
+        reason: String,
+        row: Option<usize>,
+        column: Option<usize>,
+        value: Option<String>,
+    },
+    #[error("requested dBZ values have incompatible variable or units")]
+    UnitMismatch { variable: String, units: Option<String> },
     #[error("network access to {0} is disabled")]
     NetworkDisabled(String),
     #[error("resource limit exceeded: {0}")]
@@ -44,6 +53,8 @@ pub enum CoreError {
     Temporary(String),
     #[error("cache error: {0}")]
     Cache(String),
+    #[error("input integrity check failed: {0}")]
+    Integrity(String),
     #[error("complete output already exists; overwrite is required")]
     OutputConflict,
     #[error("storage error: {0}")]

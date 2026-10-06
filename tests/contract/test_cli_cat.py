@@ -44,7 +44,7 @@ def test_cat_decoded_source_requires_a_native_science_product():
     result = runner.invoke(main, ["cat", "my", "--decoded", "--renderer", "text"])
 
     assert result.exit_code == 2
-    assert "native --decoded preview supports only" in result.output
+    assert "native scientific preview supports only" in result.output
     assert "selected my" in result.output
 
 

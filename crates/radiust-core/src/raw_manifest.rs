@@ -126,7 +126,7 @@ fn copy_verified(
     max_bytes: u64,
 ) -> CoreResult<(tempfile::TempPath, u64, String)> {
     let mut input = File::open(source)
-        .map_err(|_| CoreError::Storage("raw replay artifact could not be opened".into()))?;
+        .map_err(|_| CoreError::Integrity("raw replay artifact could not be opened".into()))?;
     let mut output = tempfile::Builder::new()
         .prefix("radiust-replay-")
         .tempfile_in(temp_root)
@@ -137,7 +137,7 @@ fn copy_verified(
     loop {
         let count = input
             .read(&mut buffer)
-            .map_err(|_| CoreError::Storage("raw replay artifact could not be read".into()))?;
+            .map_err(|_| CoreError::Integrity("raw replay artifact could not be read".into()))?;
         if count == 0 {
             break;
         }
@@ -187,7 +187,7 @@ fn safe_name(value: &str) -> bool {
 }
 
 fn invalid_manifest() -> CoreError {
-    CoreError::Storage("raw manifest or artifact failed integrity validation".into())
+    CoreError::Integrity("raw manifest or artifact failed integrity validation".into())
 }
 
 #[cfg(test)]
@@ -249,12 +249,18 @@ mod tests {
         let payload = b"retained provider data";
         let manifest = write_manifest(root.path(), "frame.json", payload);
         fs::write(root.path().join("raw/frame.json"), b"corrupt").unwrap();
-        assert!(load(&manifest, temp.path(), &Limits::default()).is_err());
+        assert!(matches!(
+            load(&manifest, temp.path(), &Limits::default()),
+            Err(CoreError::Integrity(_))
+        ));
 
         let target = tempfile::NamedTempFile::new().unwrap();
         fs::write(target.path(), payload).unwrap();
         let _ = fs::remove_file(root.path().join("raw/frame.json"));
         std::os::unix::fs::symlink(target.path(), root.path().join("raw/frame.json")).unwrap();
-        assert!(load(&manifest, temp.path(), &Limits::default()).is_err());
+        assert!(matches!(
+            load(&manifest, temp.path(), &Limits::default()),
+            Err(CoreError::Integrity(_))
+        ));
     }
 }

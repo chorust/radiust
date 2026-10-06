@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "recorded_date": "2026-10-03",
+  "status": "compatibility_verified_with_evidence_limited_paths",
+  "gray_parity": {
+    "report": "validation-results/gray.json",
+    "report_sha256": "f7cd466e0bb5356edc9655fc3d137b2960b3ea566dd80d56e0857e305f5b9d9d",
+    "counts": {
+      "total": 23,
+      "passed": 15,
+      "difference_pending": 0,
+      "blocked": 8
+    },
+    "passed_paths": [
+      "au/composite",
+      "ca/rain",
+      "es/composite",
+      "fr/composite",
+      "id/composite",
+      "kr/composite",
+      "my/composite/east",
+      "my/composite/peninsular",
+      "nz/rain",
+      "pt/composite",
+      "sg/composite",
+      "th/composite/kkn240Loop",
+      "th_royalrain/cappi",
+      "tw/observation",
+      "vn/cmax"
+    ],
+    "blocked_paths": [
+      "bmkg/composite",
+      "id_sidarma/cmax",
+      "ph/composite",
+      "rainviewer/composite",
+      "th/composite/cmp1",
+      "tw-http/observation",
+      "tw/grid",
+      "windy/reflectivity"
+    ],
+    "difference_pending": [],
+    "blocked_path_evidence": "Each blocked path retains its path-specific missing-input or missing-baseline reason from the fixture manifest; no gray or dBZ result is inferred for it."
+  },
+  "historical_compatibility": {
+    "protected_files_checked": 155,
+    "protected_sha256_mismatches": 0,
+    "legacy_resource_tree_files": 35,
+    "canonical_gray_resource_tree_byte_identical": true,
+    "legacy_display_index_sha256": "f8278fce8aa23b94a9c43c1bcba6f0b90ff7aede7d4bd253e4a4ce48f222c5e3",
+    "gray_index_sha256": "f8278fce8aa23b94a9c43c1bcba6f0b90ff7aede7d4bd253e4a4ce48f222c5e3",
+    "legacy_processing_identity_and_tw_locator_unchanged": true,
+    "evidence": "cargo test --locked -p radiust-core --test gray_compat --test legacy_display_parity --test legacy_display_resize"
+  },
+  "cli_and_python_contracts": {
+    "cli_gray_dbz_modes": {
+      "passed": 3,
+      "failed": 0
+    },
+    "cli_mode_info_unit_tests": {
+      "passed": 2,
+      "failed": 0
+    },
+    "offline_replay_generic_and_dbz": {
+      "passed": 1,
+      "failed": 0
+    },
+    "python_reports_decoder_and_legacy_contracts": {
+      "passed": 11,
+      "failed": 0
+    }
+  },
+  "wheel": {
+    "filename": "radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "sha256": "8fcac2fa887a238970667a640247ee0a8cab7397f333d5a5fc1cf448428d2483",
+    "target": "CPython 3.12, macOS arm64",
+    "build": "maturin build --offline --locked",
+    "clean_venv_base_import_without_numpy": "passed; GrayDbzDecoder and LegacyGrayDbzDecoder import; gray and historical resources resolve",
+    "clean_venv_science_decode": "passed after offline NumPy install; canonical [0,224] -> [0.0,70.0]; historical float 1.9 -> 0.3125",
+    "installed_wheel_contract": {
+      "passed": 2,
+      "failed": 0,
+      "native_cli_reference": "target/debug/radiust"
+    }
+  },
+  "toolchain": {
+    "python": "3.12.7",
+    "rustc": "1.92.0"
+  },
+  "limitations": [
+    "Eight of 23 historical source/product gray paths remain blocked by the recorded lack of path-specific source evidence. The comparison command therefore exits 1 to communicate partial coverage.",
+    "This report verifies gray compatibility and packaging only; it makes no claim that blocked paths, live-source observations, dBZ scientific validity, or geometry were verified."
+  ]
+}

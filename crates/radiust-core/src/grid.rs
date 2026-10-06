@@ -11,12 +11,12 @@ const QUALITY_MISSING: u16 = 1;
 const QUALITY_OUTSIDE: u16 = 2;
 const QUALITY_UNKNOWN: u16 = 4;
 const QUALITY_INTERPOLATED: u16 = 16;
-const QUALITY_RECOVERED: u16 = 32;
+const QUALITY_BELOW_DETECTION: u16 = 32;
 const QUALITY_SOURCE_ANNOTATION: u16 = 64;
 const INVALID_BILINEAR_FLAGS: u16 = QUALITY_MISSING
     | QUALITY_OUTSIDE
     | QUALITY_UNKNOWN
-    | QUALITY_RECOVERED
+    | QUALITY_BELOW_DETECTION
     | QUALITY_SOURCE_ANNOTATION;
 // EPSG:3857 spherical Web Mercator parameters; formulas follow PROJ's
 // documented Web Mercator operation.
@@ -110,6 +110,38 @@ impl CrsTransform {
 /// `source_crs` without an unverified datum or projection operation.
 pub fn supports_regrid_crs(source_crs: Option<&str>, target_crs: Option<&str>) -> bool {
     crs_transform(source_crs, target_crs).is_some()
+}
+
+/// Validate that trusted pixel coordinates map every row and column to a
+/// unique, ordered center in a declared CRS.
+pub fn has_complete_pixel_mapping(
+    width: usize,
+    height: usize,
+    crs: Option<&str>,
+    x: &[f64],
+    y: &[f64],
+) -> bool {
+    let supported_crs = crs.is_some_and(|value| {
+        matches!(
+            value.trim().to_ascii_uppercase().as_str(),
+            "EPSG:4326" | "EPSG:3821" | "EPSG:3857"
+        )
+    });
+    supported_crs
+        && width >= 2
+        && height >= 2
+        && x.len() == width
+        && y.len() == height
+        && valid_center_axis(x)
+        && valid_center_axis(y)
+}
+
+fn valid_center_axis(values: &[f64]) -> bool {
+    if values.len() < 2 || values.iter().any(|value| !value.is_finite()) {
+        return false;
+    }
+    let direction = (values[1] - values[0]).signum();
+    direction != 0.0 && values.windows(2).all(|pair| (pair[1] - pair[0]).signum() == direction)
 }
 
 fn crs_transform(source_crs: Option<&str>, target_crs: Option<&str>) -> Option<CrsTransform> {

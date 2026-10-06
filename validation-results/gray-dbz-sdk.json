@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "recorded_date": "2026-10-06",
+  "status": "offline_sdk_and_cli_regression_passed",
+  "test_results": {
+    "core_targeted_rust_tests": 46,
+    "cli_targeted_rust_tests": 15,
+    "python_contract_integration_and_wheel_tests": 59,
+    "shared_decode_worker_unit_test": 1
+  },
+  "coverage": {
+    "verified_gray_paths": 15,
+    "blocked_gray_paths_preserved": 8,
+    "path_runner": {
+      "total": 23,
+      "gray_passed": 15,
+      "gray_difference_pending": 0,
+      "gray_blocked": 8,
+      "dbz_verified": 15,
+      "dbz_blocked": 8,
+      "nz_clipped_pixels": 6,
+      "geometry_claims": "unknown for all gray fixture paths",
+      "live_acquisition": "not tested"
+    },
+    "direct_native_dbz_products": [
+      "rainviewer/composite",
+      "tw/grid",
+      "rdcap/reflectivity"
+    ],
+    "sdk_modes": [
+      "sync and async fetch",
+      "fetch_many and iter_fetch",
+      "raw-manifest replay with mode=None and mode=dbz",
+      "partial results and cancellation",
+      "sync and async dBZ source downloads preserve ordered partial results"
+    ],
+    "integrity_failures": [
+      "raw artifact SHA mismatch",
+      "RDCAP binding mismatch with a valid manifest artifact digest"
+    ],
+    "installed_wheel_and_native_release_cli": "passed after rebuilding both artifacts from the current worktree"
+  },
+  "offline_sdk_integration_tests": 10,
+  "evidence": [
+    "tests/integration/test_gray_dbz_sdk.py",
+    "tests/integration/test_gray_dbz_persistence.py",
+    "validation-results/gray-dbz-paths.json",
+    "scripts/validation/validate_gray_dbz.py",
+    "crates/radiust-core/examples/compare_gray_dbz.rs",
+    "tests/contract/test_gray_dbz_sdk_modes.py",
+    "crates/radiust-core/tests/dbz_native.rs",
+    "crates/radiust-cli/tests/gray_dbz_modes.rs",
+    "crates/radiust-cli/tests/gray_dbz_replay.rs",
+    "tests/packaging/test_installed_wheel.py"
+  ],
+  "limitations": [
+    "Fixture timestamps and decoded values are offline contract evidence, not live observations.",
+    "No claim is made about new platforms or live provider availability.",
+    "The path runner covers gray fixtures; direct native products remain covered by separate offline tests."
+  ]
+}

@@ -1,5 +1,6 @@
 //! Verified source-to-field decoders owned by the Rust core.
 
+pub use crate::dbz::wrap_native_reflectivity;
 use crate::errors::{CoreError, CoreResult};
 use crate::limits::Limits;
 use crate::model::{Grid, RadarField, RawFrame};

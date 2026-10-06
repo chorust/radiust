@@ -176,15 +176,41 @@ fn replay_command_decodes_one_offline_manifest_to_all_native_formats_idempotentl
 
     let first = json_report(&cli.run(&args), 0);
     assert_eq!(first["command"], "replay");
+    assert_eq!(first["mode_schema_version"], 1);
+    assert_eq!(first["mode_info"]["requested"], "scientific");
+    assert_eq!(first["mode_info"]["actual"], "scientific");
+    assert_eq!(first["mode_info"]["variable"], "reflectivity");
+    assert_eq!(first["mode_info"]["units"], "dBZ");
     assert_eq!(first["query"]["station"], "TWN/RCHL");
     assert_eq!(first["counts"]["written"], 4);
     assert_eq!(first["items"].as_array().unwrap().len(), 4);
     for item in first["items"].as_array().unwrap() {
         assert_eq!(item["status"], "written");
+        assert_eq!(item["mode_info"]["actual"], "scientific");
         assert!(item["output_uri"].is_string());
     }
 
     let second = json_report(&cli.run(&args), 0);
     assert_eq!(second["counts"]["skipped"], 4);
-    assert!(second["items"].as_array().unwrap().iter().all(|item| item["status"] == "skipped"));
+    assert!(second["items"].as_array().unwrap().iter().all(|item| {
+        item["status"] == "skipped" && item["mode_info"]["actual"] == "scientific"
+    }));
+
+    let dbz_output = cli._root.path().join("replayed-dbz");
+    let dbz_args = [
+        "replay",
+        manifest.to_str().unwrap(),
+        "--output",
+        dbz_output.to_str().unwrap(),
+        "--format",
+        "png,netcdf",
+        "--dbz",
+    ];
+    let dbz = json_report(&cli.run(&dbz_args), 0);
+    assert_eq!(dbz["mode_info"]["requested"], "dbz");
+    assert_eq!(dbz["mode_info"]["actual"], "dbz");
+    assert_eq!(dbz["mode_info"]["units"], "dBZ");
+    assert!(dbz["items"].as_array().unwrap().iter().all(|item| {
+        item["mode_info"]["requested"] == "dbz" && item["mode_info"]["actual"] == "dbz"
+    }));
 }

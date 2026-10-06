@@ -45,7 +45,7 @@ with radiust.Client() as client:
 
 `download()` 经 Rust Engine 写入本地目录或对象存储，支持 raw-only、PNG、NetCDF、GeoTIFF 和 Zarr v2；科学格式只对已实现相应 decoder 的来源/产品开放，RDCAP 科学值仍须结合本节的逐国在线验收状态使用。`raw=True` 可将验证过的原始 artifact 与解码成果放进同一次正式提交。解码下载支持 `variable`、`grid`、`bbox`、`resolution` 和 `resampling` 参数；RainViewer EPSG:4326 geographic 下载有既有验证，RDCAP 解码场为 EPSG:4326 原生网格，但三国在线发现、获取和科学读回仍未验收。绑定结果的 `RadarField.regrid()`/`RadarDataset.regrid()` 与 Rust `Engine::regrid()` 支持 EPSG:4326↔EPSG:3857 的 Web Mercator 坐标变换；其他 datum/projection 转换（包括 TW EPSG:3821 到 EPSG:4326）仍明确失败。对象存储目标使用 `s3://bucket/prefix` 或 `oss://bucket/prefix`，并须在配置中显式启用 `runtime.allow_network`，通过 `storage` 配置提供 endpoint/region 和凭据；URI 本身不能包含凭据。解码格式支持安全的 `output_template` 字段 `{source}`、`{product}`、`{station}`、`{valid_time}`、`{base_time}`、`{date}`、`{hour}`、`{variant_id}` 与 `{ext}`；本地模板必须生成相对路径，不能越过输出根目录。RDCAP 的 `{station}`（例如 `TWN/RCHL`）会编码为单个路径分量 `TWN%2FRCHL`。模板仅用于解码输出；raw-only 与模板组合会被拒绝。非空 `encoder_options` 目前不支持。远端 generation/pointer 提交流水线已有内存故障合同，真实 AWS S3/阿里云 OSS 尚未验收；尚不支持的来源能力也会返回有界错误。
 
-`Client.write()` 和 `AsyncClient.write()` 接收 Rust `RadarField` 或 `RadarDataset`，将已解码对象通过 Rust PNG、NetCDF4、GeoTIFF 或 Zarr v2 writer 发布到本地 manifest-last store。调用方必须传入产生该对象的 `FrameRef`；字段时间必须与帧时间相同。多变量 Dataset 必须用 `variable=` 选择一个变量。重复写入完整且身份相同的成果会返回 `skipped`；目前内存对象写入不接受 `raw=True`、远端 URI 或地理重网格选项。
+`Client.write()` 和 `AsyncClient.write()` 接收 Rust `RadarField`、`RadarDataset` 或有 receipt 的 `RasterResult`，通过 Rust writer 发布到本地 manifest-last store。未绑定的旧 field/dataset 必须提供来源 `FrameRef`；带 Source/Local/NumericFile 身份的新 `RasterResult` 可用自己的读取 receipt，无需合成 ref。字段时间与显式 ref 必须相同，多变量 Dataset 必须用 `variable=` 选择一个变量。重复写入完整且身份相同的成果会返回 `skipped`；RasterResult 当前不接受远端 URI 或地理重网格选项。
 
 ```python
 with radiust.Client() as client:
@@ -53,6 +53,48 @@ with radiust.Client() as client:
     field = client.fetch(ref)
     report = client.write(field, ref=ref, output="./data", format="netcdf")
 ```
+
+## Gray 与 dBZ
+
+灰度解码和 scientific dBZ 都由 Rust Core 执行。`gray-dbz-v1` 是显式声明，visible code 必须是灰度整数 0–224，公式为 `gray * 5/16`；alpha 0 表示 missing，非零 alpha 不乘入数值，opaque black 是有效 0。local 结果不含推断时间或 CRS。同步、异步文件入口分别为 `decode_gray_file()` 和 `await decode_gray_file()`：
+
+```python
+import asyncio
+import numpy as np
+import radiust
+
+image = "./gray.png"
+with radiust.Client() as client:
+    local = client.decode_gray_file(image)
+    written = client.write(local, output="./data", format="netcdf")
+    numeric = client.read_dbz(written["output_uri"])
+    field = radiust.to_xarray(numeric)
+
+async def load_again():
+    async with radiust.AsyncClient() as client:
+        return await client.decode_gray_file(image)
+
+async_result = asyncio.run(load_again())
+np.testing.assert_allclose(
+    radiust.to_xarray(local).values,
+    radiust.to_xarray(async_result).values,
+    rtol=0,
+    atol=0,
+    equal_nan=True,
+)
+```
+
+`fetch(ref, mode="gray")` returns the source gray decision; `fetch(ref, mode="dbz")` returns a Rust-owned `RasterResult` when a direct native decoder or an evidence-passed source-gray rule succeeds. `decode_dbz(raw)` performs the same explicit source-mode decode on an acquired `RawFrame`. `fetch_many(..., mode="dbz")`, `iter_fetch(..., mode="dbz")`, and their async counterparts preserve per-frame status, error and additive `mode_info`; a failed item is not reported as dBZ. `download(..., mode="dbz")` writes a numerical result and can attach the same verified acquisition with `raw=True`.
+
+For retained data, `read_dbz(path, variable="reflectivity", valid_time=...)` validates the actual variable and dBZ units. It returns a new file-bound `RasterResult`; `write(result, ...)` can commit it without a `FrameRef`, and the values are never multiplied by 5/16 a second time. Embedded processing becomes upstream provenance, while current identity is based on file content and selection. Supplying a `FrameRef` for a local numeric result is rejected. A legacy unbound `RadarField` still needs its source `FrameRef` when written.
+
+Pixel results write to NetCDF, Zarr, or display-only PNG; a Pixel result with a complete trusted geometry mapping can also write GeoTIFF with separate value, quality, origin-quality, adjustment, alpha, and provenance components. The reader checks that the components share one transform and CRS, and includes each declared component in the numeric-file receipt. A Pixel GeoTIFF may keep its time unknown. Without a complete trusted mapping, GeoTIFF and geographic requests fail closed; no CRS, time, or extent is inferred.
+
+`replay_raw_manifest(path, mode="dbz")` validates and replays only retained bytes offline; omitting `mode` preserves the historical generic science return type. Manifest SHA or frame-binding failures are integrity errors and do not trigger network retrieval. Use `to_xarray(RasterResult)` for pixel dBZ to explicitly allocate NumPy arrays; a native result exposes `native_field` for the existing `RadarField` conversion. See [gray/dBZ semantics and qualification](gray-dbz.md) for clipping, blocked source paths, provenance and the distinction between encoding validation and physical/live validation.
+
+`GrayDbzDecoder` is the strict canonical decoder. `LegacyGrayDbzDecoder` preserves the former permissive/historical API as a compatibility profile; it does not make an image eligible for canonical `mode="dbz"`. These are thin Rust Core facades, not Python image-processing implementations. Optional xarray/NumPy arrays are created only when `to_xarray()` is called; the bound pixel result retains `float32` values, `uint16` quality, `origin_quality`, `encoding_adjustment`, and original alpha dtype/bit depth.
+
+For batches, `fetch_many()` keeps input order and returns each frame's status; `iter_fetch()` yields as work completes with bounded prefetch. `on_error="collect"` retains successful items and per-item errors in the partial result. With `on_error="raise"`, `BatchError.partial_result` exposes completed work. `Client.cancel()` / `AsyncClient.cancel()` request cancellation of active Core work; a cancelled write raises `OperationCancelled` (`code="cancelled"`) and must not publish a success manifest. These names are lazy exports from `radiust`, so importing the CLI or basic package does not eagerly load scientific Python dependencies. The wheel includes only the decoder facade and its canonical/compatibility resources; it does not package the excluded Python processing pipeline. `to_xarray()` is the explicit copying boundary from Rust-owned buffers to NumPy/xarray arrays.
 
 ## 科学对象
 

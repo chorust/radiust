@@ -19,6 +19,8 @@ pub enum ErrorStage {
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     InvalidQuery,
+    InvalidGrayEncoding,
+    UnitMismatch,
     NetworkRestricted,
     ResourceLimit,
     Transport,
@@ -65,6 +67,14 @@ impl ErrorReport {
 
     pub fn from_core(error: &CoreError, stage: ErrorStage) -> Self {
         let (code, message, retryable) = match error {
+            CoreError::InvalidGrayEncoding { reason, .. } => {
+                (ErrorCode::InvalidGrayEncoding, format!("gray input is invalid: {reason}"), false)
+            }
+            CoreError::UnitMismatch { .. } => (
+                ErrorCode::UnitMismatch,
+                "dBZ decoding requires a reflectivity variable with dBZ units".to_owned(),
+                false,
+            ),
             // Do not copy the URL: it can contain signed query parameters.
             CoreError::NetworkDisabled(_) => (
                 ErrorCode::NetworkRestricted,
@@ -140,6 +150,11 @@ impl ErrorReport {
                 (ErrorCode::Storage, "temporary data operation failed".to_owned(), false)
             }
             CoreError::Cache(_) => (ErrorCode::Cache, "cache operation failed".to_owned(), false),
+            CoreError::Integrity(_) => (
+                ErrorCode::Integrity,
+                "raw manifest or retained artifacts failed integrity validation".to_owned(),
+                false,
+            ),
             CoreError::OutputConflict => (
                 ErrorCode::OutputConflict,
                 "complete output already exists; overwrite is required".to_owned(),
@@ -232,5 +247,29 @@ mod tests {
         assert_eq!(report.code, ErrorCode::Transport);
         assert_eq!(report.message, "HTTP request returned status 503");
         assert!(report.retryable);
+    }
+
+    #[test]
+    fn gray_encoding_and_unit_errors_have_stable_non_retryable_codes() {
+        let invalid = ErrorReport::from_core(
+            &CoreError::InvalidGrayEncoding {
+                reason: "visible pixel is outside the declared range".into(),
+                row: Some(4),
+                column: Some(7),
+                value: Some("225".into()),
+            },
+            ErrorStage::Decode,
+        );
+        assert_eq!(invalid.code, ErrorCode::InvalidGrayEncoding);
+        assert_eq!(invalid.stage, ErrorStage::Decode);
+        assert!(!invalid.retryable);
+
+        let units = ErrorReport::from_core(
+            &CoreError::UnitMismatch { variable: "rain_rate".into(), units: Some("mm/h".into()) },
+            ErrorStage::Decode,
+        );
+        assert_eq!(units.code, ErrorCode::UnitMismatch);
+        assert_eq!(units.message, "dBZ decoding requires a reflectivity variable with dBZ units");
+        assert!(!units.retryable);
     }
 }

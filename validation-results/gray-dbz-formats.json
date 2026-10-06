@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "recorded_date": "2026-10-06",
+  "status": "pixel_formats_verified_with_trusted_geotiff",
+  "results": {
+    "rust_pixel_format_tests": 13,
+    "rust_native_geotiff_regression_tests": 8,
+    "python_independent_netcdf_zarr_contracts": "passed in the 59-test full dBZ/compatibility/wheel regression",
+    "netcdf": "values, quality, origin, adjustment, alpha dtype/depth, time and pixel coordinates independently readable",
+    "zarr": "values, quality, origin, adjustment, alpha dtype/depth, time and pixel coordinates independently readable",
+    "png": "display-only output with quality-derived visibility; not a numeric container",
+    "pixel_geotiff_without_geometry": "rejected as invalid_grid",
+    "pixel_geotiff_trusted_geometry": "value, quality, optional origin/adjustment, alpha U8/U16, unknown time, and geometry round-trip passed",
+    "pixel_geotiff_geometry_integrity": "affine mismatch and reused axes after shape change rejected; all declared components share CRS/transform/orientation",
+    "numeric_file_receipt": "GeoTIFF data, quality, provenance and declared sidecar SHA values verified; copied identical component set keeps identity"
+  },
+  "evidence": [
+    "crates/radiust-core/tests/pixel_dbz_formats.rs",
+    "crates/radiust-core/tests/raster_identity_commit.rs",
+    "crates/radiust-core/tests/geotiff.rs",
+    "tests/contract/test_gray_dbz_formats.py",
+    "tests/integration/test_gray_dbz_persistence.py",
+    "specs/005-gray-dbz-decoding/quickstart.md section 4 offline rejection case"
+  ],
+  "limitations": [
+    "live provider geometry remains unknown unless a source supplies verified mapping evidence"
+  ]
+}

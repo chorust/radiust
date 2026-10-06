@@ -177,7 +177,7 @@ fn decoded_mode_is_parsed_and_keeps_the_native_source_capability_gate() {
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("native --decoded preview supports only"), "{stderr}");
+    assert!(stderr.contains("native scientific preview supports only"), "{stderr}");
     assert!(stderr.contains("selected my"), "{stderr}");
 }
 

@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "scope": "US1 local decode / quickstart section 2",
+  "network_access": "none",
+  "fixture": {
+    "path": "/tmp/radiust-gray-dbz-validation/declared-gray.png",
+    "shape": [
+      2,
+      225
+    ],
+    "first_row_codes": [
+      0,
+      224
+    ],
+    "transparent_hidden_code": 255
+  },
+  "cli": {
+    "raw": {
+      "requested": "raw",
+      "actual": "raw",
+      "variable": null,
+      "units": null,
+      "method": "raw_preview",
+      "encoding": null,
+      "range_policy": null,
+      "time_status": "unknown",
+      "geolocation": "unknown",
+      "limitations": [
+        "scientific_decoding_not_requested"
+      ]
+    },
+    "gray": {
+      "requested": "gray",
+      "actual": "gray",
+      "variable": null,
+      "units": "gray_code",
+      "method": "gray_preview",
+      "encoding": null,
+      "range_policy": null,
+      "time_status": "unknown",
+      "geolocation": "unknown",
+      "limitations": [
+        "time_unknown",
+        "geolocation_unknown"
+      ]
+    },
+    "dbz": {
+      "requested": "dbz",
+      "actual": "dbz",
+      "variable": "reflectivity",
+      "units": "dBZ",
+      "method": "local_gray_dbz",
+      "encoding": "gray-dbz-v1",
+      "rule_version": null,
+      "range_policy": "strict-v1",
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geolocation": "unknown",
+      "limitations": [
+        "time_unknown",
+        "geolocation_unknown"
+      ]
+    }
+  },
+  "cli_rejections": {
+    "visible_out_of_range": "invalid_gray_encoding",
+    "colored_rgb": "invalid_gray_encoding",
+    "mode_conflict": "mode_conflict"
+  },
+  "sdk": {
+    "sync_async_equal": true,
+    "first_row_codes_checked": 225,
+    "opaque_black_dbz": 0.0,
+    "transparent_hidden_pixels": "NaN + missing"
+  },
+  "automated_tests": {
+    "core_local": "7 passed",
+    "cli_local": "4 passed",
+    "python_contract": "4 passed"
+  },
+  "status": "passed"
+}

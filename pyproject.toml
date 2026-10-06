@@ -110,11 +110,15 @@ include = [
   { path = "python/radiust/resources/**/*.yaml", format = "wheel" },
   { path = "tests/fixtures/sources/my/**/*", format = "wheel" },
   { path = "python/radiust/resources/catalog.json", format = "wheel" },
+  { path = "python/radiust/decoders/__init__.py", format = "wheel" },
+  { path = "python/radiust/decoders/gray_dbz.py", format = "wheel" },
 ]
 exclude = [
   "python/radiust/cache.py",
   "python/radiust/context.py",
-  "python/radiust/decoders/**",
+  "python/radiust/decoders/exact.py",
+  "python/radiust/decoders/nearest.py",
+  "python/radiust/decoders/recovery.py",
   "python/radiust/discovery.py",
   "python/radiust/discovery_limits.py",
   "python/radiust/discovery_worker.py",

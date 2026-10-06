@@ -19,6 +19,10 @@ def to_xarray(value: Any) -> Any:
     except ImportError as exc:  # pragma: no cover - depends on optional install
         raise ImportError("to_xarray() requires NumPy and xarray") from exc
 
+    pixel_field = getattr(value, "pixel_field", None)
+    if pixel_field is not None:
+        return _pixel_to_xarray(value, pixel_field, np, xr)
+
     if callable(getattr(value, "field", None)) and hasattr(value, "field_count"):
         fields = [value.field(index) for index in range(value.field_count)]
         dataset_source = value.source
@@ -80,7 +84,67 @@ def to_xarray(value: Any) -> Any:
         )
         return xr.DataArray(array, dims=dims, coords=coords, attrs=attrs, name=document["name"])
 
-    raise TypeError("to_xarray expects a Rust RadarField or RadarDataset")
+    raise TypeError("to_xarray expects a Rust RadarField, RadarDataset, or RasterResult")
+
+
+def _pixel_to_xarray(value: Any, field: Any, np: Any, xr: Any) -> Any:
+    try:
+        metadata = json.loads(field.metadata_json())
+        shape = tuple(int(size) for size in metadata["shape"])
+        if len(shape) != 2 or any(size <= 0 for size in shape):
+            raise ValueError
+        values = np.frombuffer(field.values_le_bytes(), dtype="<f4").reshape(shape).copy()
+        quality = np.frombuffer(field.quality_le_bytes(), dtype="<u2").reshape(shape).copy()
+        mode_info = json.loads(value.mode_info_json)
+        processing = json.loads(value.processing_json)
+        input_identity = json.loads(value.input_json)
+        alpha_json = field.alpha_json()
+        alpha = json.loads(alpha_json) if alpha_json is not None else None
+    except (AttributeError, KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Rust PixelDbzField returned invalid metadata or arrays") from exc
+
+    dims = ("row", "column")
+    coords: dict[str, Any] = {
+        "quality": xr.DataArray(
+            quality,
+            dims=dims,
+            attrs={
+                "flag_masks": np.asarray([1, 2, 4, 8, 16, 32, 64], dtype="uint16"),
+                "flag_meanings": "missing outside_coverage unknown_color recovered interpolated below_detection source_annotation",
+            },
+        )
+    }
+    origin_bytes = field.origin_quality_le_bytes()
+    if origin_bytes is not None:
+        coords["origin_quality"] = xr.DataArray(
+            np.frombuffer(origin_bytes, dtype="<u2").reshape(shape).copy(), dims=dims
+        )
+    adjustment_bytes = field.encoding_adjustment_bytes()
+    if adjustment_bytes is not None:
+        coords["encoding_adjustment"] = xr.DataArray(
+            np.frombuffer(adjustment_bytes, dtype="u1").reshape(shape).copy(), dims=dims
+        )
+    if isinstance(alpha, dict) and alpha.get("bit_depth") in {"u8", "u16"}:
+        dtype = "uint8" if alpha["bit_depth"] == "u8" else "uint16"
+        coords["alpha"] = xr.DataArray(
+            np.asarray(alpha.get("values"), dtype=dtype).reshape(shape),
+            dims=dims,
+            attrs={"alpha_bit_depth": field.alpha_bit_depth},
+        )
+
+    attrs: dict[str, Any] = {
+        "long_name": metadata.get("name", "reflectivity"),
+        "units": metadata.get("units", "dBZ"),
+        "encoding": mode_info.get("encoding") or "",
+        "range_policy": mode_info.get("range_policy") or "",
+        "time_status": mode_info.get("time_status") or "unknown",
+        "geolocation": mode_info.get("geolocation") or "unknown",
+        "input_kind": input_identity.get("kind", "unknown"),
+        "processing_record": json.dumps(processing, sort_keys=True),
+    }
+    if metadata.get("valid_time") is not None:
+        attrs["valid_time"] = metadata["valid_time"]
+    return xr.DataArray(values, dims=dims, coords=coords, attrs=attrs, name=attrs["long_name"])
 
 
 def _document(value: Any) -> dict[str, Any]:

@@ -15,6 +15,7 @@ pub(crate) struct Args {
     pub output: Option<PathBuf>,
     pub formats: Vec<String>,
     pub overwrite: bool,
+    pub dbz: bool,
 }
 
 pub(crate) fn run(args: Args, context: &Context<'_>) -> Result<u8, String> {
@@ -41,11 +42,12 @@ pub(crate) fn run(args: Args, context: &Context<'_>) -> Result<u8, String> {
         .map_err(|_| "native runtime could not be initialized".to_owned())?;
     let engine = Engine::new(config, radiust_core::source::SourceRegistry::default())
         .map_err(|_| "native replay engine could not be initialized".to_owned())?;
-    let (payload, exit_code) = runtime.block_on(with_progress(
+    let (payload, exit_code, mode_info) = runtime.block_on(with_progress(
         &engine,
-        replay_cancellable(&engine, args.manifest, args.formats, args.overwrite),
+        replay_cancellable(&engine, args.manifest, args.formats, args.overwrite, args.dbz),
         context.progress_enabled,
     ));
+    let payload = crate::report::with_mode_info(payload, mode_info);
     emit_cli(&payload, context.json, context.quiet, context.verbose, Some("replay"))?;
     Ok(exit_code)
 }
@@ -55,8 +57,9 @@ async fn replay_cancellable(
     manifest: PathBuf,
     formats: Vec<String>,
     overwrite: bool,
-) -> (Value, u8) {
-    let operation = replay(engine, manifest, formats, overwrite);
+    dbz: bool,
+) -> (Value, u8, Value) {
+    let operation = replay(engine, manifest, formats, overwrite, dbz);
     tokio::pin!(operation);
     let cancellation = tokio::signal::ctrl_c();
     tokio::pin!(cancellation);
@@ -64,10 +67,12 @@ async fn replay_cancellable(
         biased;
         signal = &mut cancellation => {
             if signal.is_err() {
-                return error_result(&EngineError::RuntimeUnavailable, ErrorStage::Validate);
+                return error_result(&EngineError::RuntimeUnavailable, ErrorStage::Validate, dbz);
             }
             engine.cancel();
-            let (mut payload, _) = operation.await.unwrap_or_else(|error| error_result(&error, ErrorStage::Decode));
+            let (mut payload, _, mode_info) = operation.await.unwrap_or_else(|error| {
+                error_result(&error, ErrorStage::Decode, dbz)
+            });
             payload["interrupted"] = json!(true);
             payload["error"] = json!({
                 "code": "cancelled",
@@ -75,9 +80,9 @@ async fn replay_cancellable(
                 "stage": "replay",
                 "retryable": false,
             });
-            (payload, 130)
+            (payload, 130, mode_info)
         }
-        result = &mut operation => result.unwrap_or_else(|error| error_result(&error, ErrorStage::Decode)),
+        result = &mut operation => result.unwrap_or_else(|error| error_result(&error, ErrorStage::Decode, dbz)),
     }
 }
 
@@ -86,10 +91,34 @@ async fn replay(
     manifest: PathBuf,
     formats: Vec<String>,
     overwrite: bool,
-) -> Result<(Value, u8), EngineError> {
+    dbz: bool,
+) -> Result<(Value, u8, Value), EngineError> {
+    if dbz {
+        let replayed = engine.replay_raw_manifest_mode(manifest, Some("dbz")).await?;
+        let radiust_core::engine::ReplayRawResult::Dbz(result) = replayed else {
+            return Err(EngineError::InvalidQuery("replay dbz returned an incompatible result"));
+        };
+        return replay_dbz(engine, result, formats, overwrite).await;
+    }
+
     let raw = engine.load_raw_manifest(manifest).await?;
     let frame = raw.frame.clone();
     let field: RadarField = engine.decode_science(Arc::new(raw)).await?;
+    let mode_info = crate::report::native_mode_info(
+        "scientific",
+        "scientific",
+        &field.name,
+        field.units.as_deref(),
+        "known",
+        if field.grid.crs.is_some()
+            && (field.grid.affine.is_some()
+                || (!field.grid.x.is_empty() && !field.grid.y.is_empty()))
+        {
+            "known"
+        } else {
+            "unknown"
+        },
+    );
     let output_root = engine.config().storage.output.clone();
     let format_count = formats.len();
     let mut items = Vec::with_capacity(formats.len());
@@ -157,10 +186,111 @@ async fn replay(
         "skipped": skipped,
         "failed": failed,
     });
-    Ok((payload, if failed == 0 { 0 } else { 5 }))
+    Ok((payload, if failed == 0 { 0 } else { 5 }, mode_info))
 }
 
-fn error_result(error: &EngineError, stage: ErrorStage) -> (Value, u8) {
+async fn replay_dbz(
+    engine: &Engine,
+    result: radiust_core::raster::RasterResult,
+    formats: Vec<String>,
+    overwrite: bool,
+) -> Result<(Value, u8, Value), EngineError> {
+    let frame = match &result.input {
+        radiust_core::raster::RasterInput::Source { frame, .. } => frame.clone(),
+        _ => return Err(EngineError::InvalidFrame),
+    };
+    let mode_info = serde_json::to_value(&result.mode_info).unwrap_or(Value::Null);
+    let output_root = engine.config().storage.output.clone();
+    let format_count = formats.len();
+    let result = Arc::new(result);
+    let mut items = Vec::with_capacity(format_count);
+    let mut written = 0_u64;
+    let mut skipped = 0_u64;
+    let mut failed = 0_u64;
+
+    for format in formats {
+        let extension = match format.as_str() {
+            "png" => "png",
+            "netcdf" => "nc",
+            "geotiff" => "tif",
+            "zarr" => "zarr",
+            _ => unreachable!("format parser validates replay formats"),
+        };
+        let output_name = format!("frames/{}/reflectivity.{extension}", frame.logical_id);
+        let committed = engine
+            .write_raster_result_to(
+                result.clone(),
+                output_root.clone(),
+                output_name.clone(),
+                format.clone(),
+                overwrite,
+            )
+            .await;
+        match committed {
+            Ok(committed) => {
+                let status = match committed.status {
+                    radiust_core::storage::LocalCommitStatus::Written => {
+                        written += 1;
+                        radiust_core::download::DownloadStatus::Written
+                    }
+                    radiust_core::storage::LocalCommitStatus::Skipped => {
+                        skipped += 1;
+                        radiust_core::download::DownloadStatus::Skipped
+                    }
+                };
+                items.push(json!({
+                    "source": frame.source,
+                    "product": frame.product,
+                    "station": frame.station,
+                    "valid_time": frame.valid_time,
+                    "logical_id": frame.logical_id,
+                    "format": format,
+                    "status": status,
+                    "output_uri": output_root.join(output_name).display().to_string(),
+                    "error": null,
+                }));
+            }
+            Err(error) => {
+                failed += 1;
+                let status = if matches!(error, radiust_core::errors::CoreError::Cancelled) {
+                    radiust_core::download::DownloadStatus::Cancelled
+                } else {
+                    radiust_core::download::DownloadStatus::Failed
+                };
+                let report = ErrorReport::from_core(&error, ErrorStage::Commit);
+                items.push(json!({
+                    "source": frame.source,
+                    "product": frame.product,
+                    "station": frame.station,
+                    "valid_time": frame.valid_time,
+                    "logical_id": frame.logical_id,
+                    "format": format,
+                    "status": status,
+                    "output_uri": null,
+                    "error": report,
+                }));
+            }
+        }
+    }
+
+    let mut payload = crate::report::envelope("replay", items, None);
+    payload["query"] = json!({
+        "source": frame.source,
+        "product": frame.product,
+        "station": frame.station,
+        "valid_time": frame.valid_time,
+        "logical_id": frame.logical_id,
+    });
+    payload["counts"] = json!({
+        "items": format_count,
+        "written": written,
+        "skipped": skipped,
+        "failed": failed,
+    });
+    Ok((payload, if failed == 0 { 0 } else { 5 }, mode_info))
+}
+
+fn error_result(error: &EngineError, stage: ErrorStage, dbz: bool) -> (Value, u8, Value) {
     let report = match error {
         EngineError::Core(error) => ErrorReport::from_core(error, stage),
         EngineError::UnsupportedScience(_) | EngineError::UnsupportedSource(_) => ErrorReport {
@@ -184,5 +314,5 @@ fn error_result(error: &EngineError, stage: ErrorStage) -> (Value, u8) {
     };
     let mut payload = crate::report::envelope("replay", Vec::new(), None);
     payload["error"] = serde_json::to_value(report).unwrap_or(Value::Null);
-    (payload, 2)
+    (payload, 2, crate::report::failed_mode_info(if dbz { "dbz" } else { "scientific" }))
 }

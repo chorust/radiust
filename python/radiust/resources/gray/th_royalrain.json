@@ -1,0 +1,295 @@
+{
+  "source": "th_royalrain",
+  "product": "cappi",
+  "path_id": "th_royalrain/cappi",
+  "rule_version": "old-8d251601-th_royalrain-takhli-thkl3-replay-v1",
+  "encoding_version": "旧项目-gray-dbz-v1",
+  "legacy_reference": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f",
+  "ordered_steps": [
+    {
+      "op": "crop",
+      "bounds": [
+        0,
+        1,
+        800,
+        800
+      ],
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f"
+    },
+    {
+      "op": "legacy_palette",
+      "colors": [
+        [
+          0,
+          102,
+          79
+        ],
+        [
+          0,
+          125,
+          79
+        ],
+        [
+          0,
+          176,
+          71
+        ],
+        [
+          0,
+          204,
+          51
+        ],
+        [
+          0,
+          204,
+          52
+        ],
+        [
+          0,
+          224,
+          20
+        ],
+        [
+          51,
+          255,
+          0
+        ],
+        [
+          71,
+          255,
+          0
+        ],
+        [
+          232,
+          247,
+          59
+        ],
+        [
+          247,
+          245,
+          0
+        ],
+        [
+          255,
+          255,
+          0
+        ],
+        [
+          255,
+          255,
+          1
+        ],
+        [
+          255,
+          214,
+          0
+        ],
+        [
+          255,
+          199,
+          0
+        ],
+        [
+          255,
+          176,
+          0
+        ],
+        [
+          255,
+          138,
+          0
+        ],
+        [
+          255,
+          123,
+          0
+        ],
+        [
+          255,
+          105,
+          0
+        ],
+        [
+          255,
+          51,
+          0
+        ],
+        [
+          255,
+          33,
+          0
+        ],
+        [
+          255,
+          0,
+          0
+        ],
+        [
+          255,
+          204,
+          255
+        ],
+        [
+          255,
+          179,
+          255
+        ],
+        [
+          255,
+          153,
+          255
+        ],
+        [
+          255,
+          51,
+          255
+        ],
+        [
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          204,
+          255
+        ],
+        [
+          0,
+          153,
+          255
+        ],
+        [
+          0,
+          102,
+          255
+        ],
+        [
+          0,
+          51,
+          255
+        ],
+        [
+          0,
+          25,
+          255
+        ],
+        [
+          0,
+          0,
+          255
+        ]
+      ],
+      "zero_colors": [
+        [
+          115,
+          185,
+          254
+        ],
+        [
+          177,
+          192,
+          122
+        ],
+        [
+          73,
+          124,
+          72
+        ],
+        [
+          168,
+          106,
+          48
+        ],
+        [
+          107,
+          167,
+          106
+        ],
+        [
+          200,
+          134,
+          66
+        ]
+      ],
+      "value_threshold": 20,
+      "zero_threshold": 60,
+      "cookbook": [
+        0,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+        42,
+        44,
+        46,
+        48,
+        50,
+        52,
+        54,
+        56,
+        58,
+        60,
+        62,
+        64,
+        66,
+        68,
+        70,
+        72
+      ],
+      "invalid_fraction_limit": 0.3,
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f"
+    },
+    {
+      "op": "disk_mask",
+      "method": "legacy_height_center_disk",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f"
+    },
+    {
+      "op": "gap_repair",
+      "method": "opencv_inpaint",
+      "radius": 7,
+      "inpaint_method": "NS",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f"
+    },
+    {
+      "op": "gray_encode",
+      "method": "legacy_cookbook",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f"
+    },
+    {
+      "op": "resize",
+      "shape": [
+        461,
+        461
+      ],
+      "method": "pillow_bicubic",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/base.py#git-blob=394216d1b735d8ced92e96a4f58f252e6478b00f; 8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/th_royalrain_scraper.py#git-blob=a1f5951eb2742db327bd5694e101960894179430; 8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/TH/THKL3.yaml#sha256=f22523f5e8678c720f53ed1d446d27c2db0d7fd65a9e5dda2603a210a1040e2f"
+    }
+  ],
+  "input_constraints": {
+    "formats": [
+      "PNG"
+    ],
+    "max_pixels": 100000000,
+    "decoded_size": [
+      1020,
+      800
+    ]
+  },
+  "validation_status": "passed",
+  "config_hash": "49ca6ebf4fc7ba78c43ddd80ff1f76f8dcfc6f9471cee39c5ffe528a420ee58e"
+}

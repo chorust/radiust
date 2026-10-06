@@ -1,0 +1,732 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "evidence_kind": "offline_fixture_comparison",
+  "fixture_context_only": true,
+  "source_observation_time_claimed": false,
+  "geographic_truth_claimed": false,
+  "live_acquisition_tested": false,
+  "counts": {
+    "total": 23,
+    "gray_passed": 15,
+    "gray_difference_pending": 0,
+    "gray_blocked": 8,
+    "dbz_verified": 15,
+    "dbz_blocked": 8
+  },
+  "runner_exit": {
+    "code": 1,
+    "reason": "blocked or difference-pending paths remain in the evidence manifest"
+  },
+  "direct_native_dbz_evidence": {
+    "status": "verified_by_separate_offline_contracts",
+    "paths": [
+      "rainviewer/composite",
+      "tw/grid",
+      "rdcap/reflectivity"
+    ],
+    "evidence": [
+      "crates/radiust-core/tests/dbz_native.rs",
+      "tests/integration/test_gray_dbz_sdk.py"
+    ]
+  },
+  "paths": [
+    {
+      "path_id": "au/composite",
+      "source": "au",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "aa4d83a7b3245a0de4ba56b0f570917993db748110ba441c4813201039f8c08d",
+      "input_sha256": "90cb0eeb4a8fecbaf0aa2559fc3d5b98a0a5f79c5078db1d707b24be25f4d777",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 6488,
+      "invalid_pixels": 206033,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "f1df26d252f8035778d1bcd5cbd4148da764cbcf24183646f40641e2bf9a54bf",
+      "origin_quality_sha256": "f325180f06a7817cf54eb81cf14dc7f956bab99451f5d01fec7c206a59270d7b",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 200588,
+        "outside_coverage": 49044,
+        "unknown_color": 5908,
+        "recovered": 4421,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "bmkg/composite",
+      "source": "bmkg",
+      "product": "composite",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "The old IDCOMP palette/parser rule is pinned, but the current public tile request returned HTTP 403 and no current tile artifact or frame exists in tests/fixtures/sources/bmkg/fixture.json; the old transform could not be run and there is no same-frame old gray baseline."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    },
+    {
+      "path_id": "ca/rain",
+      "source": "ca",
+      "product": "rain",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "bbcca382104a917f9927813be2f7cdce385416d7c60c9e3e8154f55a789d67ba",
+      "input_sha256": "90d1df687644579822459a2527b8d300f8a3b4e0de73e226a7db62dab7fee5b0",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 163581,
+      "invalid_pixels": 48940,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "91f7ce7ec815948152821d10ccc32a8f80590aade130df9e78eee8514bab6803",
+      "origin_quality_sha256": "e389e4028d31f8b39acd19f49362f9220b47fc0bbee3f45fea99cdd492eff833",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 48940,
+        "unknown_color": 4071,
+        "recovered": 3410,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "fixture_frame_metadata",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "es/composite",
+      "source": "es",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        1079,
+        962
+      ],
+      "baseline_shape": [
+        1079,
+        962
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "dc67ae6ce0af75f07ac22d7aed0c5e42ec972a5d380a616d4426a5243dc7859f",
+      "input_sha256": "baf34e1bc4ac94c77a78994bbc153e480e67b87681eb9473534237fac9a35c2f",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 834335,
+      "invalid_pixels": 203663,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "8aa7ddcced331209796bd613d9a663c79aa80d72726dc233b800d8cc947dc260",
+      "origin_quality_sha256": "8aa7ddcced331209796bd613d9a663c79aa80d72726dc233b800d8cc947dc260",
+      "adjustment_sha256": "1143b08c3cb97f7891e1a9fb78ff11910c142f0ed06369c18a74f6059a47ffd4",
+      "quality_flag_counts": {
+        "missing": 203663,
+        "outside_coverage": 0,
+        "unknown_color": 0,
+        "recovered": 0,
+        "interpolated": 0
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "fixture_frame_metadata",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "fr/composite",
+      "source": "fr",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        600,
+        700
+      ],
+      "baseline_shape": [
+        600,
+        700
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "c8b056240dae308cf8ae88339c44cc07ebad15024bf742903df881374db70c56",
+      "input_sha256": "131c16940a13b31e1e51ceca1d44d1fbbfec6bde259a4b0646df941a1c62a248",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 370904,
+      "invalid_pixels": 49096,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "fa940dd2877e1f08ae0a498cd3c52ddd724ef2d61360670427b60219f617a4a4",
+      "origin_quality_sha256": "fa940dd2877e1f08ae0a498cd3c52ddd724ef2d61360670427b60219f617a4a4",
+      "adjustment_sha256": "7cf9134c72c3d5918f4a9f8f728e68bf0aca438b30339750e6029571ff99b740",
+      "quality_flag_counts": {
+        "missing": 49096,
+        "outside_coverage": 0,
+        "unknown_color": 0,
+        "recovered": 0,
+        "interpolated": 0
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "fixture_frame_metadata",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "id/composite",
+      "source": "id",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "705d84039e4312907461b88c874a9139c8238a7c44d7fa7ee8baa92cc41a6bba",
+      "input_sha256": "b7788761625d9557ceb12c13a2d92cbcaa034777d21c52cc6e7349ba15913170",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 2177,
+      "invalid_pixels": 210344,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "3acb2732ed1251ce54a86b95e7805a6308f410c692147235a539a8a9a480f518",
+      "origin_quality_sha256": "5cf48750f5e6856fec4831b73e1033e4ef16fd1c353106adf4b1616435bec552",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 210344,
+        "outside_coverage": 0,
+        "unknown_color": 0,
+        "recovered": 0,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "id_sidarma/cmax",
+      "source": "id_sidarma",
+      "product": "cmax",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "No old source-path identity or matched legal raw/gray pair for the current SIDARMA CMAX path is established."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    },
+    {
+      "path_id": "kr/composite",
+      "source": "kr",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "589ee3c600640913500a4453cf76b428ba36eb782f4b9998317962514bda605e",
+      "input_sha256": "a6c98d630fcd635d96ee75b63350e74978cd0d8749c1a701f9e7c27a2ce88c01",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 163120,
+      "invalid_pixels": 49401,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "978d395ca836324c7d84c3abfdbea8f6984bd1a46253f7c7de4a64c6a4f65b3f",
+      "origin_quality_sha256": "52ff5d91c9d2fd20667e436aadb6f100be2b5e175b7a4da3acbfd8645cc87529",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 49401,
+        "unknown_color": 48201,
+        "recovered": 45957,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "my/composite/east",
+      "source": "my",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        640,
+        568
+      ],
+      "baseline_shape": [
+        640,
+        568
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "4aebf01dfad273429ba4f568f396e11c14bc80919c1912dc8ccd33b79ac68c36",
+      "input_sha256": "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 363520,
+      "invalid_pixels": 0,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "78132446a58f86e3e58717f41b596469218da3e30f20dae36b590e1d40dce6ed",
+      "origin_quality_sha256": "633ab2f2c217a305c5ae580d62ad7793d4a538e32c2f9f8d423546c76b29a0f5",
+      "adjustment_sha256": "0232a4b603f60a9f4754d8cbd81ada66abecf5d112b9c0df5f44c3fc491d120c",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 0,
+        "unknown_color": 0,
+        "recovered": 6034,
+        "interpolated": 0
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "my/composite/peninsular",
+      "source": "my",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        640,
+        568
+      ],
+      "baseline_shape": [
+        640,
+        568
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "d9a799448a0c644b9800485b8708215b4b9232524f267347fe088386fd5dae7f",
+      "input_sha256": "a60936811a91ae5f776759fc4072965c321eebc73431b78d3fba7fb1ebd7e68f",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 363520,
+      "invalid_pixels": 0,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "709c30a99ed18a0f484b1efd3bb0eb7a518128a676b078a912e62e9d94ac6f11",
+      "origin_quality_sha256": "032bd67086e7524cb0b0f01ea282c35ad87c13211d5dd50b476fed395a703160",
+      "adjustment_sha256": "0232a4b603f60a9f4754d8cbd81ada66abecf5d112b9c0df5f44c3fc491d120c",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 0,
+        "unknown_color": 0,
+        "recovered": 7161,
+        "interpolated": 0
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "nz/rain",
+      "source": "nz",
+      "product": "rain",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "4c950986bf8d02c2db9ac6a0c7ef70c2814f8f37ff5dc89e2b808d9af9a79ec6",
+      "input_sha256": "0d98e9bc3ac0cd1b25d303a1b40db3641e316fc85db75554b0b8053c9607f85e",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 163309,
+      "invalid_pixels": 49212,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "1a9103c136c973031360472ab6be4c61c51e1aa8df3ecc042081cb806dcfd891",
+      "origin_quality_sha256": "34d790f0996d754bcf80d69029b5302e4363ca34e7e68401e400ec813f920ec5",
+      "adjustment_sha256": "21cc2d59fffe072fed4367d8cbfbcc1f839d4b9cba9296d6eb4fdb1f73a34902",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 49212,
+        "unknown_color": 17749,
+        "recovered": 22699,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 6,
+      "valid_clipped_pixel_count": 6,
+      "time_status": "fixture_frame_metadata",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "ph/composite",
+      "source": "ph",
+      "product": "composite",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "The pinned PH/base.yaml rule is known, but the supplied old snapshot has no output/ph files, the pinned commit contains no PH raw/gray artifacts, and the current acquisition record has no verified raw; there is no source-matched pair to replay or compare."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    },
+    {
+      "path_id": "pt/composite",
+      "source": "pt",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        1526,
+        1500
+      ],
+      "baseline_shape": [
+        1526,
+        1500
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "b5f306f8899d1d2709dcc39a443f02b11c9697da06766bea76088ea87fcb4c84",
+      "input_sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 24796,
+      "invalid_pixels": 2264204,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "0f1f48e7df8f798dbf42e2f665651cb0be94bc526e33cf566dcd0d9fae1b5e8f",
+      "origin_quality_sha256": "0f1f48e7df8f798dbf42e2f665651cb0be94bc526e33cf566dcd0d9fae1b5e8f",
+      "adjustment_sha256": "38ad0f53705e47e99ac3903d2534c89f9dcd9bb2096381e82cdeb923d70bd323",
+      "quality_flag_counts": {
+        "missing": 2264204,
+        "outside_coverage": 0,
+        "unknown_color": 0,
+        "recovered": 0,
+        "interpolated": 0
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "fixture_frame_metadata",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "rainviewer/composite",
+      "source": "rainviewer",
+      "product": "composite",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "Old red-channel arithmetic runs on the current color=2, 512px PNG fixture (1024x1024 output; 22 gray values; 99.10% zero). The pinned old route uses color=255, 256px WebP. No same-frame old gray baseline exists, so compatibility is unverified."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    },
+    {
+      "path_id": "sg/composite",
+      "source": "sg",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "225148d21896b61012282f322db30d025a657d0a9604c19768fb06cd0646b7f3",
+      "input_sha256": "3f679cc016808e94516b779981bde2c4c251df09185f03edd381d29b9b701eb0",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 8237,
+      "invalid_pixels": 204284,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "8ccb4e951ec9c8840f8e82572c4b05634f7857710a522db04be9ea1cb960fad4",
+      "origin_quality_sha256": "4d810b038b9a37b1a250a1930b8e7613c17c1f9d77709234d117346515c9b2f7",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 204284,
+        "outside_coverage": 0,
+        "unknown_color": 0,
+        "recovered": 0,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "th/composite/cmp1",
+      "source": "th",
+      "product": "composite",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "The exact TMD cmp1.gif raw is present, but the pinned old TH/base.yaml parser rejects this frame because its invalid-color fraction exceeds the old 0.3 limit and returns no map; no gray baseline can be produced."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    },
+    {
+      "path_id": "th/composite/kkn240Loop",
+      "source": "th",
+      "product": "composite",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "14a3be63af31ee4fdbff762abbacf903db88241bb1d155dc78c1dba748645827",
+      "input_sha256": "98b6e087ddf5ff01e139f862409eae65c288d47e44603d67e3e0e224b49cb5cd",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 139392,
+      "invalid_pixels": 73129,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "6f2c22eb522a66ce96c40ce9e4a0073f47edbaf74b02b53dbb59d8ef5a123e1e",
+      "origin_quality_sha256": "cf2e4ee2118d5fbb5823d43a58a203bee8e167332d671dd5c0a45b2c227c91fb",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 73129,
+        "unknown_color": 0,
+        "recovered": 57397,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "fixture_frame_metadata",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "th_royalrain/cappi",
+      "source": "th_royalrain",
+      "product": "cappi",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "c725532fe992c1a191e686e9763c3bc1bcd857d4f79af11ad398523b02c5633f",
+      "input_sha256": "8c13c0d0077bf5c66904ca0d1522f75890d96180647ca41dce986667d82e36cd",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 163158,
+      "invalid_pixels": 49363,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "872419d683ded2a30696d885a80d453782abd8ff62ec498af876124b2904c6bc",
+      "origin_quality_sha256": "7595e2e00569eaa774ee1ee81ddc29f879a7db67f7e0faf05d39b847dc825dd3",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 49363,
+        "unknown_color": 13747,
+        "recovered": 48463,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "fixture_frame_metadata",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "tw-http/observation",
+      "source": "tw-http",
+      "product": "observation",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "Six local TWCOMP3 raw/map pairs (four TW-ICUSRC, two TW-SRC) reproduce the pinned TW/base.yaml display rule pixel-for-pixel, and the pinned parser falls back to the country rule when a station-specific parser entry is absent. TWCOMP3 is an old output/config alias; the current station stays provider-native CV1_3600. Archive provenance does not bind these pairs to a specific collector endpoint (tw-http versus anonymous-S3 tw), so they are country-level rule evidence, not path-specific tw-http evidence."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    },
+    {
+      "path_id": "tw/grid",
+      "source": "tw",
+      "product": "grid",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "The recovered TW pairs are ICUSRC image outputs; they do not establish an old gray-display path for the current numeric grid product."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    },
+    {
+      "path_id": "tw/observation",
+      "source": "tw",
+      "product": "observation",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        3600,
+        3600
+      ],
+      "baseline_shape": [
+        3600,
+        3600
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "de31f08d8a9ecb2891df7e2772fad7fd5a4bca8870928f7b5fc7719f01b00952",
+      "input_sha256": "c0de1e3dfecbe36a4265693fa577c679cdef51827dfe22d0ee55fa4366eeb690",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 10184335,
+      "invalid_pixels": 2775665,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "cfd9cb78813c662d5635aea1366b8ef92a24f46e08b37c7dba870ae9bf2586e3",
+      "origin_quality_sha256": "cfd9cb78813c662d5635aea1366b8ef92a24f46e08b37c7dba870ae9bf2586e3",
+      "adjustment_sha256": "f92fcdf84d3bbc741ae0a2247fbf47d8e1afd2b76d6191b3fa06775a36218938",
+      "quality_flag_counts": {
+        "missing": 0,
+        "outside_coverage": 0,
+        "unknown_color": 2775665,
+        "recovered": 0,
+        "interpolated": 0
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "vn/cmax",
+      "source": "vn",
+      "product": "cmax",
+      "manifest_gray_status": "passed",
+      "gray_status": "passed",
+      "gray_shape": [
+        461,
+        461
+      ],
+      "baseline_shape": [
+        461,
+        461
+      ],
+      "gray_pixel_diff_count": 0,
+      "gray_sha256": "95d9e1f5b35ebb6109467f036164db18712e1a04d26f23e9d9dd05e8ef077c61",
+      "input_sha256": "d9af0c585255e0e9e710b6e3177d9fb2baf4332f79b06da6bd475011464634b1",
+      "dbz_status": "verified",
+      "units": "dBZ",
+      "valid_pixels": 0,
+      "invalid_pixels": 212521,
+      "formula_mismatch_count": 0,
+      "quality_sha256": "ae4b9a83885e2c69f2a1442fca4c4234ff350c69b389841fb16764f6050c552c",
+      "origin_quality_sha256": "cda3658e91bc2d55766fe8cafca968fcfe6d31e72bbf91c28c44254f5703c46b",
+      "adjustment_sha256": "3cab7649c0ecf039a1ca2049a05ff6e29d2ef8b9870dfb8e27c88c44cd6915bf",
+      "quality_flag_counts": {
+        "missing": 212521,
+        "outside_coverage": 49192,
+        "unknown_color": 0,
+        "recovered": 0,
+        "interpolated": 212521
+      },
+      "clipped_pixel_count": 0,
+      "valid_clipped_pixel_count": 0,
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested",
+      "fixture_context_only": true
+    },
+    {
+      "path_id": "windy/reflectivity",
+      "source": "windy",
+      "product": "reflectivity",
+      "manifest_gray_status": "blocked",
+      "gray_status": "blocked",
+      "dbz_status": "blocked",
+      "blocked_reasons": [
+        "Old green/2 arithmetic runs on the current four 256px PNG tiles (512x512 output; 43 gray values; 98.58% zero). Frame time is cadence-derived and green-channel semantics lack provider confirmation; no same-frame old gray baseline exists."
+      ],
+      "time_status": "unknown",
+      "geometry_status": "unknown",
+      "live_status": "not_tested"
+    }
+  ]
+}

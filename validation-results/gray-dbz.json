@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "recorded_date": "2026-10-06",
+  "implementation_status": "completed_for_offline_evidence_scope_with_blocked_paths_preserved",
+  "toolchain": {
+    "rustc": "1.92.0",
+    "python": "3.12.7",
+    "maturin": "1.15.0",
+    "wheel": "radiust-0.1.0-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_sha256": "560f73635910543b491f3f472b0eefd367532fc8ad651c49f20a222f295b3d21"
+  },
+  "commands": [
+    "cargo test -p radiust-core --test dbz_native --test gray_dbz_batch --test gray_dbz_limits --test gray_dbz_local --test gray_dbz_paths --test gray_quality --test gray_resize_quality --test pixel_dbz_formats --test raster_identity_commit --test source_dbz_download --test source_dbz_raw_commit --test replay_support",
+    "cargo test -p radiust-core",
+    "cargo test -p radiust-core --test raster_identity_commit",
+    "cargo test -p radiust-core --test source_dbz_download",
+    "cargo test -p radiust-core --lib raster_publish_interruption_rolls_back_artifact_and_keeps_manifest_last",
+    "cargo test -p radiust-cli",
+    "cargo fmt --all -- --check",
+    "uv run --no-sync ruff check python tests scripts/validation",
+    "pytest -q tests/integration/test_gray_dbz_persistence.py",
+    "cargo test -p radiust-cli --test gray_dbz_download --test gray_dbz_local --test gray_dbz_modes --test gray_dbz_replay --test rdcap",
+    "pytest -q tests/contract/test_gray_dbz_formats.py tests/contract/test_gray_dbz_local.py tests/contract/test_gray_dbz_reports.py tests/contract/test_gray_dbz_sdk_modes.py tests/contract/test_gray_decoder_compat.py tests/integration/test_gray_dbz_persistence.py tests/integration/test_gray_dbz_sdk.py tests/test_rdcap_sdk.py tests/contract/test_raw_replay.py tests/integration/test_raw_modes.py tests/packaging/test_installed_wheel.py",
+    "python scripts/validation/validate_gray_dbz.py --report validation-results/gray-dbz-paths.json"
+  ],
+  "verified": {
+    "gray_dbz_codes": 225,
+    "formula": "gray * 5 / 16",
+    "maximum_absolute_error_dbz": 0.000001,
+    "gray_paths_total": 23,
+    "gray_paths_passed": 15,
+    "gray_paths_blocked": 8,
+    "direct_native_dbz_paths": 3,
+    "path_runner": {
+      "gray_passed": 15,
+      "dbz_verified": 15,
+      "gray_blocked": 8,
+      "dbz_blocked": 8,
+      "difference_pending": 0,
+      "nz_clipped_pixels": 6,
+      "geometry": "unknown for gray paths",
+      "live": "not tested",
+      "exit_code": 1,
+      "exit_reason": "eight evidence-blocked paths remain blocked"
+    },
+    "targeted_core_rust_tests": 46,
+    "full_core_rust_suite": "passed: 328 unit tests, 1 ignored; all core integration targets passed, with latest identity/source transaction targets rerun; remaining manual/opt-in cases ignored",
+    "targeted_cli_rust_tests": 15,
+    "full_cli_rust_suite": "cargo test -p radiust-cli passed across all unit and integration targets",
+    "python_contract_integration_and_wheel_tests": 59,
+    "protected_historical_files_checked": 155,
+    "protected_historical_files_missing": 0,
+    "protected_historical_size_mismatches": 0,
+    "protected_historical_hash_mismatches": 0,
+    "quickstart_local_cli_modes": ["raw", "gray", "dbz"],
+    "quickstart_numeric_outputs": ["NetCDF", "Zarr", "GeoTIFF when complete trusted geometry is present"],
+    "quickstart_rejections": ["visible gray > 224", "non-gray RGB", "conflicting modes", "Pixel GeoTIFF without geometry"]
+  },
+  "evidence": [
+    "validation-results/gray-dbz-local.json",
+    "validation-results/gray-dbz-compat.json",
+    "validation-results/gray-dbz-quality.json",
+    "validation-results/gray-dbz-sdk.json",
+    "validation-results/gray-dbz-paths.json",
+    "validation-results/gray-dbz-formats.json",
+    "validation-results/gray-dbz-commit.json",
+    "specs/005-gray-dbz-decoding/checklists/implementation.md",
+    "tests/integration/test_gray_dbz_sdk.py",
+    "tests/integration/test_gray_dbz_persistence.py",
+    "T084 naming audit: active interfaces/docs use gray and dbz; --legacy-display and LegacyGrayDbzDecoder remain explicit compatibility APIs; cargo fmt --check and ruff check passed"
+  ],
+  "open_requirements": [],
+  "scientific_scope": {
+    "claim": "decodes the explicitly declared gray encoding to its corresponding dBZ values",
+    "independent_physical_calibration": "not established",
+    "live_provider_acquisition": "not run",
+    "unknown_time_or_geometry": "remains unknown"
+  }
+}

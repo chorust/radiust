@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "recorded_date": "2026-10-06",
+  "status": "offline_identity_and_commit_matrix_verified",
+  "test_results": {
+    "raster_identity_commit_tests": 11,
+    "source_numeric_download_tests": 2,
+    "source_raw_atomic_commit_tests": 1,
+    "raw_replay_integrity_tests": 8,
+    "cli_local_numeric_download_tests": 4,
+    "python_persistence_tests": 6
+  },
+  "verified": [
+    "NumericFile identity and receipt-bound local write without a fabricated FrameRef",
+    "explicit conflicting FrameRef is rejected before output commit",
+    "Pixel GeoTIFF receipt lists and hashes data, quality, provenance, origin, adjustment, and alpha components; identical artifacts at another root keep identity",
+    "corrupted GeoTIFF quality component is rejected before numeric read succeeds",
+    "single-file NetCDF receipt hashes exact bytes; copied identical content has the same identity; variable/time-selection changes produce separate identities",
+    "numeric read-then-write uses the current file digest as its revision and preserves embedded upstream provenance without reusing its output_id",
+    "source output identity changes with resolved revision and decoder policy; numeric commit path verifies skip, damaged artifact repair, overwrite, conflict, and cancellation cleanup",
+    "local-gray receipt commit skips a verified repeat and repairs a corrupted artifact; source dBZ download also skips a repeat and repairs damaged output",
+    "Zarr numeric receipt includes every tree file, matches copied content at another root, and changes when an additional component appears",
+    "sync and async Pixel persistence roundtrips no-FrameRef gray and numeric inputs; alpha16 remains lossless",
+    "injected cancellation after Raster artifact installation restores the previous artifact and manifest; no incomplete stage remains",
+    "source dBZ and exact raw receipt commit together",
+    "manifest SHA/size mismatches and cancellation during replay are rejected",
+    "sync and async cancellation preserve cancelled status and leave no output manifest"
+  ],
+  "open": [],
+  "coverage_limits": [
+    "No live provider or S3/OSS output was exercised; source transactions use retained offline fixtures.",
+    "Eight evidence-blocked source paths remain blocked and are not treated as dBZ successes."
+  ],
+  "evidence": [
+    "crates/radiust-core/tests/raster_identity_commit.rs",
+    "crates/radiust-core/src/storage/commit.rs",
+    "crates/radiust-core/src/output/mod.rs",
+    "crates/radiust-core/tests/source_dbz_download.rs",
+    "crates/radiust-core/tests/source_dbz_raw_commit.rs",
+    "crates/radiust-core/tests/replay_support.rs",
+    "crates/radiust-cli/tests/gray_dbz_download.rs",
+    "tests/integration/test_gray_dbz_persistence.py"
+  ]
+}

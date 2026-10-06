@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use crate::errors::{CoreError, CoreResult};
 use crate::limits::Limits;
 use crate::model::{Preview, PreviewMode, RadarField};
+use crate::raster::{AlphaPlane, PixelDbzField};
 
 const PALETTE_ID: &str = "default";
 const PALETTE_VERSION: &str = "1";
@@ -53,6 +54,53 @@ pub fn write_png(
         .map_err(|error| storage_error(format!("render sidecar serialization failed: {error}")))?;
     std::fs::write(&sidecar, sidecar_json)
         .map_err(|error| storage_error(format!("render sidecar write failed: {error}")))?;
+    Ok(vec![output, sidecar])
+}
+
+/// Write a display-only PNG and a sidecar that keeps its dBZ interpretation
+/// explicit. The PNG is not a numeric persistence container.
+pub fn write_pixel_dbz_png(
+    field: &PixelDbzField,
+    output: impl AsRef<Path>,
+    options: &Value,
+    limits: &Limits,
+) -> CoreResult<Vec<PathBuf>> {
+    let preview = preview_pixel_dbz_with_options(field, limits, options)?;
+    let output = output.as_ref().to_path_buf();
+    if let Some(parent) = output.parent().filter(|path| !path.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .map_err(|_| storage_error("PNG output directory could not be prepared"))?;
+    }
+    let image = RgbaImage::from_raw(preview.width, preview.height, preview.rgba)
+        .ok_or_else(|| storage_error("RGBA pixels do not match image dimensions"))?;
+    image
+        .save_with_format(&output, ImageFormat::Png)
+        .map_err(|error| storage_error(format!("PNG encoding failed: {error}")))?;
+    let mut sidecar_document = json!({
+        "schema_version": 1,
+        "mode": "dbz",
+        "variable": "reflectivity",
+        "units": "dBZ",
+        "container_role": "display_preview_only",
+        "numeric_values_stored": false,
+        "coordinate_space": "pixel",
+        "time_status": if field.valid_time.is_some() { "known" } else { "unknown" },
+        "valid_time": field.valid_time,
+        "geometry": field.geometry,
+        "geometry_status": if field.geometry.as_ref().is_some_and(|geometry| geometry.mapping_complete) { "trusted" } else { "unknown" },
+        "preview_range": { "min": option_number(options, "vmin")?.unwrap_or(0.0), "max": option_number(options, "vmax")?.unwrap_or(70.0) },
+        "original_alpha_bit_depth": field.alpha.as_ref().map(AlphaPlane::bit_depth),
+        "alpha_is_original_numeric_plane": false,
+        "encoding_adjustment": field.encoding_adjustment,
+        "processing_record": field.processing,
+        "limitations": field.processing.limitations,
+    });
+    sort_json_keys(&mut sidecar_document);
+    let sidecar = sidecar_path(&output);
+    let document = serde_json::to_string_pretty(&sidecar_document)
+        .map_err(|_| storage_error("render sidecar serialization failed"))?;
+    std::fs::write(&sidecar, document)
+        .map_err(|_| storage_error("render sidecar could not be written"))?;
     Ok(vec![output, sidecar])
 }
 
@@ -110,6 +158,64 @@ pub fn preview_field_with_options(
         rule_version: Some(palette_rule_version(options.palette).to_owned()),
     };
     preview.validate().map_err(|_| storage_error("rendered preview is invalid"))?;
+    Ok(preview)
+}
+
+/// Render a pixel-space dBZ field without inventing a geographic grid.
+pub fn preview_pixel_dbz_with_options(
+    field: &PixelDbzField,
+    limits: &Limits,
+    options: &Value,
+) -> CoreResult<Preview> {
+    field.validate().map_err(|_| storage_error("pixel dBZ field is invalid"))?;
+    if !options.is_null() && !options.is_object() {
+        return Err(storage_error("PNG options must be an object"));
+    }
+    if option_string(options, "palette")?.is_some_and(|palette| palette != "default") {
+        return Err(storage_error("pixel dBZ preview supports only the default palette"));
+    }
+    let vmin = option_number(options, "vmin")?.unwrap_or(0.0);
+    let vmax = option_number(options, "vmax")?.unwrap_or(70.0);
+    if vmax <= vmin {
+        return Err(storage_error("preview vmax must be greater than vmin"));
+    }
+    let pixels = (field.width as u64)
+        .checked_mul(field.height as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("preview dimensions overflow".into()))?;
+    limits.validate_pixels(pixels)?;
+    let byte_count = pixels
+        .checked_mul(4)
+        .ok_or_else(|| CoreError::ResourceLimit("preview buffer size overflows".into()))?;
+    if byte_count > limits.max_temp_bytes || byte_count > limits.max_frame_bytes {
+        return Err(CoreError::ResourceLimit("preview exceeds configured byte limits".into()));
+    }
+    let mut rgba = Vec::with_capacity(byte_count as usize);
+    let display_alpha = field.alpha.as_ref().map(AlphaPlane::preview_u8);
+    for (index, (value, quality)) in field.values.iter().zip(&field.quality).enumerate() {
+        if !value.is_finite() {
+            rgba.extend_from_slice(&[0, 0, 0, 0]);
+            continue;
+        }
+        let color = interpolate_color(f64::from(*value), vmin, vmax - vmin);
+        let source_alpha = display_alpha.as_ref().map_or(255, |values| values[index]);
+        rgba.extend_from_slice(&[
+            color[0],
+            color[1],
+            color[2],
+            if quality & INVALID_QUALITY != 0 { 0 } else { source_alpha },
+        ]);
+    }
+    let preview = Preview {
+        width: u32::try_from(field.width)
+            .map_err(|_| storage_error("preview width is too large"))?,
+        height: u32::try_from(field.height)
+            .map_err(|_| storage_error("preview height is too large"))?,
+        rgba,
+        frame: None,
+        mode: PreviewMode::Decoded,
+        rule_version: Some(PALETTE_VERSION.into()),
+    };
+    preview.validate().map_err(|_| storage_error("rendered pixel preview is invalid"))?;
     Ok(preview)
 }
 

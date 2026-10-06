@@ -360,10 +360,15 @@ class FrameResult:
     output_uri: str | None = None
     error: Mapping[str, Any] | None = None
     data: Any = dc_field(default=None, repr=False, compare=False)
+    mode_info: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.status not in {"success", "written", "skipped", "failed", "cancelled", "not_started", "planned"}:
             raise ValueError(f"invalid frame status: {self.status}")
+        if self.error is not None:
+            object.__setattr__(self, "error", _freeze_mapping(self.error))
+        if self.mode_info is not None:
+            object.__setattr__(self, "mode_info", _freeze_mapping(self.mode_info))
 
 
 @dataclass(frozen=True, slots=True)
@@ -403,6 +408,7 @@ class BatchResult:
                     "logical_id": item.ref.logical_id,
                     "status": item.status,
                     "error": dict(item.error) if item.error else None,
+                    "mode_info": dict(item.mode_info) if item.mode_info else None,
                 }
                 for item in self.items
             ],

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "recorded_date": "2026-10-04",
+  "status": "verified_for_offline_evidence_scope",
+  "quality_contract": {
+    "quality_tests": 3,
+    "resize_quality_tests": 3,
+    "checked": [
+      "transparent/missing versus valid opaque black",
+      "preserved origin reasons and recovered status",
+      "nearest and signed bicubic support propagation",
+      "NZ source clipping flags without changing source gray"
+    ]
+  },
+  "gray_path_matrix": {
+    "total": 23,
+    "passed": 15,
+    "blocked": 8,
+    "passed_gray_and_dbz_path_tests": 4,
+    "source_gray_baselines_unchanged": true,
+    "nz_visible_values_clipped_only_during_dbz_conversion": 6,
+    "blocked_paths_auto_enabled": false
+  },
+  "resource_and_cancellation": {
+    "limit_tests": 3,
+    "shared_decode_worker_test": "passed",
+    "checked": [
+      "shape overflow",
+      "pixel and simultaneous-buffer budget rejection",
+      "shared decode worker budget",
+      "deadline and cancellation"
+    ],
+    "buffer_accounting_review": "crop, inpaint, resize, and quality buffers retain RasterBufferLease reservations for simultaneous allocations"
+  },
+  "evidence": [
+    "crates/radiust-core/tests/gray_quality.rs",
+    "crates/radiust-core/tests/gray_resize_quality.rs",
+    "crates/radiust-core/tests/gray_dbz_paths.rs",
+    "crates/radiust-core/tests/gray_dbz_limits.rs",
+    "engine::tests::scientific_decode_and_output_encoding_share_the_cpu_worker_budget"
+  ],
+  "limitations": [
+    "Eight path-specific gray routes remain blocked for their recorded missing-evidence reasons.",
+    "These offline checks establish encoding decode and quality behavior, not independent physical calibration, live acquisition, or geographic truth."
+  ]
+}

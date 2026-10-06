@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "mode": "offline",
+  "run_at": "2026-10-01T14:24:38.682688Z",
+  "radiust_version": "0.1.0",
+  "python_version": "3.12.7",
+  "result": {
+    "status": "passed",
+    "formats_output": "/private/tmp/rdcap-validation-final/rust-formats-20261001T142438935949Z",
+    "steps": {
+      "rust_rdcap_contract": {
+        "status": "passed",
+        "exit_code": 0,
+        "duration_seconds": 14.964,
+        "detail": null
+      },
+      "python_independent_readback": {
+        "status": "passed",
+        "exit_code": 0,
+        "duration_seconds": 0.798,
+        "detail": null
+      }
+    },
+    "evidence_scope": "offline reconstructed content fixtures; not live acquisition evidence"
+  }
+}

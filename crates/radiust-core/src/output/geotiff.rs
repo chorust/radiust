@@ -8,13 +8,17 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tiff::decoder::{Decoder, DecodingResult};
-use tiff::encoder::colortype::{Gray16, Gray32Float};
+use tiff::encoder::colortype::ColorType;
+use tiff::encoder::colortype::{Gray8, Gray16, Gray32Float};
 use tiff::encoder::{Compression, DeflateLevel, TiffEncoder, TiffKindStandard};
 use tiff::tags::Tag;
 
 use crate::errors::{CoreError, CoreResult};
 use crate::limits::Limits;
 use crate::model::{Grid, RadarField, parse_utc_time};
+use crate::raster::{
+    AlphaPlane, GeometryEvidence, PIXEL_DBZ_PROFILE, PixelDbzField, ProcessingRecord,
+};
 
 const STRIP_ROWS: usize = 64;
 const WEB_MERCATOR_RADIUS: f64 = 6_378_137.0;
@@ -71,6 +75,9 @@ pub fn read_selected_field(path: impl AsRef<Path>, limits: &Limits) -> CoreResul
     let provenance: GeoTiffProvenance = serde_json::from_slice(&provenance_bytes)
         .map_err(|_| storage_error("GeoTIFF provenance is missing or invalid"))?;
     validate_provenance(&provenance)?;
+    if provenance.raster_profile.is_some() {
+        return Err(storage_error("pixel-profile GeoTIFF requires the Pixel reader"));
+    }
 
     let mut data_decoder = bounded_decoder(data_file, limits)?;
     let (width, height) = data_decoder
@@ -149,7 +156,9 @@ pub fn read_selected_field(path: impl AsRef<Path>, limits: &Limits) -> CoreResul
         shape: vec![height as usize, width as usize],
         quality,
         units: provenance.units,
-        valid_time: provenance.valid_time,
+        valid_time: provenance
+            .valid_time
+            .ok_or_else(|| storage_error("native GeoTIFF requires a valid time"))?,
         grid: Grid {
             shape: vec![height as usize, width as usize],
             crs: Some(provenance.crs),
@@ -161,6 +170,288 @@ pub fn read_selected_field(path: impl AsRef<Path>, limits: &Limits) -> CoreResul
     };
     result.validate().map_err(|error| storage_error(error.to_string()))?;
     Ok(result)
+}
+
+/// Read a Pixel dBZ GeoTIFF and all declared component rasters. Each component
+/// is independently bounded and must carry the same grid transform and CRS.
+pub fn read_pixel_dbz(path: impl AsRef<Path>, limits: &Limits) -> CoreResult<PixelDbzField> {
+    let path = path.as_ref();
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| storage_error("GeoTIFF input filename must be valid UTF-8"))?;
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let quality_path = parent.join(format!("{stem}_quality.tif"));
+    let provenance_path = parent.join(format!("{stem}_provenance.json"));
+    let mut group_bytes = 0_u64;
+    let (data_file, _) = open_bounded_regular_file(path, limits, &mut group_bytes)?;
+    let (quality_file, _) = open_bounded_regular_file(&quality_path, limits, &mut group_bytes)?;
+    let (provenance_file, provenance_size) =
+        open_bounded_regular_file(&provenance_path, limits, &mut group_bytes)?;
+    let provenance_bytes = read_bounded_file(provenance_file, provenance_size)?;
+    let provenance: GeoTiffProvenance = serde_json::from_slice(&provenance_bytes)
+        .map_err(|_| storage_error("GeoTIFF provenance is missing or invalid"))?;
+    validate_provenance(&provenance)?;
+    if provenance.raster_profile.as_deref() != Some(PIXEL_DBZ_PROFILE) {
+        return Err(storage_error("GeoTIFF is not a Pixel dBZ profile"));
+    }
+    let processing = provenance
+        .pixel_processing
+        .as_ref()
+        .ok_or_else(|| storage_error("Pixel GeoTIFF processing record is missing"))?
+        .clone();
+    if processing.alpha_bit_depth != provenance.alpha_bit_depth {
+        return Err(storage_error("Pixel GeoTIFF alpha depth disagrees with processing metadata"));
+    }
+
+    let mut data_decoder = bounded_decoder(data_file, limits)?;
+    let (width, height) = data_decoder
+        .dimensions()
+        .map_err(|_| storage_error("GeoTIFF data dimensions could not be read"))?;
+    let pixels = validate_read_dimensions(width, height, limits)?;
+    let per_pixel = 6_u64
+        .checked_add(u64::from(provenance.has_origin_quality) * 2)
+        .and_then(|value| value.checked_add(u64::from(provenance.has_encoding_adjustment)))
+        .and_then(|value| {
+            value.checked_add(match provenance.alpha_bit_depth {
+                Some(8) => 1,
+                Some(16) => 2,
+                _ => 0,
+            })
+        })
+        .ok_or_else(|| CoreError::ResourceLimit("GeoTIFF field size overflows".into()))?;
+    let memory_bytes = pixels
+        .checked_mul(per_pixel)
+        .ok_or_else(|| CoreError::ResourceLimit("GeoTIFF field size overflows".into()))?;
+    if memory_bytes > limits.max_frame_bytes || memory_bytes > limits.max_temp_bytes {
+        return Err(CoreError::ResourceLimit(
+            "GeoTIFF Pixel field exceeds configured frame or temporary-file limit".into(),
+        ));
+    }
+    let data_tags = validate_raster_tags(
+        &mut data_decoder,
+        width,
+        height,
+        &provenance,
+        &provenance.variable,
+        RasterKind::Data,
+    )?;
+    if data_decoder.more_images() {
+        return Err(storage_error("GeoTIFF data must contain exactly one raster image"));
+    }
+    let values = match data_decoder
+        .read_image()
+        .map_err(|_| storage_error("GeoTIFF data pixels could not be decoded"))?
+    {
+        DecodingResult::F32(values) if values.len() as u64 == pixels => values,
+        _ => return Err(storage_error("GeoTIFF data must be a single-band float32 raster")),
+    };
+    drop(data_decoder);
+
+    let (quality, quality_tags) = read_u16_component(
+        quality_file,
+        "quality",
+        RasterKind::Quality,
+        width,
+        height,
+        &provenance,
+        limits,
+    )?;
+    if !same_raster_geometry(&data_tags, &quality_tags) {
+        return Err(storage_error("GeoTIFF quality grid does not match its data raster"));
+    }
+
+    let origin_quality = if provenance.has_origin_quality {
+        let component_path = parent.join(format!("{stem}_origin_quality.tif"));
+        let (file, _) = open_bounded_regular_file(&component_path, limits, &mut group_bytes)?;
+        let (values, tags) = read_u16_component(
+            file,
+            "origin_quality",
+            RasterKind::Integer16,
+            width,
+            height,
+            &provenance,
+            limits,
+        )?;
+        if !same_raster_geometry(&data_tags, &tags) {
+            return Err(storage_error(
+                "GeoTIFF origin quality grid does not match its data raster",
+            ));
+        }
+        Some(values)
+    } else {
+        None
+    };
+    let encoding_adjustment = if provenance.has_encoding_adjustment {
+        let component_path = parent.join(format!("{stem}_encoding_adjustment.tif"));
+        let (file, _) = open_bounded_regular_file(&component_path, limits, &mut group_bytes)?;
+        let (values, tags) =
+            read_u8_component(file, "encoding_adjustment", width, height, &provenance, limits)?;
+        if !same_raster_geometry(&data_tags, &tags) {
+            return Err(storage_error("GeoTIFF adjustment grid does not match its data raster"));
+        }
+        Some(values)
+    } else {
+        None
+    };
+    let alpha = match provenance.alpha_bit_depth {
+        Some(8) => {
+            let component_path = parent.join(format!("{stem}_alpha.tif"));
+            let (file, _) = open_bounded_regular_file(&component_path, limits, &mut group_bytes)?;
+            let (values, tags) =
+                read_u8_component(file, "alpha_u8", width, height, &provenance, limits)?;
+            if !same_raster_geometry(&data_tags, &tags) {
+                return Err(storage_error("GeoTIFF alpha grid does not match its data raster"));
+            }
+            Some(AlphaPlane::U8(values))
+        }
+        Some(16) => {
+            let component_path = parent.join(format!("{stem}_alpha.tif"));
+            let (file, _) = open_bounded_regular_file(&component_path, limits, &mut group_bytes)?;
+            let (values, tags) = read_u16_component(
+                file,
+                "alpha_u16",
+                RasterKind::Integer16,
+                width,
+                height,
+                &provenance,
+                limits,
+            )?;
+            if !same_raster_geometry(&data_tags, &tags) {
+                return Err(storage_error("GeoTIFF alpha grid does not match its data raster"));
+            }
+            Some(AlphaPlane::U16(values))
+        }
+        None => None,
+        Some(_) => return Err(storage_error("Pixel GeoTIFF alpha depth is unsupported")),
+    };
+
+    let transform = data_tags.transform;
+    let x = (0..width)
+        .map(|column| transform.west + (f64::from(column) + 0.5) * transform.dx)
+        .collect::<Vec<_>>();
+    let mut y = (0..height)
+        .map(|row| transform.north - (f64::from(row) + 0.5) * transform.dy)
+        .collect::<Vec<_>>();
+    validate_output_centers(&x, &y, data_tags.epsg)?;
+    let mut values = values;
+    let mut quality = quality;
+    let mut origin_quality = origin_quality;
+    let mut encoding_adjustment = encoding_adjustment;
+    let mut alpha = alpha;
+    if provenance.flip_y {
+        reverse_rows(&mut values, width as usize, height as usize);
+        reverse_rows(&mut quality, width as usize, height as usize);
+        if let Some(values) = &mut origin_quality {
+            reverse_rows(values, width as usize, height as usize);
+        }
+        if let Some(values) = &mut encoding_adjustment {
+            reverse_rows(values, width as usize, height as usize);
+        }
+        match &mut alpha {
+            Some(AlphaPlane::U8(values)) => reverse_rows(values, width as usize, height as usize),
+            Some(AlphaPlane::U16(values)) => reverse_rows(values, width as usize, height as usize),
+            None => {}
+        }
+        y.reverse();
+    }
+    let field = PixelDbzField {
+        variable: provenance.variable,
+        units: "dBZ".into(),
+        width: width as usize,
+        height: height as usize,
+        values,
+        quality,
+        origin_quality,
+        encoding_adjustment,
+        alpha,
+        valid_time: provenance.valid_time,
+        geometry: Some(GeometryEvidence {
+            source: "geotiff".into(),
+            crs: Some(provenance.crs),
+            x,
+            y,
+            affine: Some(transform.coefficients()),
+            mapping_complete: true,
+        }),
+        processing,
+    };
+    field.validate().map_err(|error| storage_error(error.to_string()))?;
+    Ok(field)
+}
+
+fn read_u16_component(
+    file: File,
+    description: &str,
+    kind: RasterKind,
+    width: u32,
+    height: u32,
+    provenance: &GeoTiffProvenance,
+    limits: &Limits,
+) -> CoreResult<(Vec<u16>, RasterGeometry)> {
+    let mut decoder = bounded_decoder(file, limits)?;
+    if decoder
+        .dimensions()
+        .map_err(|_| storage_error("GeoTIFF sidecar dimensions could not be read"))?
+        != (width, height)
+    {
+        return Err(storage_error("GeoTIFF sidecar dimensions do not match the data raster"));
+    }
+    let tags = validate_raster_tags(&mut decoder, width, height, provenance, description, kind)?;
+    if decoder.more_images() {
+        return Err(storage_error("GeoTIFF sidecar must contain exactly one raster image"));
+    }
+    let expected = u64::from(width) * u64::from(height);
+    let values = match decoder
+        .read_image()
+        .map_err(|_| storage_error("GeoTIFF uint16 sidecar pixels could not be decoded"))?
+    {
+        DecodingResult::U16(values) if values.len() as u64 == expected => values,
+        _ => return Err(storage_error("GeoTIFF sidecar must be a single-band uint16 raster")),
+    };
+    Ok((values, tags))
+}
+
+fn read_u8_component(
+    file: File,
+    description: &str,
+    width: u32,
+    height: u32,
+    provenance: &GeoTiffProvenance,
+    limits: &Limits,
+) -> CoreResult<(Vec<u8>, RasterGeometry)> {
+    let mut decoder = bounded_decoder(file, limits)?;
+    if decoder
+        .dimensions()
+        .map_err(|_| storage_error("GeoTIFF sidecar dimensions could not be read"))?
+        != (width, height)
+    {
+        return Err(storage_error("GeoTIFF sidecar dimensions do not match the data raster"));
+    }
+    let tags = validate_raster_tags(
+        &mut decoder,
+        width,
+        height,
+        provenance,
+        description,
+        RasterKind::Integer8,
+    )?;
+    if decoder.more_images() {
+        return Err(storage_error("GeoTIFF sidecar must contain exactly one raster image"));
+    }
+    let expected = u64::from(width) * u64::from(height);
+    let values = match decoder
+        .read_image()
+        .map_err(|_| storage_error("GeoTIFF uint8 sidecar pixels could not be decoded"))?
+    {
+        DecodingResult::U8(values) if values.len() as u64 == expected => values,
+        _ => return Err(storage_error("GeoTIFF sidecar must be a single-band uint8 raster")),
+    };
+    Ok((values, tags))
 }
 
 #[derive(Debug, Deserialize)]
@@ -175,9 +466,20 @@ struct GeoTiffProvenance {
     coordinate_operation: String,
     transform: [f64; 6],
     flip_y: bool,
-    valid_time: String,
+    #[serde(default)]
+    valid_time: Option<String>,
     processing_history: Vec<Value>,
     provenance: Vec<String>,
+    #[serde(default)]
+    raster_profile: Option<String>,
+    #[serde(default)]
+    pixel_processing: Option<ProcessingRecord>,
+    #[serde(default)]
+    has_origin_quality: bool,
+    #[serde(default)]
+    has_encoding_adjustment: bool,
+    #[serde(default)]
+    alpha_bit_depth: Option<u8>,
     #[serde(default)]
     quality_flag_masks: Option<Vec<u16>>,
     #[serde(default)]
@@ -194,6 +496,8 @@ const QUALITY_FLAG_MEANINGS: &str = "missing outside_coverage unknown_color reco
 enum RasterKind {
     Data,
     Quality,
+    Integer8,
+    Integer16,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -205,12 +509,29 @@ struct RasterGeometry {
 }
 
 fn validate_provenance(provenance: &GeoTiffProvenance) -> CoreResult<()> {
+    let pixel_profile_valid = match provenance.raster_profile.as_deref() {
+        None => {
+            provenance.pixel_processing.is_none()
+                && !provenance.has_origin_quality
+                && !provenance.has_encoding_adjustment
+                && provenance.alpha_bit_depth.is_none()
+                && provenance.valid_time.is_some()
+        }
+        Some(PIXEL_DBZ_PROFILE) => {
+            provenance.variable == "reflectivity"
+                && provenance.units.as_deref() == Some("dBZ")
+                && provenance.pixel_processing.is_some()
+                && provenance.alpha_bit_depth.is_none_or(|depth| matches!(depth, 8 | 16))
+        }
+        Some(_) => false,
+    };
     if provenance.schema_version != GEOTIFF_PROVENANCE_SCHEMA
         || !valid_field_variable(&provenance.variable)
         || provenance.units.as_deref().is_some_and(|units| !valid_provenance_text(units))
         || provenance.provenance.iter().any(|entry| !valid_provenance_text(entry))
         || !provenance.processing_history.is_empty()
-        || parse_utc_time(&provenance.valid_time).is_err()
+        || provenance.valid_time.as_deref().is_some_and(|time| parse_utc_time(time).is_err())
+        || !pixel_profile_valid
         || !valid_quality_flag_metadata(provenance)
     {
         return Err(storage_error("GeoTIFF identity, time, units, or provenance is invalid"));
@@ -225,6 +546,12 @@ fn validate_provenance(provenance: &GeoTiffProvenance) -> CoreResult<()> {
         }
         Some("EPSG:3821") if provenance.crs == "EPSG:3821" => {
             ("EPSG:3821", "identity", "geographic")
+        }
+        Some("EPSG:3857")
+            if provenance.raster_profile.as_deref() == Some(PIXEL_DBZ_PROFILE)
+                && provenance.crs == "EPSG:3857" =>
+        {
+            ("EPSG:3857", "identity", "projected")
         }
         _ => return Err(storage_error("GeoTIFF provenance declares an unsupported CRS path")),
     };
@@ -246,6 +573,70 @@ fn validate_provenance(provenance: &GeoTiffProvenance) -> CoreResult<()> {
     Ok(())
 }
 
+/// Return the deterministic artifact set for a native or Pixel GeoTIFF file.
+/// The provenance descriptor is parsed before optional sidecars are included
+/// in the input receipt, so an input cannot silently omit a declared plane.
+pub fn component_paths(
+    path: impl AsRef<Path>,
+    limits: &Limits,
+) -> CoreResult<Vec<(&'static str, PathBuf)>> {
+    let path = path.as_ref();
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| storage_error("GeoTIFF input filename must be valid UTF-8"))?;
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let provenance_path = parent.join(format!("{stem}_provenance.json"));
+    let mut group_bytes = 0_u64;
+    let (file, size) = open_bounded_regular_file(&provenance_path, limits, &mut group_bytes)?;
+    let bytes = read_bounded_file(file, size)?;
+    let provenance: GeoTiffProvenance = serde_json::from_slice(&bytes)
+        .map_err(|_| storage_error("GeoTIFF provenance is missing or invalid"))?;
+    validate_provenance(&provenance)?;
+    if provenance.raster_profile.as_deref() == Some(PIXEL_DBZ_PROFILE)
+        && provenance
+            .pixel_processing
+            .as_ref()
+            .is_none_or(|record| record.alpha_bit_depth != provenance.alpha_bit_depth)
+    {
+        return Err(storage_error("Pixel GeoTIFF processing metadata is inconsistent"));
+    }
+    let mut components =
+        vec![("data", path.to_path_buf()), ("quality", parent.join(format!("{stem}_quality.tif")))];
+    if provenance.has_origin_quality {
+        components.push(("origin_quality", parent.join(format!("{stem}_origin_quality.tif"))));
+    }
+    if provenance.has_encoding_adjustment {
+        components
+            .push(("encoding_adjustment", parent.join(format!("{stem}_encoding_adjustment.tif"))));
+    }
+    if provenance.alpha_bit_depth.is_some() {
+        components.push(("alpha", parent.join(format!("{stem}_alpha.tif"))));
+    }
+    components.push(("provenance", provenance_path));
+    Ok(components)
+}
+
+pub fn is_pixel_dbz_file(path: impl AsRef<Path>, limits: &Limits) -> CoreResult<bool> {
+    let path = path.as_ref();
+    let components = component_paths(path, limits)?;
+    let provenance_path = components
+        .iter()
+        .find(|(role, _)| *role == "provenance")
+        .map(|(_, path)| path)
+        .ok_or_else(|| storage_error("GeoTIFF provenance component is missing"))?;
+    let mut group_bytes = 0_u64;
+    let (file, size) = open_bounded_regular_file(provenance_path, limits, &mut group_bytes)?;
+    let bytes = read_bounded_file(file, size)?;
+    let provenance: GeoTiffProvenance = serde_json::from_slice(&bytes)
+        .map_err(|_| storage_error("GeoTIFF provenance is missing or invalid"))?;
+    Ok(provenance.raster_profile.as_deref() == Some(PIXEL_DBZ_PROFILE))
+}
+
 fn valid_quality_flag_metadata(provenance: &GeoTiffProvenance) -> bool {
     match (provenance.quality_flag_masks.as_deref(), provenance.quality_flag_meanings.as_deref()) {
         (None, None) => true,
@@ -259,7 +650,7 @@ fn valid_quality_flag_metadata(provenance: &GeoTiffProvenance) -> bool {
 
 fn canonical_crs(value: &str) -> Option<String> {
     let normalized = value.trim().to_ascii_uppercase();
-    matches!(normalized.as_str(), "EPSG:4326" | "EPSG:3821").then_some(normalized)
+    matches!(normalized.as_str(), "EPSG:4326" | "EPSG:3821" | "EPSG:3857").then_some(normalized)
 }
 
 fn valid_field_variable(value: &str) -> bool {
@@ -376,14 +767,18 @@ fn validate_raster_tags<R: Read + Seek>(
 ) -> CoreResult<RasterGeometry> {
     let expected_color = match kind {
         RasterKind::Data => tiff::ColorType::Gray(32),
-        RasterKind::Quality => tiff::ColorType::Gray(16),
+        RasterKind::Quality | RasterKind::Integer16 => tiff::ColorType::Gray(16),
+        RasterKind::Integer8 => tiff::ColorType::Gray(8),
     };
     if decoder.colortype().map_err(|_| storage_error("GeoTIFF sample type could not be read"))?
         != expected_color
     {
         return Err(storage_error(match kind {
             RasterKind::Data => "GeoTIFF data must be a single-band float32 raster",
-            RasterKind::Quality => "GeoTIFF quality must be a single-band uint16 raster",
+            RasterKind::Quality | RasterKind::Integer16 => {
+                "GeoTIFF sidecar must be a single-band uint16 raster"
+            }
+            RasterKind::Integer8 => "GeoTIFF sidecar must be a single-band uint8 raster",
         }));
     }
     let bits = decoder
@@ -394,11 +789,12 @@ fn validate_raster_tags<R: Read + Seek>(
         .map_err(|_| storage_error("GeoTIFF SampleFormat tag is invalid"))?;
     let expected_bits = match kind {
         RasterKind::Data => 32,
-        RasterKind::Quality => 16,
+        RasterKind::Quality | RasterKind::Integer16 => 16,
+        RasterKind::Integer8 => 8,
     };
     let expected_format = match kind {
         RasterKind::Data => 3,
-        RasterKind::Quality => 1,
+        RasterKind::Quality | RasterKind::Integer8 | RasterKind::Integer16 => 1,
     };
     if bits != [expected_bits]
         || sample_format != [expected_format]
@@ -448,7 +844,7 @@ fn validate_raster_tags<R: Read + Seek>(
                 return Err(storage_error("GeoTIFF data nodata declaration is unsupported"));
             }
         }
-        RasterKind::Quality => {
+        RasterKind::Quality | RasterKind::Integer8 | RasterKind::Integer16 => {
             if decoder
                 .find_tag(Tag::GdalNodata)
                 .map_err(|_| storage_error("GeoTIFF quality nodata tag is invalid"))?
@@ -570,22 +966,150 @@ pub fn write_field(
     limits: &Limits,
 ) -> CoreResult<Vec<PathBuf>> {
     field.validate().map_err(|error| storage_error(error.to_string()))?;
-    if !valid_field_variable(&field.name)
-        || field.units.as_deref().is_some_and(|units| !valid_provenance_text(units))
+    if field.shape.len() != 2 {
+        return Err(storage_error("GeoTIFF output requires a two-dimensional field"));
+    }
+    let view = GeoTiffWriteView::native(field);
+    write_view(&view, destination.as_ref(), limits)
+}
+
+/// Write a Pixel dBZ raster only when its spatial transform is explicitly
+/// complete. The data arrays remain borrowed through encoding.
+pub fn write_pixel_dbz(
+    field: &PixelDbzField,
+    destination: impl AsRef<Path>,
+    limits: &Limits,
+) -> CoreResult<Vec<PathBuf>> {
+    field.validate().map_err(|error| storage_error(error.to_string()))?;
+    let evidence = field
+        .geometry
+        .as_ref()
+        .filter(|geometry| geometry.mapping_complete)
+        .ok_or_else(|| CoreError::Provider(crate::errors::ProviderError::InvalidGrid))?;
+    if evidence.trusted_grid(field.width, field.height).is_none() {
+        return Err(CoreError::Provider(crate::errors::ProviderError::InvalidGrid));
+    }
+    let view = GeoTiffWriteView::pixel(field, evidence)?;
+    write_view(&view, destination.as_ref(), limits)
+}
+
+struct GeoTiffWriteView<'a> {
+    variable: &'a str,
+    units: Option<&'a str>,
+    values: &'a [f32],
+    quality: &'a [u16],
+    width: usize,
+    height: usize,
+    crs: Option<&'a str>,
+    x: &'a [f64],
+    y: &'a [f64],
+    affine: Option<[f64; 6]>,
+    valid_time: Option<&'a str>,
+    provenance: &'a [String],
+    pixel_processing: Option<&'a ProcessingRecord>,
+    origin_quality: Option<&'a [u16]>,
+    encoding_adjustment: Option<&'a [u8]>,
+    alpha: Option<&'a AlphaPlane>,
+}
+
+impl<'a> GeoTiffWriteView<'a> {
+    fn native(field: &'a RadarField) -> Self {
+        Self {
+            variable: &field.name,
+            units: field.units.as_deref(),
+            values: &field.values,
+            quality: &field.quality,
+            width: field.shape[1],
+            height: field.shape[0],
+            crs: field.grid.crs.as_deref(),
+            x: &field.grid.x,
+            y: &field.grid.y,
+            affine: field.grid.affine,
+            valid_time: Some(&field.valid_time),
+            provenance: &field.provenance,
+            pixel_processing: None,
+            origin_quality: None,
+            encoding_adjustment: None,
+            alpha: None,
+        }
+    }
+
+    fn pixel(field: &'a PixelDbzField, evidence: &'a GeometryEvidence) -> CoreResult<Self> {
+        if evidence.x.len() != field.width
+            || evidence.y.len() != field.height
+            || evidence.crs.as_deref().is_none_or(|crs| crs.trim().is_empty())
+        {
+            return Err(CoreError::Provider(crate::errors::ProviderError::InvalidGrid));
+        }
+        Ok(Self {
+            variable: &field.variable,
+            units: Some(&field.units),
+            values: &field.values,
+            quality: &field.quality,
+            width: field.width,
+            height: field.height,
+            crs: evidence.crs.as_deref(),
+            x: &evidence.x,
+            y: &evidence.y,
+            affine: evidence.affine,
+            valid_time: field.valid_time.as_deref(),
+            provenance: &[],
+            pixel_processing: Some(&field.processing),
+            origin_quality: field.origin_quality.as_deref(),
+            encoding_adjustment: field.encoding_adjustment.as_deref(),
+            alpha: field.alpha.as_ref(),
+        })
+    }
+}
+
+fn write_view(
+    field: &GeoTiffWriteView<'_>,
+    destination: &Path,
+    limits: &Limits,
+) -> CoreResult<Vec<PathBuf>> {
+    if !valid_field_variable(field.variable)
+        || field.units.is_some_and(|units| !valid_provenance_text(units))
         || field.provenance.iter().any(|entry| !valid_provenance_text(entry))
     {
         return Err(storage_error("GeoTIFF identity, units, or provenance is invalid"));
     }
-    let [height, width] = field.shape.as_slice() else {
-        return Err(storage_error("GeoTIFF output requires a two-dimensional field"));
-    };
-    let geometry = geo_geometry(field)?;
-    let pixels = (*height as u64)
-        .checked_mul(*width as u64)
+    if field.valid_time.is_some_and(|time| parse_utc_time(time).is_err()) {
+        return Err(storage_error("GeoTIFF valid_time is invalid"));
+    }
+    let geometry = geo_geometry_axes(
+        field.crs,
+        field.x,
+        field.y,
+        field.width,
+        field.height,
+        field.pixel_processing.is_some(),
+    )?;
+    if field.pixel_processing.is_some()
+        && let Some(affine) = field.affine
+    {
+        let source = regular_geo_transform(field.x, field.y)
+            .ok_or_else(|| CoreError::Provider(crate::errors::ProviderError::InvalidGrid))?;
+        if !same_f64_slice(&affine, &source.coefficients()) {
+            return Err(CoreError::Provider(crate::errors::ProviderError::InvalidGrid));
+        }
+    }
+    let pixels = (field.height as u64)
+        .checked_mul(field.width as u64)
         .ok_or_else(|| CoreError::ResourceLimit("GeoTIFF dimensions overflow".into()))?;
     limits.validate_pixels(pixels)?;
+    let per_pixel = 6_u64
+        .checked_add(u64::from(field.origin_quality.is_some()) * 2)
+        .and_then(|bytes| bytes.checked_add(u64::from(field.encoding_adjustment.is_some())))
+        .and_then(|bytes| {
+            bytes.checked_add(match field.alpha {
+                Some(AlphaPlane::U8(_)) => 1,
+                Some(AlphaPlane::U16(_)) => 2,
+                None => 0,
+            })
+        })
+        .ok_or_else(|| CoreError::ResourceLimit("GeoTIFF field size overflows".into()))?;
     let raw_bytes = pixels
-        .checked_mul((std::mem::size_of::<f32>() + std::mem::size_of::<u16>()) as u64)
+        .checked_mul(per_pixel)
         .ok_or_else(|| CoreError::ResourceLimit("GeoTIFF field size overflows".into()))?;
     if raw_bytes > limits.max_frame_bytes || raw_bytes > limits.max_temp_bytes {
         return Err(CoreError::ResourceLimit(
@@ -593,7 +1117,7 @@ pub fn write_field(
         ));
     }
 
-    let destination = destination.as_ref().to_path_buf();
+    let destination = destination.to_path_buf();
     let parent = destination
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
@@ -607,11 +1131,13 @@ pub fn write_field(
         .ok_or_else(|| storage_error("GeoTIFF output filename must be valid UTF-8"))?;
     let quality_name = format!("{stem}_quality.tif");
     let provenance_name = format!("{stem}_provenance.json");
+    let origin_name = format!("{stem}_origin_quality.tif");
+    let adjustment_name = format!("{stem}_encoding_adjustment.tif");
+    let alpha_name = format!("{stem}_alpha.tif");
     let output_name = destination
         .file_name()
         .and_then(|value| value.to_str())
         .ok_or_else(|| storage_error("GeoTIFF output filename must be valid UTF-8"))?;
-
     let stage =
         tempfile::Builder::new().prefix(".radiust-geotiff-").tempdir_in(parent).map_err(|_| {
             CoreError::Temporary("GeoTIFF staging directory could not be created".into())
@@ -619,20 +1145,53 @@ pub fn write_field(
     let data_stage = stage.path().join(output_name);
     let quality_stage = stage.path().join(&quality_name);
     let provenance_stage = stage.path().join(&provenance_name);
-    write_data_raster(&data_stage, field, *width, *height, geometry.transform, geometry.epsg)?;
-    write_quality_raster(
-        &quality_stage,
-        field,
-        *width,
-        *height,
-        geometry.transform,
-        geometry.epsg,
-    )?;
+    let mut staged = vec![data_stage.clone(), quality_stage.clone()];
+    let mut outputs = vec![
+        (data_stage.clone(), destination.clone()),
+        (quality_stage.clone(), parent.join(&quality_name)),
+    ];
+    write_data_raster(&data_stage, field, geometry)?;
+    write_quality_raster(&quality_stage, field, geometry)?;
+    if let Some(values) = field.origin_quality {
+        let path = stage.path().join(&origin_name);
+        write_integer_sidecar::<Gray16>(&path, values, "origin_quality", field, geometry)?;
+        staged.push(path.clone());
+        outputs.push((path, parent.join(&origin_name)));
+    }
+    if let Some(values) = field.encoding_adjustment {
+        let path = stage.path().join(&adjustment_name);
+        write_integer_sidecar::<Gray8>(&path, values, "encoding_adjustment", field, geometry)?;
+        staged.push(path.clone());
+        outputs.push((path, parent.join(&adjustment_name)));
+    }
+    if let Some(alpha) = field.alpha {
+        let path = stage.path().join(&alpha_name);
+        match alpha {
+            AlphaPlane::U8(values) => {
+                write_integer_sidecar::<Gray8>(&path, values, "alpha_u8", field, geometry)?
+            }
+            AlphaPlane::U16(values) => {
+                write_integer_sidecar::<Gray16>(&path, values, "alpha_u16", field, geometry)?
+            }
+        }
+        staged.push(path.clone());
+        outputs.push((path, parent.join(&alpha_name)));
+    }
+    staged.push(provenance_stage.clone());
+    outputs.push((provenance_stage.clone(), parent.join(&provenance_name)));
     write_provenance(&provenance_stage, field, geometry)?;
-
-    let staged = [&data_stage, &quality_stage, &provenance_stage];
+    let mut obsolete = Vec::new();
+    if field.origin_quality.is_none() {
+        obsolete.push(parent.join(&origin_name));
+    }
+    if field.encoding_adjustment.is_none() {
+        obsolete.push(parent.join(&adjustment_name));
+    }
+    if field.alpha.is_none() {
+        obsolete.push(parent.join(&alpha_name));
+    }
     let mut total_bytes = 0_u64;
-    for path in staged {
+    for path in &staged {
         let metadata = fs::symlink_metadata(path)
             .map_err(|_| storage_error("GeoTIFF staged output could not be inspected"))?;
         if !metadata.is_file() || metadata.file_type().is_symlink() {
@@ -648,13 +1207,7 @@ pub fn write_field(
             ));
         }
     }
-
-    let outputs = [
-        (data_stage, destination.clone()),
-        (quality_stage, parent.join(&quality_name)),
-        (provenance_stage, parent.join(&provenance_name)),
-    ];
-    publish_group(stage.path(), &outputs)?;
+    publish_group(stage.path(), &outputs, &obsolete)?;
     Ok(outputs.into_iter().map(|(_, path)| path).collect())
 }
 
@@ -665,16 +1218,18 @@ struct GeoGeometry {
     coordinate_operation: &'static str,
 }
 
-fn geo_geometry(field: &RadarField) -> CoreResult<GeoGeometry> {
-    let [height, width] = field.shape.as_slice() else {
-        return Err(storage_error("GeoTIFF output requires a two-dimensional field"));
-    };
-    let x = &field.grid.x;
-    let y = &field.grid.y;
-    if x.len() != *width || y.len() != *height || x.len() < 2 || y.len() < 2 {
+fn geo_geometry_axes(
+    crs: Option<&str>,
+    x: &[f64],
+    y: &[f64],
+    width: usize,
+    height: usize,
+    allow_projected_pixel: bool,
+) -> CoreResult<GeoGeometry> {
+    if x.len() != width || y.len() != height || x.len() < 2 || y.len() < 2 {
         return Err(storage_error("GeoTIFF requires at least two center coordinates on each axis"));
     }
-    match field.grid.crs.as_deref().map(str::trim).map(str::to_ascii_uppercase).as_deref() {
+    match crs.map(str::trim).map(str::to_ascii_uppercase).as_deref() {
         Some("EPSG:4326") => {
             if x.iter().any(|value| !value.is_finite() || !(-180.0..=180.0).contains(value))
                 || y.iter()
@@ -725,8 +1280,20 @@ fn geo_geometry(field: &RadarField) -> CoreResult<GeoGeometry> {
             })?;
             Ok(GeoGeometry { transform, epsg: 3821, coordinate_operation: "identity" })
         }
+        Some("EPSG:3857") if allow_projected_pixel => {
+            if x.iter()
+                .chain(y)
+                .any(|value| !value.is_finite() || value.abs() > WEB_MERCATOR_MAX_COORDINATE)
+            {
+                return Err(storage_error("GeoTIFF EPSG:3857 coordinates exceed the world extent"));
+            }
+            let transform = regular_geo_transform(x, y).ok_or_else(|| {
+                storage_error("GeoTIFF requires regularly spaced center coordinates")
+            })?;
+            Ok(GeoGeometry { transform, epsg: 3857, coordinate_operation: "identity" })
+        }
         _ => Err(storage_error(
-            "GeoTIFF currently supports only validated EPSG:4326 and EPSG:3821 grids",
+            "GeoTIFF currently supports only validated EPSG:4326, EPSG:3821, and EPSG:3857 grids",
         )),
     }
 }
@@ -830,29 +1397,27 @@ fn write_geotags<W: std::io::Write + std::io::Seek>(
 
 fn write_data_raster(
     path: &Path,
-    field: &RadarField,
-    width: usize,
-    height: usize,
-    transform: GeoTransform,
-    epsg: u16,
+    field: &GeoTiffWriteView<'_>,
+    geometry: GeoGeometry,
 ) -> CoreResult<()> {
     let file =
         File::create(path).map_err(|_| storage_error("GeoTIFF data file could not be created"))?;
     let mut tiff = TiffEncoder::new(file)
         .map_err(|_| storage_error("GeoTIFF encoder could not be initialized"))?
         .with_compression(Compression::Deflate(DeflateLevel::Fast));
-    let tiff_width = u32::try_from(width)
+    let tiff_width = u32::try_from(field.width)
         .map_err(|_| CoreError::ResourceLimit("GeoTIFF width exceeds TIFF limits".into()))?;
-    let tiff_height = u32::try_from(height)
+    let tiff_height = u32::try_from(field.height)
         .map_err(|_| CoreError::ResourceLimit("GeoTIFF height exceeds TIFF limits".into()))?;
     let mut image = tiff
         .new_image::<Gray32Float>(tiff_width, tiff_height)
         .map_err(|_| storage_error("GeoTIFF data raster could not be initialized"))?;
-    write_geotags(&mut image, transform, epsg, true, &field.name)?;
+    write_geotags(&mut image, geometry.transform, geometry.epsg, true, field.variable)?;
     image
-        .rows_per_strip(height.clamp(1, STRIP_ROWS) as u32)
+        .rows_per_strip(field.height.clamp(1, STRIP_ROWS) as u32)
         .map_err(|_| storage_error("GeoTIFF strip size could not be configured"))?;
-    let values = oriented_values(&field.values, width, height, transform.flip_y);
+    let values =
+        oriented_values(field.values, field.width, field.height, geometry.transform.flip_y);
     image
         .write_data(values.as_ref())
         .map_err(|_| storage_error("GeoTIFF data raster could not be finalized"))?;
@@ -861,35 +1426,35 @@ fn write_data_raster(
 
 fn write_quality_raster(
     path: &Path,
-    field: &RadarField,
-    width: usize,
-    height: usize,
-    transform: GeoTransform,
-    epsg: u16,
+    field: &GeoTiffWriteView<'_>,
+    geometry: GeoGeometry,
 ) -> CoreResult<()> {
     let file = File::create(path)
         .map_err(|_| storage_error("GeoTIFF quality file could not be created"))?;
     let mut tiff = TiffEncoder::new(file)
         .map_err(|_| storage_error("GeoTIFF encoder could not be initialized"))?
         .with_compression(Compression::Deflate(DeflateLevel::Fast));
-    let tiff_width = u32::try_from(width)
+    let tiff_width = u32::try_from(field.width)
         .map_err(|_| CoreError::ResourceLimit("GeoTIFF width exceeds TIFF limits".into()))?;
-    let tiff_height = u32::try_from(height)
+    let tiff_height = u32::try_from(field.height)
         .map_err(|_| CoreError::ResourceLimit("GeoTIFF height exceeds TIFF limits".into()))?;
     let mut image = tiff
         .new_image::<Gray16>(tiff_width, tiff_height)
         .map_err(|_| storage_error("GeoTIFF quality raster could not be initialized"))?;
     image
         .encoder()
-        .write_tag(Tag::ModelPixelScaleTag, [transform.dx, transform.dy, 0.0])
+        .write_tag(Tag::ModelPixelScaleTag, [geometry.transform.dx, geometry.transform.dy, 0.0])
         .map_err(|_| storage_error("GeoTIFF pixel scale could not be written"))?;
     image
         .encoder()
-        .write_tag(Tag::ModelTiepointTag, [0.0, 0.0, 0.0, transform.west, transform.north, 0.0])
+        .write_tag(
+            Tag::ModelTiepointTag,
+            [0.0, 0.0, 0.0, geometry.transform.west, geometry.transform.north, 0.0],
+        )
         .map_err(|_| storage_error("GeoTIFF tie point could not be written"))?;
     image
         .encoder()
-        .write_tag(Tag::GeoKeyDirectoryTag, geo_key_directory(epsg).as_slice())
+        .write_tag(Tag::GeoKeyDirectoryTag, geo_key_directory(geometry.epsg).as_slice())
         .map_err(|_| storage_error("GeoTIFF CRS keys could not be written"))?;
     image
         .encoder()
@@ -897,15 +1462,73 @@ fn write_quality_raster(
         .map_err(|_| storage_error("GeoTIFF band description could not be written"))?;
     image
         .encoder()
-        .write_tag(SOURCE_Y_FLIPPED_TAG, u16::from(transform.flip_y))
+        .write_tag(SOURCE_Y_FLIPPED_TAG, u16::from(geometry.transform.flip_y))
         .map_err(|_| storage_error("GeoTIFF source row direction could not be written"))?;
     image
-        .rows_per_strip(height.clamp(1, STRIP_ROWS) as u32)
+        .rows_per_strip(field.height.clamp(1, STRIP_ROWS) as u32)
         .map_err(|_| storage_error("GeoTIFF strip size could not be configured"))?;
-    let values = oriented_values(&field.quality, width, height, transform.flip_y);
+    let values =
+        oriented_values(field.quality, field.width, field.height, geometry.transform.flip_y);
     image
         .write_data(values.as_ref())
         .map_err(|_| storage_error("GeoTIFF quality raster could not be finalized"))?;
+    sync_file(path)
+}
+
+fn write_integer_sidecar<C>(
+    path: &Path,
+    values: &[C::Inner],
+    description: &str,
+    field: &GeoTiffWriteView<'_>,
+    geometry: GeoGeometry,
+) -> CoreResult<()>
+where
+    C: ColorType,
+    C::Inner: Copy,
+    [C::Inner]: tiff::encoder::TiffValue,
+{
+    let file = File::create(path)
+        .map_err(|_| storage_error("GeoTIFF sidecar file could not be created"))?;
+    let mut tiff = TiffEncoder::new(file)
+        .map_err(|_| storage_error("GeoTIFF encoder could not be initialized"))?
+        .with_compression(Compression::Deflate(DeflateLevel::Fast));
+    let width = u32::try_from(field.width)
+        .map_err(|_| CoreError::ResourceLimit("GeoTIFF width exceeds TIFF limits".into()))?;
+    let height = u32::try_from(field.height)
+        .map_err(|_| CoreError::ResourceLimit("GeoTIFF height exceeds TIFF limits".into()))?;
+    let mut image = tiff
+        .new_image::<C>(width, height)
+        .map_err(|_| storage_error("GeoTIFF sidecar raster could not be initialized"))?;
+    image
+        .encoder()
+        .write_tag(Tag::ModelPixelScaleTag, [geometry.transform.dx, geometry.transform.dy, 0.0])
+        .map_err(|_| storage_error("GeoTIFF pixel scale could not be written"))?;
+    image
+        .encoder()
+        .write_tag(
+            Tag::ModelTiepointTag,
+            [0.0, 0.0, 0.0, geometry.transform.west, geometry.transform.north, 0.0],
+        )
+        .map_err(|_| storage_error("GeoTIFF tie point could not be written"))?;
+    image
+        .encoder()
+        .write_tag(Tag::GeoKeyDirectoryTag, geo_key_directory(geometry.epsg).as_slice())
+        .map_err(|_| storage_error("GeoTIFF CRS keys could not be written"))?;
+    image
+        .encoder()
+        .write_tag(Tag::ImageDescription, description)
+        .map_err(|_| storage_error("GeoTIFF sidecar description could not be written"))?;
+    image
+        .encoder()
+        .write_tag(SOURCE_Y_FLIPPED_TAG, u16::from(geometry.transform.flip_y))
+        .map_err(|_| storage_error("GeoTIFF source row direction could not be written"))?;
+    image
+        .rows_per_strip(field.height.clamp(1, STRIP_ROWS) as u32)
+        .map_err(|_| storage_error("GeoTIFF strip size could not be configured"))?;
+    let oriented = oriented_values(values, field.width, field.height, geometry.transform.flip_y);
+    image
+        .write_data(oriented.as_ref())
+        .map_err(|_| storage_error("GeoTIFF sidecar raster could not be finalized"))?;
     sync_file(path)
 }
 
@@ -926,11 +1549,15 @@ fn oriented_values<T: Copy>(
     Cow::Owned(output)
 }
 
-fn write_provenance(path: &Path, field: &RadarField, geometry: GeoGeometry) -> CoreResult<()> {
-    let source_crs = field.grid.crs.as_deref().unwrap_or("unknown");
+fn write_provenance(
+    path: &Path,
+    field: &GeoTiffWriteView<'_>,
+    geometry: GeoGeometry,
+) -> CoreResult<()> {
+    let source_crs = field.crs.unwrap_or("unknown");
     let mut document = json!({
         "schema_version": GEOTIFF_PROVENANCE_SCHEMA,
-        "variable": field.name,
+        "variable": field.variable,
         "units": field.units,
         "grid": if geographic_epsg(geometry.epsg) { "geographic" } else { "projected" },
         "source_crs": source_crs,
@@ -943,6 +1570,11 @@ fn write_provenance(path: &Path, field: &RadarField, geometry: GeoGeometry) -> C
         "quality_flag_masks": QUALITY_FLAG_MASKS,
         "quality_flag_meanings": QUALITY_FLAG_MEANINGS,
         "provenance": field.provenance,
+        "raster_profile": field.pixel_processing.map(|_| PIXEL_DBZ_PROFILE),
+        "pixel_processing": field.pixel_processing,
+        "has_origin_quality": field.origin_quality.is_some(),
+        "has_encoding_adjustment": field.encoding_adjustment.is_some(),
+        "alpha_bit_depth": field.alpha.map(AlphaPlane::bit_depth),
     });
     sort_json_keys(&mut document);
     let bytes = serde_json::to_vec_pretty(&document)
@@ -968,12 +1600,17 @@ fn sync_file(path: &Path) -> CoreResult<()> {
         .map_err(|_| storage_error("GeoTIFF staged file could not be flushed"))
 }
 
-fn publish_group(stage_root: &Path, outputs: &[(PathBuf, PathBuf); 3]) -> CoreResult<()> {
+fn publish_group(
+    stage_root: &Path,
+    outputs: &[(PathBuf, PathBuf)],
+    obsolete: &[PathBuf],
+) -> CoreResult<()> {
     let backup_root = stage_root.join("backup");
     fs::create_dir(&backup_root)
         .map_err(|_| storage_error("GeoTIFF backup directory could not be created"))?;
     let mut backups = Vec::new();
-    for (index, (_, target)) in outputs.iter().enumerate() {
+    let targets = outputs.iter().map(|(_, target)| target).chain(obsolete.iter());
+    for (index, target) in targets.enumerate() {
         match fs::symlink_metadata(target) {
             Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
                 let backup = backup_root.join(index.to_string());
@@ -983,7 +1620,7 @@ fn publish_group(stage_root: &Path, outputs: &[(PathBuf, PathBuf); 3]) -> CoreRe
                         "GeoTIFF prior output could not be staged: {error}"
                     )));
                 }
-                backups.push((backup, target.clone()));
+                backups.push((backup, target.to_path_buf()));
             }
             Ok(_) => {
                 restore_group(&[], &backups);

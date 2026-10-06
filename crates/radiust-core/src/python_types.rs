@@ -10,6 +10,7 @@ use crate::error_contract::{ErrorCode, ErrorReport, ErrorStage};
 use crate::errors::{CoreError, ProviderError};
 use crate::grid::Resampling;
 use crate::model::{DiscoveryReport, FrameRef, Grid, Query, RadarDataset, RadarField, RawFrame};
+use crate::raster::{AlphaPlane, GrayDecision, PixelDbzField, RasterResult, RasterResultData};
 use crate::runtime::RuntimeEventReceiver;
 use crate::source::SourceRegistry;
 use pyo3::exceptions::{
@@ -33,6 +34,35 @@ fn parse_json<T: serde::de::DeserializeOwned>(value: &str, label: &str) -> PyRes
 fn to_json<T: Serialize>(value: &T) -> PyResult<String> {
     serde_json::to_string(value)
         .map_err(|_| PyValueError::new_err("core value could not be serialized"))
+}
+
+#[pyfunction]
+fn decode_gray_array(
+    py: Python<'_>,
+    width: usize,
+    height: usize,
+    channels: u8,
+    values: Vec<f64>,
+    alpha_bit_depth: u8,
+) -> PyResult<(Vec<f32>, Vec<u16>)> {
+    py.detach(|| crate::dbz::decode_gray_array(width, height, channels, &values, alpha_bit_depth))
+        .map_err(|error| engine_error_to_py(EngineError::Core(error), ErrorStage::Decode))
+}
+
+#[pyfunction]
+fn decode_gray_array_historical(
+    py: Python<'_>,
+    width: usize,
+    height: usize,
+    channels: u8,
+    values: Vec<f64>,
+    strict: bool,
+    max_gray: i64,
+) -> PyResult<(Vec<f32>, Vec<u16>)> {
+    py.detach(|| {
+        crate::dbz::decode_gray_array_historical(width, height, channels, &values, strict, max_gray)
+    })
+    .map_err(|error| engine_error_to_py(EngineError::Core(error), ErrorStage::Decode))
 }
 
 #[pyclass(name = "ResolvedConfig", module = "radiust._core", frozen)]
@@ -279,6 +309,246 @@ impl PyRadarField {
             RadarFieldBacking::Dataset { owner, index } => {
                 owner.fields.get(*index).expect("dataset field index is validated")
             }
+        }
+    }
+}
+
+#[pyclass(name = "PixelDbzField", module = "radiust._core", frozen)]
+pub struct PyPixelDbzField {
+    inner: Arc<PixelDbzField>,
+}
+
+#[pymethods]
+impl PyPixelDbzField {
+    #[getter]
+    fn shape(&self) -> Vec<usize> {
+        vec![self.inner.height, self.inner.width]
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.inner.variable.clone()
+    }
+
+    #[getter]
+    fn units(&self) -> String {
+        self.inner.units.clone()
+    }
+
+    #[getter]
+    fn alpha_bit_depth(&self) -> Option<u8> {
+        self.inner.alpha.as_ref().map(AlphaPlane::bit_depth)
+    }
+
+    fn values_le_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        let mut bytes = Vec::with_capacity(self.inner.values.len().saturating_mul(4));
+        for value in &self.inner.values {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        Ok(PyBytes::new(py, &bytes))
+    }
+
+    fn quality_le_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        let mut bytes = Vec::with_capacity(self.inner.quality.len().saturating_mul(2));
+        for value in &self.inner.quality {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        Ok(PyBytes::new(py, &bytes))
+    }
+
+    fn origin_quality_le_bytes<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        self.inner.origin_quality.as_ref().map(|values| {
+            let mut bytes = Vec::with_capacity(values.len().saturating_mul(2));
+            for value in values {
+                bytes.extend_from_slice(&value.to_le_bytes());
+            }
+            PyBytes::new(py, &bytes)
+        })
+    }
+
+    fn encoding_adjustment_bytes<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        self.inner.encoding_adjustment.as_ref().map(|values| PyBytes::new(py, values))
+    }
+
+    fn alpha_json(&self) -> PyResult<Option<String>> {
+        self.inner.alpha.as_ref().map(to_json).transpose()
+    }
+
+    fn metadata_json(&self) -> PyResult<String> {
+        let field = &self.inner;
+        to_json(&serde_json::json!({
+            "name": field.variable,
+            "shape": [field.height, field.width],
+            "units": field.units,
+            "valid_time": field.valid_time,
+            "geometry": field.geometry,
+            "encoding": field.processing.encoding_basis,
+            "processing": field.processing,
+        }))
+    }
+
+    fn to_json(&self) -> PyResult<String> {
+        to_json(self.inner.as_ref())
+    }
+}
+
+#[pyclass(name = "RasterResult", module = "radiust._core", frozen)]
+pub struct PyRasterResult {
+    inner: Arc<RasterResult>,
+}
+
+#[pymethods]
+impl PyRasterResult {
+    #[getter]
+    fn native_field(&self) -> Option<PyRadarField> {
+        match &self.inner.data {
+            RasterResultData::Native(field) => {
+                Some(PyRadarField { backing: RadarFieldBacking::Owned(field.clone()) })
+            }
+            RasterResultData::NativeDataset { owner, index } => Some(PyRadarField {
+                backing: RadarFieldBacking::Dataset { owner: owner.clone(), index: *index },
+            }),
+            RasterResultData::Pixel(_) => None,
+        }
+    }
+
+    #[getter]
+    fn data_kind(&self) -> &'static str {
+        match &self.inner.data {
+            RasterResultData::Pixel(_) => "pixel_dbz",
+            RasterResultData::Native(_) | RasterResultData::NativeDataset { .. } => "native",
+        }
+    }
+
+    #[getter]
+    fn pixel_field(&self) -> Option<PyPixelDbzField> {
+        match &self.inner.data {
+            RasterResultData::Pixel(field) => Some(PyPixelDbzField { inner: field.clone() }),
+            _ => None,
+        }
+    }
+
+    #[getter]
+    fn input_json(&self) -> PyResult<String> {
+        to_json(&self.inner.input)
+    }
+
+    #[getter]
+    fn processing_json(&self) -> PyResult<String> {
+        to_json(&self.inner.processing)
+    }
+
+    #[getter]
+    fn mode_info_json(&self) -> PyResult<String> {
+        to_json(&self.inner.mode_info)
+    }
+
+    fn to_json(&self) -> PyResult<String> {
+        let field = match &self.inner.data {
+            RasterResultData::Pixel(field) => serde_json::to_value(field.as_ref()),
+            RasterResultData::Native(field) => serde_json::to_value(field.as_ref()),
+            RasterResultData::NativeDataset { owner, index } => {
+                let field = owner
+                    .fields
+                    .get(*index)
+                    .ok_or_else(|| PyValueError::new_err("raster dataset index is invalid"))?;
+                serde_json::to_value(field)
+            }
+        }
+        .map_err(|_| PyValueError::new_err("core value could not be serialized"))?;
+        to_json(&serde_json::json!({
+            "kind": if matches!(&self.inner.data, RasterResultData::Pixel(_)) { "pixel_dbz" } else { "native" },
+            "input": self.inner.input,
+            "processing": self.inner.processing,
+            "mode_info": self.inner.mode_info,
+            "field": field,
+        }))
+    }
+}
+
+#[pyclass(name = "GrayDecision", module = "radiust._core", frozen)]
+pub struct PyGrayDecision {
+    inner: GrayDecision,
+}
+
+#[pymethods]
+impl PyGrayDecision {
+    #[getter]
+    fn applied(&self) -> bool {
+        matches!(self.inner, GrayDecision::Applied(_))
+    }
+
+    #[getter]
+    fn width(&self) -> Option<u32> {
+        match &self.inner {
+            GrayDecision::Applied(gray) => Some(gray.width),
+            GrayDecision::Unavailable { .. } => None,
+        }
+    }
+
+    #[getter]
+    fn height(&self) -> Option<u32> {
+        match &self.inner {
+            GrayDecision::Applied(gray) => Some(gray.height),
+            GrayDecision::Unavailable { .. } => None,
+        }
+    }
+
+    #[getter]
+    fn reason(&self) -> Option<String> {
+        match &self.inner {
+            GrayDecision::Applied(_) => None,
+            GrayDecision::Unavailable { reason, .. } => Some(reason.clone()),
+        }
+    }
+
+    fn rgba_bytes<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        match &self.inner {
+            GrayDecision::Applied(gray) => Some(PyBytes::new(py, &gray.rgba)),
+            GrayDecision::Unavailable { original_preview, .. } => {
+                original_preview.as_ref().map(|bytes| PyBytes::new(py, bytes))
+            }
+        }
+    }
+
+    fn quality_le_bytes<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        match &self.inner {
+            GrayDecision::Applied(gray) => {
+                let bytes =
+                    gray.quality.iter().flat_map(|value| value.to_le_bytes()).collect::<Vec<_>>();
+                Some(PyBytes::new(py, &bytes))
+            }
+            GrayDecision::Unavailable { .. } => None,
+        }
+    }
+
+    fn origin_quality_le_bytes<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        match &self.inner {
+            GrayDecision::Applied(gray) => gray.origin_quality.as_ref().map(|values| {
+                let bytes = values.iter().flat_map(|value| value.to_le_bytes()).collect::<Vec<_>>();
+                PyBytes::new(py, &bytes)
+            }),
+            GrayDecision::Unavailable { .. } => None,
+        }
+    }
+
+    fn metadata_json(&self) -> PyResult<String> {
+        match &self.inner {
+            GrayDecision::Applied(gray) => to_json(&serde_json::json!({
+                "status": "applied",
+                "width": gray.width,
+                "height": gray.height,
+                "frame_index": gray.frame_index,
+                "alpha": gray.alpha,
+                "input": gray.input,
+                "encoding_basis": gray.encoding_basis,
+                "valid_time": gray.valid_time,
+                "geometry": gray.geometry,
+            })),
+            GrayDecision::Unavailable { reason, .. } => to_json(&serde_json::json!({
+                "status": "unavailable",
+                "reason": reason,
+            })),
         }
     }
 }
@@ -594,6 +864,198 @@ fn py_fetch_item_data(item: DecodedFetchItem) -> Arc<PyFetchItemData> {
     })
 }
 
+struct PyModeFetchItemData {
+    input_index: usize,
+    frame: FrameRef,
+    status: FetchStatus,
+    gray: Option<GrayDecision>,
+    dbz: Option<Arc<RasterResult>>,
+    error: Option<String>,
+    error_details: Option<String>,
+    mode_info: Option<String>,
+}
+
+#[pyclass(name = "ModeFetchItem", module = "radiust._core", frozen)]
+pub struct PyModeFetchItem {
+    inner: Arc<PyModeFetchItemData>,
+}
+
+impl PyModeFetchItem {
+    fn from_item(item: crate::download::ModeFetchItem) -> Self {
+        let error_details = item.error_details.as_ref().and_then(|error| to_json(error).ok());
+        let mode_info = if let Some(result) = &item.dbz {
+            to_json(&result.mode_info).ok()
+        } else {
+            let (actual, method, rule_version, time_status, geolocation, limitations) =
+                match &item.gray {
+                    Some(GrayDecision::Applied(gray)) => {
+                        let rule_version = match &gray.encoding_basis {
+                            crate::raster::EncodingBasis::VerifiedSourceRule { rule, .. } => {
+                                Some(rule.rule_version.clone())
+                            }
+                            crate::raster::EncodingBasis::UserDeclaration { .. } => None,
+                        };
+                        (
+                            "gray",
+                            "verified_gray_display",
+                            rule_version,
+                            if gray.valid_time.is_some() { "known" } else { "unknown" },
+                            if gray.geometry.is_some() { "verified" } else { "unknown" },
+                            Vec::<String>::new(),
+                        )
+                    }
+                    Some(GrayDecision::Unavailable { .. }) => (
+                        "raw",
+                        "gray_rule_unavailable",
+                        None,
+                        "unknown",
+                        "unknown",
+                        vec!["gray_rule_unavailable".to_owned()],
+                    ),
+                    None => ("unknown", "unknown", None, "unknown", "unknown", Vec::new()),
+                };
+            to_json(&serde_json::json!({
+                "requested":"gray",
+                "actual":actual,
+                "units":if actual == "gray" { Some("gray_code") } else { None },
+                "method":method,
+                "rule_version":rule_version,
+                "time_status":time_status,
+                "geolocation":geolocation,
+                "limitations":limitations,
+            }))
+            .ok()
+        };
+        Self {
+            inner: Arc::new(PyModeFetchItemData {
+                input_index: item.input_index,
+                frame: item.frame,
+                status: item.status,
+                gray: item.gray,
+                dbz: item.dbz.map(Arc::new),
+                error: item.error,
+                error_details,
+                mode_info,
+            }),
+        }
+    }
+}
+
+#[pymethods]
+impl PyModeFetchItem {
+    #[getter]
+    fn input_index(&self) -> usize {
+        self.inner.input_index
+    }
+
+    #[getter]
+    fn status(&self) -> &'static str {
+        fetch_status_name(self.inner.status)
+    }
+
+    fn frame(&self) -> PyFrameRef {
+        PyFrameRef { inner: self.inner.frame.clone() }
+    }
+
+    fn gray_result(&self) -> Option<PyGrayDecision> {
+        self.inner.gray.clone().map(|inner| PyGrayDecision { inner })
+    }
+
+    fn raster_result(&self) -> Option<PyRasterResult> {
+        self.inner.dbz.as_ref().map(|inner| PyRasterResult { inner: inner.clone() })
+    }
+
+    #[getter]
+    fn error(&self) -> Option<String> {
+        self.inner.error.clone()
+    }
+
+    fn error_details(&self) -> Option<String> {
+        self.inner.error_details.clone()
+    }
+
+    fn mode_info_json(&self) -> Option<String> {
+        self.inner.mode_info.clone()
+    }
+}
+
+#[pyclass(name = "ModeFetchBatchReport", module = "radiust._core", frozen)]
+pub struct PyModeFetchBatchReport {
+    items: Vec<PyModeFetchItem>,
+    planned: usize,
+    success: usize,
+    failed: usize,
+    cancelled: usize,
+    not_started: usize,
+}
+
+impl PyModeFetchBatchReport {
+    fn from_report(report: crate::download::ModeFetchBatchReport) -> Self {
+        Self {
+            items: report.items.into_iter().map(PyModeFetchItem::from_item).collect(),
+            planned: report.planned,
+            success: report.success,
+            failed: report.failed,
+            cancelled: report.cancelled,
+            not_started: report.not_started,
+        }
+    }
+}
+
+#[pymethods]
+impl PyModeFetchBatchReport {
+    #[getter]
+    fn total(&self) -> usize {
+        self.items.len()
+    }
+    #[getter]
+    fn planned(&self) -> usize {
+        self.planned
+    }
+    #[getter]
+    fn success(&self) -> usize {
+        self.success
+    }
+    #[getter]
+    fn failed(&self) -> usize {
+        self.failed
+    }
+    #[getter]
+    fn cancelled(&self) -> usize {
+        self.cancelled
+    }
+    #[getter]
+    fn not_started(&self) -> usize {
+        self.not_started
+    }
+
+    fn item(&self, index: usize) -> PyResult<PyModeFetchItem> {
+        self.items
+            .get(index)
+            .map(|item| PyModeFetchItem { inner: item.inner.clone() })
+            .ok_or_else(|| PyValueError::new_err("fetch item index is out of range"))
+    }
+
+    fn to_json(&self) -> PyResult<String> {
+        to_json(&serde_json::json!({
+            "planned":self.planned,
+            "success":self.success,
+            "failed":self.failed,
+            "cancelled":self.cancelled,
+            "not_started":self.not_started,
+            "items":self.items.iter().map(|item| serde_json::json!({
+                "input_index":item.inner.input_index,
+                "frame":item.inner.frame,
+                "status":fetch_status_name(item.inner.status),
+                "error":item.inner.error,
+                "error_details":item.inner.error_details,
+                "mode_info":item.inner.mode_info,
+                "data_available":item.inner.gray.is_some() || item.inner.dbz.is_some(),
+            })).collect::<Vec<_>>(),
+        }))
+    }
+}
+
 impl PyFetchItem {
     fn from_decoded_item(item: DecodedFetchItem) -> Self {
         Self { inner: py_fetch_item_data(item) }
@@ -652,6 +1114,54 @@ impl PyFetchBatchReport {
 pub struct PyFetchStream {
     inner: Arc<tokio::sync::Mutex<DecodedFetchStream>>,
     cancellation: tokio_util::sync::CancellationToken,
+}
+
+#[pyclass(name = "ModeFetchStream", module = "radiust._core")]
+pub struct PyModeFetchStream {
+    inner: Arc<tokio::sync::Mutex<crate::download::ModeFetchStream>>,
+    cancellation: tokio_util::sync::CancellationToken,
+}
+
+#[pymethods]
+impl PyModeFetchStream {
+    fn next<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let inner = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let mut stream = inner.lock().await;
+            let outcome = stream.next().await;
+            Python::attach(|py| -> PyResult<_> {
+                match outcome {
+                    Ok(Some(item)) => Ok((
+                        Some(Py::new(py, PyModeFetchItem::from_item(item))?),
+                        None::<Py<PyModeFetchBatchReport>>,
+                        None::<String>,
+                    )),
+                    Ok(None) => Ok((
+                        None::<Py<PyModeFetchItem>>,
+                        None::<Py<PyModeFetchBatchReport>>,
+                        None::<String>,
+                    )),
+                    Err(failure) => Ok((
+                        None::<Py<PyModeFetchItem>>,
+                        Some(Py::new(
+                            py,
+                            PyModeFetchBatchReport::from_report(failure.partial_result),
+                        )?),
+                        Some(failure.cause),
+                    )),
+                }
+            })
+        })
+    }
+
+    fn close<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.cancellation.cancel();
+        let inner = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            inner.lock().await.close();
+            Ok(())
+        })
+    }
 }
 
 #[pymethods]
@@ -1036,19 +1546,204 @@ impl PyEngine {
         })
     }
 
+    fn decode_gray<'py>(
+        &self,
+        py: Python<'py>,
+        raw: Py<PyRawFrame>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let raw = Python::attach(|py| raw.borrow(py).get_inner())?;
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let decision = engine
+                .decode_gray(raw)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Decode))?;
+            Python::attach(|py| Py::new(py, PyGrayDecision { inner: decision }))
+        })
+    }
+
+    fn decode_dbz<'py>(&self, py: Python<'py>, raw: Py<PyRawFrame>) -> PyResult<Bound<'py, PyAny>> {
+        let raw = Python::attach(|py| raw.borrow(py).get_inner())?;
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let result = engine
+                .decode_dbz(raw)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Decode))?;
+            Python::attach(|py| Py::new(py, PyRasterResult { inner: Arc::new(result) }))
+        })
+    }
+
+    #[pyo3(signature = (path, frame_index=None))]
+    fn decode_gray_file<'py>(
+        &self,
+        py: Python<'py>,
+        path: String,
+        frame_index: Option<u32>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let result = engine
+                .decode_gray_file(PathBuf::from(path), frame_index)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Decode))?;
+            Python::attach(|py| Py::new(py, PyRasterResult { inner: Arc::new(result) }))
+        })
+    }
+
+    #[pyo3(signature = (path, variable=None, valid_time=None))]
+    fn read_raster_file<'py>(
+        &self,
+        py: Python<'py>,
+        path: String,
+        variable: Option<String>,
+        valid_time: Option<String>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let joined = tokio::task::spawn_blocking(move || {
+                engine.read_raster_file(
+                    PathBuf::from(path),
+                    variable.as_deref(),
+                    valid_time.as_deref(),
+                )
+            })
+            .await
+            .map_err(|_| PyRuntimeError::new_err("numeric reader worker failed"))?;
+            let result = joined.map_err(|error| {
+                engine_error_to_py(EngineError::Core(error), ErrorStage::Validate)
+            })?;
+            Python::attach(|py| Py::new(py, PyRasterResult { inner: Arc::new(result) }))
+        })
+    }
+
+    #[pyo3(signature = (path, variable=None, valid_time=None))]
+    fn read_dbz_file<'py>(
+        &self,
+        py: Python<'py>,
+        path: String,
+        variable: Option<String>,
+        valid_time: Option<String>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let joined = tokio::task::spawn_blocking(move || {
+                engine.read_dbz_file(
+                    PathBuf::from(path),
+                    variable.as_deref(),
+                    valid_time.as_deref(),
+                )
+            })
+            .await
+            .map_err(|_| PyRuntimeError::new_err("dBZ reader worker failed"))?;
+            let result = joined.map_err(|error| {
+                engine_error_to_py(EngineError::Core(error), ErrorStage::Decode)
+            })?;
+            Python::attach(|py| Py::new(py, PyRasterResult { inner: Arc::new(result) }))
+        })
+    }
+
+    #[pyo3(signature = (result, output_name, format, options_json="{}", overwrite=false, output_root=None, explicit_ref_json=None))]
+    fn write_raster_to<'py>(
+        &self,
+        py: Python<'py>,
+        result: Py<PyRasterResult>,
+        output_name: String,
+        format: String,
+        options_json: &str,
+        overwrite: bool,
+        output_root: Option<String>,
+        explicit_ref_json: Option<&str>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let result = Python::attach(|py| result.borrow(py).inner.clone());
+        let options: Value = parse_json(options_json, "writer options")?;
+        let explicit_ref: Option<FrameRef> =
+            explicit_ref_json.map(|value| parse_json(value, "explicit FrameRef")).transpose()?;
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let root = output_root
+                .map(PathBuf::from)
+                .unwrap_or_else(|| engine.config().storage.output.clone());
+            let output_uri = root.join(&output_name).display().to_string();
+            let engine_for_worker = engine.clone();
+            let output_name_for_worker = output_name.clone();
+            let root_for_worker = root.clone();
+            let committed = tokio::task::spawn_blocking(move || {
+                engine_for_worker.write_raster_to_with_ref(
+                    &result,
+                    root_for_worker,
+                    &output_name_for_worker,
+                    &format,
+                    &options,
+                    overwrite,
+                    explicit_ref,
+                )
+            })
+            .await
+            .map_err(|_| PyRuntimeError::new_err("raster writer worker failed"))?
+            .map_err(|error| engine_error_to_py(EngineError::Core(error), ErrorStage::Commit))?;
+            to_json(&serde_json::json!({
+                "status": match committed.status {
+                    crate::storage::LocalCommitStatus::Written => "written",
+                    crate::storage::LocalCommitStatus::Skipped => "skipped",
+                },
+                "output_uri": output_uri,
+                "manifest": committed.manifest,
+            }))
+        })
+    }
+
+    #[pyo3(signature = (width, height, values, alpha_json=None, declared_encoding="gray-dbz-v1"))]
+    fn decode_gray_values<'py>(
+        &self,
+        py: Python<'py>,
+        width: usize,
+        height: usize,
+        values: Vec<f64>,
+        alpha_json: Option<&str>,
+        declared_encoding: &str,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let alpha: Option<AlphaPlane> =
+            alpha_json.map(|value| parse_json(value, "gray alpha plane")).transpose()?;
+        let engine = self.inner.clone();
+        let declared_encoding = declared_encoding.to_owned();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let result = engine
+                .decode_gray_values(width, height, values, alpha, declared_encoding)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Decode))?;
+            Python::attach(|py| Py::new(py, PyRasterResult { inner: Arc::new(result) }))
+        })
+    }
+
+    #[pyo3(signature = (manifest_path, mode=None))]
     fn replay_raw_manifest<'py>(
         &self,
         py: Python<'py>,
         manifest_path: String,
+        mode: Option<&str>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let engine = self.inner.clone();
+        let mode = mode.map(str::to_owned);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let field = engine
-                .replay_raw_manifest(PathBuf::from(manifest_path))
+            let result = engine
+                .replay_raw_manifest_mode(PathBuf::from(manifest_path), mode.as_deref())
                 .await
                 .map_err(|error| engine_error_to_py(error, ErrorStage::Decode))?;
-            Python::attach(|py| {
-                Py::new(py, PyRadarField { backing: RadarFieldBacking::Owned(Arc::new(field)) })
+            Python::attach(|py| -> PyResult<Py<PyAny>> {
+                match result {
+                    crate::engine::ReplayRawResult::Science(field) => Ok(Py::new(
+                        py,
+                        PyRadarField { backing: RadarFieldBacking::Owned(Arc::new(field)) },
+                    )?
+                    .into_any()),
+                    crate::engine::ReplayRawResult::Gray(decision) => {
+                        Ok(Py::new(py, PyGrayDecision { inner: decision })?.into_any())
+                    }
+                    crate::engine::ReplayRawResult::Dbz(result) => {
+                        Ok(Py::new(py, PyRasterResult { inner: Arc::new(result) })?.into_any())
+                    }
+                }
             })
         })
     }
@@ -1167,6 +1862,37 @@ impl PyEngine {
         })
     }
 
+    #[pyo3(signature = (frames, mode, on_error, dry_run, max_concurrency=None))]
+    fn fetch_many_mode<'py>(
+        &self,
+        py: Python<'py>,
+        frames: Vec<Py<PyFrameRef>>,
+        mode: &str,
+        on_error: &str,
+        dry_run: bool,
+        max_concurrency: Option<usize>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if !matches!(mode, "gray" | "dbz") {
+            return Err(PyValueError::new_err("mode must be gray or dbz"));
+        }
+        let policy = FetchErrorPolicy::parse(on_error).ok_or_else(|| {
+            PyValueError::new_err("on_error must be collect/continue or stop/raise")
+        })?;
+        let frames = Python::attach(|py| {
+            frames.into_iter().map(|frame| frame.borrow(py).inner.clone()).collect::<Vec<_>>()
+        });
+        if max_concurrency == Some(0) {
+            return Err(PyValueError::new_err("max_concurrency must be positive"));
+        }
+        let mode = mode.to_owned();
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let report =
+                engine.fetch_many_mode(frames, &mode, policy, dry_run, max_concurrency).await;
+            Python::attach(|py| Py::new(py, PyModeFetchBatchReport::from_report(report)))
+        })
+    }
+
     #[pyo3(signature = (frames, on_error, max_concurrency=None))]
     fn open_fetch_stream(
         &self,
@@ -1187,6 +1913,32 @@ impl PyEngine {
         let stream = self.inner.fetch_decoded_stream(frames, policy, concurrency);
         let cancellation = stream.cancellation_token();
         Ok(PyFetchStream { inner: Arc::new(tokio::sync::Mutex::new(stream)), cancellation })
+    }
+
+    #[pyo3(signature = (frames, mode, on_error, max_concurrency=None))]
+    fn open_fetch_mode_stream(
+        &self,
+        frames: Vec<Py<PyFrameRef>>,
+        mode: &str,
+        on_error: &str,
+        max_concurrency: Option<usize>,
+    ) -> PyResult<PyModeFetchStream> {
+        let policy = FetchErrorPolicy::parse(on_error).ok_or_else(|| {
+            PyValueError::new_err("on_error must be collect/continue or stop/raise")
+        })?;
+        if max_concurrency == Some(0) {
+            return Err(PyValueError::new_err("max_concurrency must be positive"));
+        }
+        let frames = Python::attach(|py| {
+            frames.into_iter().map(|frame| frame.borrow(py).inner.clone()).collect::<Vec<_>>()
+        });
+        let concurrency = max_concurrency.unwrap_or(self.inner.config().runtime.frame_concurrency);
+        let stream = self
+            .inner
+            .fetch_mode_stream(frames, mode, policy, concurrency)
+            .map_err(|error| engine_error_to_py(error, ErrorStage::Validate))?;
+        let cancellation = stream.cancellation_token();
+        Ok(PyModeFetchStream { inner: Arc::new(tokio::sync::Mutex::new(stream)), cancellation })
     }
 
     #[pyo3(signature = (frames, on_error, dry_run, overwrite, output_root=None))]
@@ -1220,6 +1972,46 @@ impl PyEngine {
             } else {
                 engine.download_raw_only(frames, policy, dry_run, overwrite).await
             };
+            Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
+        })
+    }
+
+    #[pyo3(signature = (frames, on_error, dry_run, overwrite, output_root=None, format="netcdf", include_raw=false))]
+    fn download_dbz_mode<'py>(
+        &self,
+        py: Python<'py>,
+        frames: Vec<Py<PyFrameRef>>,
+        on_error: &str,
+        dry_run: bool,
+        overwrite: bool,
+        output_root: Option<String>,
+        format: &str,
+        include_raw: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let policy = FetchErrorPolicy::parse(on_error).ok_or_else(|| {
+            PyValueError::new_err("on_error must be collect/continue or stop/raise")
+        })?;
+        let frames = Python::attach(|py| {
+            frames.into_iter().map(|frame| frame.borrow(py).inner.clone()).collect::<Vec<_>>()
+        });
+        let format = format.to_owned();
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let output_root = output_root
+                .map(PathBuf::from)
+                .unwrap_or_else(|| engine.config().storage.output.clone());
+            let report = engine
+                .download_dbz_to(
+                    frames,
+                    policy,
+                    dry_run,
+                    overwrite,
+                    output_root,
+                    &format,
+                    include_raw,
+                )
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
             Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
         })
     }
@@ -1470,18 +2262,26 @@ fn engine_error_to_py(error: EngineError, stage: ErrorStage) -> PyErr {
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(decode_gray_array, m)?)?;
+    m.add_function(wrap_pyfunction!(decode_gray_array_historical, m)?)?;
     m.add_class::<PyResolvedConfig>()?;
     m.add_function(wrap_pyfunction!(resolve_config, m)?)?;
     m.add_function(wrap_pyfunction!(redact_config_values_json, m)?)?;
     m.add_class::<PyQuery>()?;
     m.add_class::<PyFrameRef>()?;
     m.add_class::<PyRadarField>()?;
+    m.add_class::<PyPixelDbzField>()?;
+    m.add_class::<PyRasterResult>()?;
+    m.add_class::<PyGrayDecision>()?;
     m.add_class::<PyRadarDataset>()?;
     m.add_class::<PyDiscoveryReport>()?;
     m.add_class::<PyRawFrame>()?;
     m.add_class::<PyFetchItem>()?;
     m.add_class::<PyFetchBatchReport>()?;
     m.add_class::<PyFetchStream>()?;
+    m.add_class::<PyModeFetchItem>()?;
+    m.add_class::<PyModeFetchBatchReport>()?;
+    m.add_class::<PyModeFetchStream>()?;
     m.add_class::<PyDownloadItem>()?;
     m.add_class::<PyDownloadBatchReport>()?;
     m.add_class::<PyOperationEvents>()?;

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "mode": "live",
+  "run_at": "2026-10-01T12:53:27.500967Z",
+  "radiust_version": "0.1.0",
+  "python_version": "3.12.7",
+  "result": {
+    "status": "failed",
+    "stations": [
+      {
+        "station": "TWN/RCHL",
+        "status": "failed",
+        "discovery_statuses": [
+          "upstream_failed"
+        ],
+        "discovery_errors": [
+          {
+            "station": "TWN/RCHL",
+            "code": "catalog_unavailable",
+            "stage": "discover",
+            "retryable": true,
+            "message": "provider catalog is unavailable"
+          }
+        ],
+        "reason": "standard SDK did not return exactly one current frame"
+      },
+      {
+        "station": "JPN/ISHI",
+        "status": "failed",
+        "discovery_statuses": [
+          "upstream_failed"
+        ],
+        "discovery_errors": [
+          {
+            "station": "JPN/ISHI",
+            "code": "catalog_unavailable",
+            "stage": "discover",
+            "retryable": true,
+            "message": "provider catalog is unavailable"
+          }
+        ],
+        "reason": "standard SDK did not return exactly one current frame"
+      },
+      {
+        "station": "PHL/SUBI",
+        "status": "failed",
+        "discovery_statuses": [
+          "upstream_failed"
+        ],
+        "discovery_errors": [
+          {
+            "station": "PHL/SUBI",
+            "code": "catalog_unavailable",
+            "stage": "discover",
+            "retryable": true,
+            "message": "provider catalog is unavailable"
+          }
+        ],
+        "reason": "standard SDK did not return exactly one current frame"
+      }
+    ],
+    "online_security": "standard rust-backed SDK; system TLS validation; no insecure override"
+  }
+}

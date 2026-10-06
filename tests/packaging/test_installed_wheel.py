@@ -102,7 +102,6 @@ assert rdcap.metadata["last_live_validation_attempt"]["status"] == "blocked_befo
 for module in (
     "radiust.batch",
     "radiust.cache",
-    "radiust.decoders",
     "radiust.discovery",
     "radiust.display",
     "radiust.field",
@@ -128,6 +127,19 @@ for module in (
     "radiust.cli.reporting",
 ):
     assert importlib.util.find_spec(module) is None, f"legacy Python runtime module leaked: {module}"
+assert importlib.util.find_spec("radiust.decoders") is not None
+assert importlib.util.find_spec("radiust.decoders.gray_dbz") is not None
+assert importlib.util.find_spec("radiust.decoders.exact") is None
+assert importlib.util.find_spec("radiust.decoders.nearest") is None
+from radiust.decoders import GrayDbzDecoder, LegacyGrayDbzDecoder
+
+assert callable(GrayDbzDecoder) and callable(LegacyGrayDbzDecoder)
+if mode == "science":
+    import numpy as np
+
+    values, quality = GrayDbzDecoder().decode(np.asarray([[0, 224]], dtype=np.uint8))
+    assert values.tolist() == [[0.0, 70.0]]
+    assert quality.shape == values.shape
 assert importlib.util.find_spec("radiust.outputs.zarr") is not None
 from radiust.outputs.zarr import write_zarr
 

@@ -24,6 +24,22 @@ The native CLI uses configured `output.format` when `download --format` is omitt
 
 Rust processing identity includes separate decoder, source-resource, and encoder versions in the processing hash. A semantic change to any of those rules requires incrementing its version so a future Rust commit path cannot mistake an old output for the current result. This rule is used by the native local commit path; migration acceptance remains partial until every required format and remote provider path is covered.
 
+## Gray and dBZ names
+
+Active image display code and user documentation use `gray`; scientific reflectivity values use `dbz` and report units `dBZ`. The canonical local declaration is `gray-dbz-v1`: visible integer codes 0–224 map by `gray × 5/16`, while transparent pixels remain missing and time/geolocation stay unknown. Existing source display rules are referenced from `python/radiust/resources/gray/`; the historical `legacy_display` resource directory, serialized rule fields, wire version, config hashes, and Python `LegacyGrayDbzDecoder` behavior are preserved for compatibility. The CLI's source-only `--legacy-display` remains an alias for `--gray`; use `--gray` in new commands. Generic scientific decoding continues to report its actual variable and units.
+
+旧脚本将 `--legacy-display` 改为 `--gray`；读取反射率数值时显式使用 `--dbz`。来源操作先检查 raw 和 gray，再按已通过的逐路径规则请求 dBZ：
+
+```bash
+radiust cat nz --product rain --latest --raw
+radiust cat nz --product rain --latest --gray
+radiust cat nz --product rain --latest --dbz
+radiust cat --file ./frames.gif --dbz --frame-index 0
+radiust cat --file ./reflectivity.nc --dbz --variable reflectivity
+```
+
+本地图片需调用方声明 `gray-dbz-v1`；多帧输入需 `--frame-index`，没有选择时拒绝歧义。NetCDF/Zarr Pixel dBZ 可经 `read_dbz()` 读回并由 `write()` 保存；当前数值文件身份来自实际文件摘要和变量/时次选择，保存时无需伪造来源帧。来源 `download --dbz --raw` 在同一次获取中附带原始 artifact，`--raw-only` 不能与 dBZ 解码组合。未指定模式或变量不是反射率时，generic 路径和真实单位保持旧行为。JSON Envelope v1 添加 `mode_schema_version: 1` / `mode_info`，既有字段与旧 `--legacy-display` 兼容入口保留。
+
 The structural audit can be rerun without network access:
 
 ```bash

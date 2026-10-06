@@ -9,6 +9,7 @@ __all__ = [
     "RadiustError", "ConfigError", "MissingDependencyError", "UnsupportedQueryError",
     "AsyncContextError", "NoDataError", "StaleFrameError", "AmbiguousFrameError",
     "AuthenticationError", "TransportError", "IntegrityError", "ResourceLimitError",
+    "OperationCancelled",
     "UnknownColorError", "DecodeError", "GridError", "GeoreferencingError",
     "OutputConflict", "OutputLockedError", "StorageError", "CommitOutcomeUnknown", "DuplicateSourceError",
     "BatchError", "ErrorContext", "error_from_exception",
@@ -120,6 +121,11 @@ class IntegrityError(RadiustError):
 class ResourceLimitError(RadiustError):
     code = "resource_limit"
     default_stage = "validate"
+
+
+class OperationCancelled(RadiustError):
+    code = "cancelled"
+    default_stage = "process"
 
 
 class UnknownColorError(RadiustError):

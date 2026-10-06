@@ -1,4 +1,52 @@
 <!--
+SYNC IMPACT REPORT — 2026-10-06
+==============================
+Version change: 1.2.0 → 1.3.0
+Bump rationale: MINOR — 纳入用户确认的公众定位、本地直连、来源政策与长期发展方向。
+
+Changes this revision:
+  - Added public PHILOSOPHY, ROADMAP, DATA_SOURCES and TRADEMARKS documents.
+  - Added C-16–C-20 and unnumbered planned product themes; no new spec IDs.
+  - Clarified Q-01's approved product direction and Q-08's remaining implementation decisions.
+  - Preserved 001–004 lifecycle snapshots, tasks, evidence gaps and earlier reports.
+
+Notes: Product direction approved in the current conversation. This is documentation
+implementation, not Desktop, forecast, fallback or cross-source mosaic delivery.
+The placeholder Spec Kit constitution remains a separate governance question.
+The current catalog has 25 source IDs including RDCAP; the two Brazilian migration
+records are not native registrations. No new live capability is asserted.
+-->
+
+<!-- Historical amendment report — 1.2.0; retained verbatim. -->
+<!--
+SYNC IMPACT REPORT
+==================
+Version change: 1.1.0 → 1.2.0
+Bump rationale: MINOR — 新增待确认的 004 报告计数契约问题 Q-10，并更新 004 生命周期；目标、范围、决策与依赖没有新增或反转。
+
+Changes this revision:
+  - Reconciled all four project specs against their existing artifacts.
+  - Status: 004 specced → in-progress; 55/58 tasks checked, with T028,
+    T053 and T058 still open.
+  - Reconfirmed 001–003 as in-progress, with their existing open tasks.
+  - Added current 004 offline delivery and per-country live evidence pointers.
+  - Annotated superseded 004 status/evidence prose as historical; preserved
+    prior reports, scope, decisions, dependencies and Q-01–Q-09.
+  - Added Q-10 for the documented target-versus-frame-item count ambiguity.
+
+Specs affected: 001–004 (evidence reconciliation); 004 (lifecycle transition).
+Open questions added/resolved: added Q-10; resolved none; Q-06/Q-09 clarified.
+
+Notes: Repository snapshot 2026-10-02; referenced implementation and live
+evidence retains its original dates. Four read-only subagents collected the
+project spec artifacts. Only this roadmap is amended. Existing spec/plan/tasks,
+validation records and user files are preserved. No product tests or new live
+provider checks are part of this documentation amendment. Incomplete mandatory
+live acceptance prevents promotion of 004 to implemented/verified.
+-->
+
+<!-- Historical amendment report — 1.1.0; retained verbatim. -->
+<!--
 SYNC IMPACT REPORT
 ==================
 Version change: 1.0.0 → 1.1.0
@@ -55,11 +103,15 @@ not a release, merge or deployment.
 
 # radiust — Spec Roadmap
 
-本台账统一记录 radiust 的项目目标、范围、关键决策、依赖与生命周期。依据为截至 **2026-09-30** 的仓库 artifacts；不新增交付日期、未写规格或未经证实的依赖。已写规格的历史设计与后续迁移决定均保留出处。
+本台账统一记录 radiust 的项目目标、范围、关键决策、依赖与生命周期。初始化依据为截至 **2026-09-30** 的仓库 artifacts，后续增补分别标明日期；不新增交付日期或未经证实的依赖。已写规格的历史设计与后续迁移决定均保留出处。
 
 **2026-10-01 增补（1.1.0）：** 下文 2026-09-30 快照及三项生命周期判断为初始化记录。此次登记已完成规格与设计、尚未实施的 004；项目台账现有四项，001–003 保持原状态与验收缺口。004 仅扩展近期三国单站支持；不重定义已有迁移、性能或发布门槛。
 
-治理入口：[constitution](constitution.md) 目前仍为占位模板，不能当作已批准原则；未发现项目 `docs/adr/`、配置 globs 匹配的 PRD 或额外项目交接记忆。下列决定来自已有 spec/plan/研究和验收记录，不冒称正式 ADR 或新批准的宪章。
+**2026-10-02 全项目核对（1.2.0，当前快照）：** 项目 Roadmap 已存在，因此在原台账上增补。001–004 的目标、范围、技术决定与明示依赖继续纳入同一台账；四项生命周期均为 `in-progress`。001–003 的任务勾选与开放项保持原统计；004 已完成 55/58 项任务，原生实现与离线验收已有记录，三国在线获取/科学读回及最终 gate 仍开放。下文标为历史的 004 `specced`、0/58 和“尚未实施”描述保留其原快照含义，当前判断以本次增补为准。无法确定的关系继续列为待确认；新增的计数契约问题见 Q-10。
+
+**2026-10-06 增补（1.3.0）：** 用户确认的公众定位、默认本地直连、官方优先与第三方互补、观测先行和许可边界已落地为[项目理念](../../PHILOSOPHY.md)、[公众发展路线](../../ROADMAP.md)、[来源政策](../../DATA_SOURCES.md)和[品牌规则](../../TRADEMARKS.md)。Desktop 与持续覆盖扩展是已确认的方向；预测与跨来源拼图保留扩展空间。以下 001–004 生命周期与任务数继续作为各自日期的历史快照，不由本次文档变更重新验收。
+
+治理入口：[constitution](constitution.md) 目前仍为占位模板，不能当作已批准宪章。2026-10-06 已确认的产品原则以[项目理念](../../PHILOSOPHY.md)为依据；正式 Spec Kit constitution 和 ADR／PRD 治理仍见 Q-01。下列决定区分既有 spec／证据和本次批准的长期方向，不追认历史实现或认证。
 
 Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **specced** · **in-progress** · **implemented** · **verified** · **deferred** · **abandoned**。
 
@@ -69,6 +121,7 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 
 ## Vision & End States
 
+- **普通公众能够独立使用公共雷达。** Desktop 承担普通用户的观测查看、时间序列播放、来源切换和状态理解；CLI、SDK 和核心库是复用基础。默认在用户设备获取、缓存和处理，不依赖 Radiust 账号或数据中转服务。先从现有来源覆盖地区起步，持续扩展国家／地区和同一区域的来源选择。依据：[2026-10-06 理念](../../PHILOSOPHY.md)、[发展路线与验收](../../ROADMAP.md)。
 - **独立的数据工具与完整迁移交接。** 从旧项目剥离雷达来源能力，提供统一目录、查询、获取、处理、预览和输出，不依赖旧业务数据库、队列或监控；全部旧实现路径，包括未启用/注释项及两条历史巴西线索，均有迁移去向或明确接受的例外。完整 v1 验收后才进入旧库归档决策。依据：[原始计划](../../plan.md)、[001 US1/US6、SC-001–SC-011](../../specs/001-radiust-v1-migration/spec.md)。
 - **可追溯的科学数据与可靠保存。** 保留有效时间、物理量/单位、质量、原生网格与处理历史；原图或旧灰度显示通过不代表科学验证通过。正式 NetCDF4、GeoTIFF、PNG、Zarr v2 和 raw 输出以完整 manifest 为完成边界，支持重跑、修复、覆盖与取消；本地和远端能力分别验收。依据：[001 数据与输出契约](../../specs/001-radiust-v1-migration/contracts/encoding.md)、[storage](../../specs/001-radiust-v1-migration/contracts/storage.md)。
 - **可理解、可自动化的 CLI。** 缺省 latest、原图单帧预览、逐目标全量状态、可读人类报告与兼容机器报告；legacy 显示按来源/产品证据启用，窄终端、管道、取消和错误仍保留完整信息。依据：[002 US1–US5](../../specs/002-cli-experience/spec.md)。
@@ -76,7 +129,7 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 
 ## Constraints & Decisions
 
-- **C-01 — 独立且有界的产品边界。** 一次运行是有界任务，周期运行交给外部调度。HTTP 服务、常驻调度器、分布式队列、全屏 TUI、watch/动画、桌面 UI/IPC/Swift 绑定未纳入现有 specs。旧生产 API、配置和业务集成不承诺兼容。依据：[001 Assumptions](../../specs/001-radiust-v1-migration/spec.md)、[002 Assumptions](../../specs/002-cli-experience/spec.md)、[003 FR-013](../../specs/003-rust-core-performance/spec.md)。
+- **C-01 — 独立且有界的产品边界。** 一次运行是有界任务，周期运行交给外部调度。HTTP 服务、常驻调度器、分布式队列、全屏 TUI、watch/动画、桌面 UI/IPC/Swift 绑定未纳入现有 specs。旧生产 API、配置和业务集成不承诺兼容。依据：[001 Assumptions](../../specs/001-radiust-v1-migration/spec.md)、[002 Assumptions](../../specs/002-cli-experience/spec.md)、[003 FR-013](../../specs/003-rust-core-performance/spec.md)。**2026-10-06 澄清：** 此为已有规格的范围限制；后续 Desktop 和时间序列播放已纳入长期方向，不据此扩写或重验已有规格。
 - **C-02 — 架构决策有明确演进。** 历史设计是 Python 科学/来源/编排 + Rust I/O（[根 plan](../../plan.md)、[001 plan](../../specs/001-radiust-v1-migration/plan.md)）；003 明确变更为 Rust 独占主要业务，CLI/PyO3 共用 Engine，Python 保留薄绑定及显式 xarray/Zarr 互操作（[003 core/SDK](../../specs/003-rust-core-performance/contracts/core-sdk.md)）。002 的 Python Click/worker 布局是迁移前设计，不作为当前模块归属要求；保留其行为与证据基线，不删除原设计。
 - **C-03 — 范围计数区分历史迁移与原生目录。** 001 盘点为 24 条 HEAD 实现路径 + 2 条历史线索，不能由文件数推断逻辑来源数；003 冻结 24 个内置 ID、26 个发现目标，明确排除未登记的 `br_cptec`/`br_sipam` 于本轮原生覆盖率。历史来源仍在 001 交接范围，未来是否登记原生目录待确认（Q-03）。`jma` 是原始计划示例，未纳入已有迁移清单。依据：[001 inventory](../../specs/001-radiust-v1-migration/source-inventory.md)、[003 research §2](../../specs/003-rust-core-performance/research.md)。
 - **C-04 — 时间与身份依赖事实。** 使用有时区 UTC、`[start,end)` 区间、精确 at、分组 latest 与单帧消歧；不能用获取时间代替有效时间。身份区分 logical/revision/processing/output，秘密、签名 URL、临时路径和并发设置不影响稳定身份。语义变化提升 decoder/resource/encoder 版本。依据：[001 data model](../../specs/001-radiust-v1-migration/data-model.md)、[003 persistence](../../specs/003-rust-core-performance/contracts/persistence.md)。
@@ -93,6 +146,12 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **C-14 — RDCAP 科学解释有明确版本与边界。** 首版仅解读已验证的 CSR、数值变换及 EPSG:4326 左上角注册组合；保留负值/弱回波和当前帧几何。`9999` 的范围圆/站心角色是实测推断，版本化排除为 NaN + quality 65（missing | 新增 bit6 `source_annotation`），保留原始值和推断依据；旧 bits 0–5 不重定义，Q-05 的历史冲突仍开放。默认科学预览/PNG 共用 RDCAP 离散色标，低于 5 dBZ 透明但科学值不丢失；未验证头/标记模式拒绝科学解释。不推断高度、QC 或雨强。依据：[004 FR-012–017/022](../../specs/004-rdcap-single-station/spec.md)、[R07–R09](../../specs/004-rdcap-single-station/research.md)、[科学与持久化合同](../../specs/004-rdcap-single-station/contracts/science-persistence.md)。
 - **C-15 — RDCAP 在线原始获取与离线解码分层验收。** 生产获取使用共用 Rust Engine 的原生 HTTP 和正常 TLS；每张票据一次文件 GET，同帧有界刷新，首读原始响应与确定性绑定保存后复用，票据不参与身份、不公开。不依赖人工 Orca、复制票据或新增浏览器回退。浏览器 CSV/重建 envelope 只证明内容与离线回放；T028/T053 要求三国各当前有资料站经标准入口取得原始响应并完成科学读回，任一国家缺证据保持该国 live 未验收和最终 gate 开放。不能以 skip/另一国家/离线通过补齐。依据：[004 FR-007–011/020–024、SC-003](../../specs/004-rdcap-single-station/spec.md)、[R05/R06/R10](../../specs/004-rdcap-single-station/research.md)、[T028/T053/T058](../../specs/004-rdcap-single-station/tasks.md)。
 
+- **C-16 — 公众优先、观测先行。** 面向普通公众的 Desktop 是产品入口目标，CLI／SDK／核心库提供复用基础。当前打通公共观测；稳定观测接口保留时间、坐标、物理量、单位、缺测和处理记录，未来允许开源、光流及用户自有模型。模型结果须区分预测与观测；当前不建设完整模型插件系统。依据：[理念](../../PHILOSOPHY.md)、[接口方向](../../ROADMAP.md#扩展接口与边界)。
+- **C-17 — 默认用户设备直连。** 本地获取、缓存、处理和展示，核心观测无需 Radiust 账号或必经的数据服务；项目服务停运不应使已安装工具失去上游连接能力。来源凭据、访问条件和请求预算继续遵守。用户配置的远端输出不变成强制数据中转。当前 CLI／SDK 网络 opt-in 不因此变更。依据：[理念](../../PHILOSOPHY.md#用户掌握连接)、[架构约束](../../docs/architecture.md#后续-desktop-与扩展的架构约束)。
+- **C-18 — 官方优先、透明的多源互补。** 接受可靠且可追溯的第三方产品，区分观测机构、产品提供方和渠道。Desktop 提供默认选择、手动切换及可见的故障回退；缺测、过期、故障与无雨可区分。Radiust 跨来源拼图后续再做，已有提供方合成产品和瓦片组合不因此被排除。依据：[来源政策](../../DATA_SOURCES.md)、[Desktop 目标](../../ROADMAP.md#第一阶段-desktop-目标)。
+- **C-19 — 软件、数据与品牌边界分别说明。** 保留标准 Apache-2.0，接受商业使用；公众持续拥有开放且可独立运行的选择。软件许可不替代逐源数据授权，不为下游产品背书。署名、商用、再分发等未知项保留未确认；已知限制与仅用于验证的许可分别记录，不能保证免于诉讼。依据：[来源权限台账](../../DATA_SOURCES.md#逐源授权与署名台账)、[品牌规则](../../TRADEMARKS.md)、[许可证](../../LICENSE)。
+- **C-20 — 覆盖持续扩展、声明受能力与证据约束。** 第一阶段使用现有来源覆盖地区，长期新增国家／地区及已有地区补充来源；适配器数量不等于可用覆盖。当前目录 25 来源含 RDCAP，两条巴西历史记录未原生注册；C-03／C-13 的冻结基线与验收义务保留。Desktop、预测、拼图的具体实现与平台矩阵另行规格化，不预设日期或自动承诺支持。依据：[发展路线](../../ROADMAP.md)、[当前目录](../../python/radiust/resources/catalog.json)。
+
 ## Planned Specs
 
 此节同时纳入已有 specs，标题沿用模板 ledger 名称。以下统计是现存 checkbox 的数量，不是产品完成率；未将历史页头 Draft、文档任务或登记 blocked 的任务当作整体完成。
@@ -102,7 +161,7 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 | 001 | `in-progress` | 148 / 154 | T011、T038、T053、T065、T084、T085 | 真实来源科学/时间/几何、存储 provider、v1 交接 |
 | 002 | `in-progress` | 66 / 67 | T039 | PH 同帧合法 raw/旧 gray；部分显示路径仍 blocked |
 | 003 | `in-progress` | 80 / 84 | T023、T034、T041、T082 | 来源/显示科学证据、真实存储、最终迁移 gate |
-| 004 | `specced` | 0 / 58 | T001–T058 | 原生三国 HTTP 原始获取与在线科学读回；离线科学/四格式/入口回归待实施 |
+| 004 | `in-progress` | 55 / 58 | T028、T053、T058 | 三国标准入口在线 raw 获取、科学成果读回与最终验收；离线实现及对应矩阵已有通过记录 |
 
 003 现存编号跨度为 T001–T085，缺独立 T035 条目；其 NetCDF 内容出现在 T034 进展中。没有证据确认这是有意合并还是编号遗漏，列 Q-06，统计只按实际条目。
 
@@ -120,6 +179,7 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **Status evidence:** [tasks](../../specs/001-radiust-v1-migration/tasks.md) 148 checked/6 open；[release-readiness：2026-09-30 recheck](../../migration/release-readiness.md) 明示 `ready_for_v1=false`，发布与旧库归档仍受阻；[迁移文档](../../docs/migration.md) 亦明确迁移未关闭。spec/plan 页头记录的是早期规划状态，不能覆盖后续证据。
 - **Remaining evidence:** T011/T038 为 MY canonical raw/许可/有效时间/原生几何；T053/T065 为 SIDARMA 等代表及更广科学证据；T084/T085 为真实 AWS/S3-compatible/OSS 与完整存储验收。001 六类基准仍只有部分 canonical 输入；已接受 UK 退役例外、终端 CI/PTY 替代路径和真实 provider 延期分别留证，不能推广为全部来源例外或完整产品验收。
 - **Notes:** 003 改写实现归属不等于取消本 spec 的全量迁移结果，也不将 003 的原生性能基准计作 001 缺失的六类真实来源基准。继续关闭现有任务，不在此重写 spec/plan/tasks。
+- **2026-10-02 evidence recheck:** 只读收集确认上述 148/154 和六项开放任务。[SIDARMA blocker](../../migration/blockers/id_sidarma.md)已记录 2026-09-30 获得 JAK canonical raw，不能继续把旧“无 key/raw”当当前事实；palette、参考科学值/质量、原生像元几何和更广覆盖仍缺，T053/T065 保持开放。[release-readiness](../../migration/release-readiness.md)及 [exceptions](../../migration/exceptions.json)仍有未接受的来源/几何/历史例外；盘点完整、本地格式或已接受终端替代路径分别解释，完整 v1 结果未闭合。
 
 ### 002 — CLI 行为修复与终端体验优化  [status: in-progress]
 
@@ -135,6 +195,7 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **Status evidence:** [tasks](../../specs/002-cli-experience/tasks.md) 66 checked/1 open（T039）；[验收日志末尾用户旧快照回放与调查 follow-up](../../validation-results/002-cli-experience.md) 记录 15/0/8、PH 缺配对输入，用户已分别确认三份报告可在 30 秒读懂；[TODO](../../TODO.md) 保留灰度迁移未完成。部分回归曾因环境/旧 wheel 失败，不能把后续 003 回归泛化为此 spec 的全部原始验收通过。
 - **Remaining evidence:** T039 名义批次 NZ/PH/SG，记录的实际缺口为 PH 无合法同帧 raw + old gray；不能重开已通过 NZ/SG，也不能因只有 PH 缺项而将该任务或整个 US5 标完成。其余 blocked 路径依据用户已确定范围保留，不自动启用转换；待确认事项见 Q-02/Q-04。
 - **Notes:** [002 quickstart](../../specs/002-cli-experience/quickstart.md) 的“25 路径全 blocked”与早期计划不是当前证据快照。SC-008/checklist 仍写 5 类瓦片，与 FR-019/contract/任务中 OpenSnow/WU 排除冲突；本 roadmap 保留明确范围记录并列待确认，不修改原文。
+- **2026-10-02 evidence recheck:** 只读收集确认 66/67 和 T039（实际剩余 PH）开放。[legacy-display](../../validation-results/legacy-display.json)保持 15 passed/0 difference_pending/8 blocked；[实施日志最后 follow-up](../../validation-results/002-cli-experience.md)记录完整回归曾有 631 passed/25 skipped/2 failed/2 setup errors，涉及受限 loopback 与 wheel 安装环境，后续 82 项定向通过不等同于完整验收。已勾选 T066 和旧 TODO 的未勾选项均不能独立推断当前整体通过；003 的后续精确 wheel 回归按其覆盖范围单列。
 
 ### 003 — Rust 核心迁移与性能优化  [status: in-progress]
 
@@ -150,8 +211,9 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **Status evidence:** [tasks](../../specs/003-rust-core-performance/tasks.md) 80 checked/84 现存条目、4 open；[验收报告 continuation/streaming retry 更新](../../validation-results/rust-migration-acceptance.md) 和 [根 migration.md](../../migration.md) 明示整体 incomplete；目录/原生闭环、性能与 wheel 局部 gate 已完成，不能提升为 implemented/verified。
 - **Remaining evidence:** T023 为来源/瓦片与历史显示配对证据；T034 为更广来源科学/geometry/datum/projection（含未支持的 TW EPSG:3821→EPSG:4326）；T041 的 RemoteStore 协议和 loopback MinIO 已有实现/合同，但真实 AWS/S3-compatible/OSS 尚未验收；T082 受上述必需项阻塞。实际 macOS 11 主机/GitHub source-build 未运行是单列平台覆盖限制，不把本机 macOS 26 上的 wheel 审计改写为全平台通过。
 - **Notes:** 最新记录显示 loopback/离线 SC-003–006 的 30 对测量通过；ANSI 首帧测的是 PTY 收齐输出，不是终端 paint 或公网 RTT。这不关闭来源与真实 provider gate。旧性能数字、早期“23 adapter/PH 缺实现/基线未完成”由验收日志后续明确 supersedes，保留它们的历史性质，不重复当作当前新缺口。
+- **2026-10-02 evidence recheck:** 只读收集确认 80/84 和 T023/T034/T041/T082 开放。[acceptance 最后 remote streaming retry 更新](../../validation-results/rust-migration-acceptance.md)记录 268 core tests passed/1 ignored、精确当前 wheel 独立四格式读回和 Python 283 passed/24 opt-in skips；30 对场景与性能结论有明确输入和测量边界。上述是已有局部证据，不补齐来源配对、广泛科学/投影或真实 AWS/S3-compatible/OSS 验收，也不证明实际 macOS 11 host/GitHub source-build。
 
-### 004 — RDCAP 台湾、日本、菲律宾单站雷达支持  [status: specced]
+### 004 — RDCAP 台湾、日本、菲律宾单站雷达支持  [status: in-progress]
 
 - **Description:** 将中央气象署亚太雷达资料中心 RDCAP 的台湾、日本、菲律宾近期单站回波作为独立来源接入现有原生 CLI 和同步/异步 SDK，提供站点选择、真实时间线、自动原始获取、可信 dBZ 网格和现有输出工作流。
 - **Outcome:** [004 SC-001–SC-008](../../specs/004-rdcap-single-station/spec.md) 全部留有可复查证据：48 唯一身份及冲突可见，秒/毫秒实际时间与 latest/at/range 匹配正确；三国各当前有资料站通过标准入口自动发现→原始获取→解码→至少一个科学成果独立读回；三国样本数值误差 ≤0.01 dBZ、几何误差 ≤原生格距×1e-6，花莲八参考点符合基准；标记/缺测/弱回波不混淆，四格式与重复复用、异常/取消/部分失败和 CLI/同步/异步等价通过；TW/TW-HTTP/PH 保持既有行为。离线通过不能替代任何国家的在线门槛。
@@ -162,24 +224,45 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **Addresses:** [RDCAP 分析报告](../../docs/rdcap-single-station-analysis.md)及 [004 Input/用户场景](../../specs/004-rdcap-single-station/spec.md)。未发现 PRD，不将研究报告冒称 PRD。
 - **Spec dir:** [specs/004-rdcap-single-station/](../../specs/004-rdcap-single-station/)。
 - **Key decisions:** 一个独立来源/产品，公开 country/code 与安全输出分量分开；动态目录 hook 缺省不影响其他来源；原生 HTTP 单次 GET、最多三张票据且刷新仍匹配原 key，实际请求计入共享期限；原始响应不重编码，绑定确定性且无秘密；CSR 科学解释、几何、annotation/palette/decoder 均版本化，未验证模式拒绝；新增薄 discover_report/replay_raw_manifest 及可选安全错误 code，公开机器 schema/既有退出码保持。
-- **Status evidence:** [requirements checklist](../../specs/004-rdcap-single-station/checklists/requirements.md) 16/16 证明规格质量；[plan](../../specs/004-rdcap-single-station/plan.md) Phase 0/1 设计完成，[tasks](../../specs/004-rdcap-single-station/tasks.md) 0 checked/58 open 且明示所有任务未实施。因此登记 `specced`，已有研究样本不作为 adapter 实施或 live 验收证据。spec/plan/tasks 的 `main` 页头为早期分支记录，当前 prerequisites 解析为 `004-rdcap-single-station`，不据分支名判断实施已开始。
-- **Remaining evidence:** T018 目录/时间回放；T027 raw 离线完整性；T028 三国标准入口 live raw；T041 离线科学/四输出；T052 离线异常/入口矩阵；T053 三国在线科学读回；T055/T056 安装/旧来源回归；T057 逐国能力实证更新；T058 全部范围最终 gate。浏览器外完整文件获取曾超时，正常 TLS 原生路径尚未验收（Q-09），不能预填通过。
-- **Notes:** 按 [tasks Dependencies & Execution Order](../../specs/004-rdcap-single-station/tasks.md) 推进：目录→raw 离线接口，科学可用已有内容样本独立进行；T028 受限不阻止离线工作，但 T053/T058 必须保留开放。实施实际开始后再按证据转为 `in-progress`，规格/设计/研究完成不足以提前迁移状态。
+- **Historical status evidence（1.1.0 登记快照，已由下项更新）:** [requirements checklist](../../specs/004-rdcap-single-station/checklists/requirements.md) 16/16 证明规格质量；[plan](../../specs/004-rdcap-single-station/plan.md) Phase 0/1 设计完成，[tasks](../../specs/004-rdcap-single-station/tasks.md) 0 checked/58 open 且明示所有任务未实施。因此登记 `specced`，已有研究样本不作为 adapter 实施或 live 验收证据。spec/plan/tasks 的 `main` 页头为早期分支记录，当前 prerequisites 解析为 `004-rdcap-single-station`，不据分支名判断实施已开始。
+- **Status evidence（2026-10-02 核对）:** [tasks](../../specs/004-rdcap-single-station/tasks.md) 实际为 55 checked/58 条目；[验证台账 SC-001–SC-008 和更新记录](../../validation-results/004-rdcap-single-station.md)及 [2026-10-01 实施后 review](../../specs/004-rdcap-single-station/roadmap-reviews/debrief-20261001T142659Z.md)明确记录原生目录/时间发现、raw 保存/manifest 离线 replay、受限 CSR 解码、quality bit6、四格式、CLI/同步异步 SDK、批量预算/取消、同 ref 跨入口等价、旧来源回归和 macOS arm64 wheel 的局部通过证据。SC-003 三国在线链路未通过，T028/T053/T058 未完成，生命周期更新为 `in-progress`。重建内容 fixture、loopback 与安装检查均按各自证据范围解释。
+- **Historical remaining evidence（1.1.0）:** T018 目录/时间回放；T027 raw 离线完整性；T028 三国标准入口 live raw；T041 离线科学/四输出；T052 离线异常/入口矩阵；T053 三国在线科学读回；T055/T056 安装/旧来源回归；T057 逐国能力实证更新；T058 全部范围最终 gate。浏览器外完整文件获取曾超时，正常 TLS 原生路径尚未验收（Q-09），不能预填通过。
+- **Remaining evidence（当前）:** T028 要求 TWN/JPN/PHL 各一站经标准入口、正常 TLS 获得真实原始响应；T053 要求三国在线科学成果独立读回；T058 依赖全部必需验收闭合。2026-10-01 的 TWN/RCHL、JPN/ISHI、PHL/SUBI 标准 SDK 尝试均在 discovery 返回 retryable `catalog_unavailable`，没有 file GET 或在线 raw/科学读回，逐国 live 能力仍 `unverified`。不从安全错误分类猜测根因或恢复日期（Q-09）。
+- **Historical notes（1.1.0）:** 按 [tasks Dependencies & Execution Order](../../specs/004-rdcap-single-station/tasks.md) 推进：目录→raw 离线接口，科学可用已有内容样本独立进行；T028 受限不阻止离线工作，但 T053/T058 必须保留开放。实施实际开始后再按证据转为 `in-progress`，规格/设计/研究完成不足以提前迁移状态。
+- **Notes（当前）:** [验证台账早期三国样本表](../../validation-results/004-rdcap-single-station.md)仍写“standard decoder 验收未验证”，其后的 SC 矩阵、更新记录和 review 已明确离线 decoder/读回通过；按有明确时间与层次的后续证据解释，早期行不覆盖后续离线结果，在线能力继续未验收。该台账记录普通 workspace Clippy 退出 0，但严格 `-D warnings` 仍因既存 warnings 不能通过，不能将“局部回归通过”扩写为所有严格检查通过。来源目录增加和局部四格式通过不关闭 001/003 的历史来源或真实远端 provider 缺口。latest/at 的逐目标计数与 range 的多帧项计数存在规范表述差异，待确认 Q-10。
+
+### 2026-10-06 确认的后续产品主题（未编号）
+
+以下登记长期方向，不创建新的 spec 编号或交付日期，也不变更 001–004 的范围与状态。`planned` 表示方向已确认，`deferred` 表示本阶段只保留扩展边界；均不表示已实施。
+
+| 主题 | 状态 | 结果与范围 | 验收／后续边界 |
+| --- | --- | --- | --- |
+| 面向公众的 Desktop | `planned` | 复用本地观测能力，查看、时间序列播放、默认来源、切换和可见回退 | [八类验收场景](../../ROADMAP.md#第一阶段验收场景)；技术栈、界面与平台矩阵待独立规格 |
+| 持续来源与地域扩展 | `planned` | 从当前覆盖起步，新增地区和已有地区的来源选择 | 按产品记录访问、权限、质量与在线证据；不以适配器数量判完成 |
+| 持续观测质量建设 | `planned` | 改善时间、几何、科学解码、状态与出处 | 复用现有证据基线，不由品牌方向豁免既有科学或 provider 验收 |
+| 预测模型集成 | `deferred` | 当前保留观测数据接口；未来支持开源、光流和用户实现 | 模型、输入、运行时间与未来有效时间独立标注；插件／运行管理待该阶段规格 |
+| 跨来源雷达拼图 | `deferred` | 保留独立来源及处理边界，后续拼接 | 几何、时次、色标、参与来源与处理历史待该阶段规格 |
 
 ## Open Questions
 
 以下 `needs-info` 是问题状态，不替代三项已能确定的 `in-progress` 生命周期；补齐证据或确认后才能修订相应关系/决定。
 
-- **Q-01 — needs-info：项目治理。** constitution 仍未填写；正式原则、ratification 和 ADR/PRD 归属未建立。现有 specs 一致说明不能评估已批准宪章。需要独立制定/确认后再核对，本次不补写或追认。
+**2026-10-02 注记：** 当前四项生命周期均可依据实施任务与记录确定为 `in-progress`；Q-01–Q-10 仍待确认或补齐证据，问题状态与生命周期分别记录。
+
+- **Q-01 — needs-info：正式项目治理。** 2026-10-06 已在[项目理念](../../PHILOSOPHY.md)落实用户批准的产品原则，产品方向不再是占位状态。Spec Kit constitution 仍未填写，其正式治理、ratification 和 ADR／PRD 归属未建立；后续整理时以这些原则为依据，不追认旧规格或补造历史验收。
 - **Q-02 — needs-info：未验收材料与例外闭合。** 001 MY/代表源科学证据、真实存储与六类 canonical 基准，002 PH 配对样本，003 T023/T034/T041 都有明确缺口；尚未有全部补齐或全范围例外接受记录。需要来源/产品级合法输入、时间/物理/几何说明、真实 provider 矩阵或明确接受的范围调整；所有权人和日期未知，不编造。保留已有局部延期/豁免，不将它们扩大。
 - **Q-03 — needs-info：历史迁移与原生目录的后续关系。** 001 包含两条 BR 历史迁移去向，003 明确不把它们算入 24 内置。是否未来注册原生 adapter、以何验收收口 001，或是否明确由 003 的哪些能力承担 001 剩余目标，当前无正式映射。保留范围差异；不写 001→003 反向硬依赖或“003 取代全部 001/002”。
 - **Q-04 — needs-info：002 内部显示契约残留。** FR-001/022 与 contracts 明确 raw 保留原图、显式 legacy；Assumptions/部分研究/tasks checkpoint 仍说默认/自动 legacy。SC-008/checklist 写 5 类瓦片，FR-019/contract/任务已排除 OpenSnow/WU 只纳入 3 类。明确后续是否只修正文案，不能依较宽旧句恢复被排除范围或自动转换。已有用户范围收敛见 [002 日志](../../validation-results/002-cli-experience.md)。
 - **Q-05 — needs-info：配置优先级与质量位冲突。** 001 FR-025/CLI 为显式 > 文件 > 环境 > 默认；003 要求保留旧优先级，但 docs SDK/CLI/installation 写显式 > 环境 > 文件 > 默认。没有明确兼容变更批准记录，需确认规范。003 data-model 把 bit 5 写作 recovered，而 001 与 docs SDK 为 bit 3 recovered、bit 5 below_detection；需按既有文件/golden 核对后确认，不能由 roadmap 重定义编码。
 - **Q-06 — needs-info：artifact 漂移与任务编号。** docs architecture 图写 23 adapter、正文 24；共享缺口写 renderer 仅 auto/text，而 docs CLI 已列五种；docs output-maintenance 仍写拒绝旧 entries、远端未串接，而 003 tasks/更新记录已有兼容 reader/RemoteStore；docs source-development 仍说旧 Python pipeline 可用，而 docs SDK/003 T083 说明已移除。003 缺独立 T035；001/002 quickstart 和 spec/plan 页头残留早期状态。需要逐项确认和单独维护，不在本次改 originals 或用旧句降级已明确完成的局部 gate。
+  - **2026-10-02 补充：** 004 plan/research/model/contracts 残留设计阶段“未实现”措辞，quickstart 的 SC-007/008 仍写完整离线矩阵待做，验证台账早期逐国表也未同步后续离线结果；后续 [SC 矩阵/更新记录](../../validation-results/004-rdcap-single-station.md)与 [debrief](../../specs/004-rdcap-single-station/roadmap-reviews/debrief-20261001T142659Z.md)已提供限定范围的新证据。002 审计文件中的 154/148/6 和 T011 等是 001 任务统计，002 自身仍为 67/66/1。文档维护/严格 lint 的处理安排未确定，本次只记录差异。
 - **Q-07 — needs-info：平台支持声明。** 001 多平台矩阵与 003 首发 macOS arm64 的作用范围已分别记录；实际 macOS 11 host 和 GitHub source-build 未运行。是否需在首发支持声明前新增这些证据或限定支持版本，现有 artifacts 未给出统一结论。保留 wheel tag、实际运行主机与验收任务范围的区别。
 - **Q-08 — undecided：后续独立 specs 与排期。** 未来桌面界面、RainViewer/Windy 新匹配算法、BMKG 新可达来源、更多 CWA 产品只出现为意图/线索或排除范围；没有独立 spec 编号、批准 scope/outcome、依赖或交付日期。暂不创建 004+ 条目；是否独立规划及顺序待用户后续决定。
   - **2026-10-01 增补：** 上述“暂不创建 004+”为 2026-09-30 历史快照，已由本次登记的独立 RDCAP 004 补充；004 并非上述桌面/新匹配算法/BMKG/更多 CWA 产品意图的自动实现。原列未来主题的独立范围、顺序及排期仍未定，不新增其他编号或日期。
+  - **2026-10-06 增补：** Desktop 的公众受众、本地直连、现有覆盖起点、多源体验及验收方向，持续来源／地区扩展，以及预测／拼图的阶段边界已由用户确认并记录为上面的未编号主题。Desktop 技术栈、具体 UI、平台矩阵、各主题独立 spec 与排期仍待后续设计；不把旧段落中的“只有意图”用于否定本次确认，也不擅自编号。
 - **Q-09 — needs-info（验收证据）：RDCAP 原生三国 HTTP 完整链路。** [004 R05](../../specs/004-rdcap-single-station/research.md) 记录浏览器三国文件/独立索引成功、浏览器外完整文件超时，尚无共用 Engine 正常 TLS 自动获取并科学读回的三国证据。由 T028/T053 留存逐国日期、build、帧身份、原始摘要与读回结果后核对关闭；若受限保留该国 live 未验收及 T058 开放。这是已定原生方案的执行/证据风险，不是未决定的技术选择；所有权人和完成日期未确定。
+  - **2026-10-02 证据增补，仍开放：** [验证台账](../../validation-results/004-rdcap-single-station.md)与 [debrief F1/F2](../../specs/004-rdcap-single-station/roadmap-reviews/debrief-20261001T142659Z.md)记录 2026-10-01 三国标准 SDK discovery 的 `catalog_unavailable`，未进入文件获取；离线交付已完成相应矩阵，live 原始/科学验收仍缺。待上游/运行条件具备后由标准入口逐国留证；恢复条件、责任人和排期无法从现有 artifacts 确定。
+- **Q-10 — needs-info：004 范围查询的报告计数规范。** [spec SC-007](../../specs/004-rdcap-single-station/spec.md)写状态计数之和等于“唯一目标总数”；[data-model 生命周期末段](../../specs/004-rdcap-single-station/data-model.md)与 [验证台账 SC-002](../../validation-results/004-rdcap-single-station.md)明确 latest/at 每 target 一项、range 可含同 target 多个 distinct frame items，counts.total 按实际 items。现有实现/回放记录可说明行为，但不足以代替规范统一确认。需确认 SC-007 的“目标”是否包含 range 帧项，或应明确两种统计单位；本台账保留两种出处，不推定隐含等价，也不修改原契约。
 
 ## Cross-Cutting Notes
 
@@ -203,7 +286,8 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **002：** 基础安全/时间规范 → raw/latest/报告 → 显示规则与合法逐路径比对、all 调度 → 文档/自动和人类验收；PH 材料缺失不阻止其他已授权工作，也不算整体完成。范围收敛按现存接受记录。
 - **003：** 冻结旧契约/30 次基线 → 独立 core → 来源/有界调度 → 处理/预览/格式 → 持久化/CLI/绑定/发布检查；最新证据显示大量局部 gates 已过，当前由 T023/T034/T041 和依赖它们的 T082 收口，无证据时不标完成。
 
-- **004：** 目录/时间→原始保存/离线绑定→科学/四格式→批量/CLI/同步异步→安装与旧来源回归；离线可独立推进，T028/T053 的三国正常 TLS 在线链路分别留证，T058 依赖全部必需门槛。当前尚未实施（0/58）。
+- **004（1.1.0 历史快照）：** 目录/时间→原始保存/离线绑定→科学/四格式→批量/CLI/同步异步→安装与旧来源回归；离线可独立推进，T028/T053 的三国正常 TLS 在线链路分别留证，T058 依赖全部必需门槛。当前尚未实施（0/58）。
+  - **2026-10-02 当前推进依据：** 离线实现与相应验收已有证据，55/58 checked；剩余顺序为逐国标准入口 T028 raw 获取 → T053 在线科学/独立读回 → T058 全范围 gate。来源可达性只阻塞相应在线门槛，当前没有全部通过的记录。
 
 ### 读取范围与证据索引
 
@@ -211,12 +295,15 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 
 **2026-10-01 增补读取范围：** 004 spec/plan/research/tasks、科学与持久化合同、目录/SDK/协议相关合同及 requirements checklist；研究报告与实测目录为既有来源指针。本次不重新验收 001–003，不把初始化时的文件数量当作当前仓库总量。
 
+**2026-10-02 全项目读取与保存边界：** 四个只读子代理分别收集 001–004 全部 artifacts，项目 `specs/` 现有 **44 份 Markdown**（001/002/003/004 分别为 12/10/10/12，含 004 的 brief/debrief），主代理核对配置、占位 constitution、现有 Roadmap/sync、根计划/迁移上下文、任务统计和依赖出处后汇总。未发现项目 ADR、匹配 PRD 或额外交接记忆；扩展自身的 specs/示例 Roadmap 继续排除。以原文件内容摘要核对既有 spec/plan/tasks 保留原样，引用已有验证而不重新运行产品或在线验收。
+
 | 材料 | 用途 |
 | --- | --- |
 | [001 artifacts](../../specs/001-radiust-v1-migration/) | 全量迁移目标、M0–M4、科学/存储/SDK/CLI 原始基线及任务 |
 | [002 artifacts](../../specs/002-cli-experience/) | CLI 行为、显示规则/证据、all deadline、安全布局与验收 |
 | [003 artifacts](../../specs/003-rust-core-performance/) | 原生核心范围、明确兼容变更、性能/持久化/平台 gate 与任务 |
-| [004 artifacts](../../specs/004-rdcap-single-station/)、[RDCAP 分析](../../docs/rdcap-single-station-analysis.md)、[研究资料](../../validation-results/rdcap-analysis/) | 三国近期单站范围、独立来源/动态目录、原始绑定/科学/显示设计与 58 项未实施任务；研究样本不替代 live 验收 |
+| [004 artifacts](../../specs/004-rdcap-single-station/)、[RDCAP 分析](../../docs/rdcap-single-station-analysis.md)、[研究资料](../../validation-results/rdcap-analysis/) | 三国近期单站范围、独立来源/动态目录及原始绑定/科学/显示设计；1.1.0 的“58 项未实施”是历史快照，当前 55/58 checked；研究样本不替代 live 验收 |
+| [004 验证台账](../../validation-results/004-rdcap-single-station.md)、[004 实施后 review](../../specs/004-rdcap-single-station/roadmap-reviews/debrief-20261001T142659Z.md) | 当前离线交付及入口/预算/取消/安装/旧来源回归证据，三国在线失败和 T028/T053/T058 缺口；支持 specced → in-progress |
 | [原始计划](../../plan.md)、[原生迁移计划](../../migration.md) | 产品目标与架构/交付决策演进 |
 | [architecture](../../docs/architecture.md)、[cli](../../docs/cli.md)、[python-sdk](../../docs/python-sdk.md) | 当前实现边界、命令与 SDK；与原契约冲突处列 Q-05/Q-06 |
 | [installation](../../docs/installation.md)、[source-development](../../docs/source-development.md)、[output-maintenance](../../docs/output-maintenance.md) | 包/平台、来源接入、缓存与正式输出维护边界 |
@@ -224,9 +311,10 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 | [tmd-source](../../docs/tmd-source.md)、[cwa-radar-products](../../docs/cwa-radar-products.md) | TMD printed-time/OCR、过期事实；TW numeric/image 不同产品与几何证据 |
 | [v1 release-readiness](../../migration/release-readiness.md)、[002 实施日志](../../validation-results/002-cli-experience.md)、[003 acceptance](../../validation-results/rust-migration-acceptance.md)、[003 US1 matrix](../../validation-results/rust-migration-us1-matrix.md) | 生命周期和缺项依据，优先采用文中明确 supersedes 的后续记录 |
 | [README](../../README.md)、[TODO](../../TODO.md)、[constitution](constitution.md) | 补充历史状态/已确认行为与治理缺口；不据陈旧 checkbox 或占位符伪造状态 |
+| [PHILOSOPHY](../../PHILOSOPHY.md)、[公众 ROADMAP](../../ROADMAP.md)、[DATA_SOURCES](../../DATA_SOURCES.md)、[TRADEMARKS](../../TRADEMARKS.md) | 2026-10-06 已确认的品牌理念、长期路线、逐源政策和品牌边界；未来能力与当前证据分别说明 |
 
-Roadmap 的确认只批准这份项目台账；来源真实性、例外接受、平台/provider 验收、发布或旧库归档仍需各自证据。本次不运行产品、性能、网络、CI 或发布动作，不修改已有 spec、plan、tasks、docs 或 constitution。
+历史 1.0.0／1.1.0／1.2.0 修订登记当时的规格与证据。本次 1.3.0 同步用户批准的产品方向及对应文档，不实现 Desktop、预测或拼图，不变更已有 spec／plan／tasks 或 constitution。来源真实性、例外接受、平台／provider 验收、发布或旧库归档仍需各自证据。
 
 ---
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-10-01
+**Version**: 1.3.0 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-10-06

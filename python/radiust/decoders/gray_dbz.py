@@ -1,58 +1,92 @@
-"""Decode the grayscale reflectivity encoding used by the legacy scraper."""
+"""Thin Rust-backed adapters for canonical and historical gray decoding."""
 
 from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
 
-from ..errors import UnknownColorError
-from .exact import QUALITY_MISSING, QUALITY_UNKNOWN
+from .. import _bridge
+from ..errors import DecodeError, ErrorContext, MissingDependencyError, UnknownColorError
+
+if TYPE_CHECKING:
+    import numpy as np
+
+
+def _array_shape(pixels: np.ndarray) -> tuple[int, int, int]:
+    if pixels.ndim == 2:
+        return pixels.shape[1], pixels.shape[0], 1
+    if pixels.ndim == 3 and pixels.shape[2] in {3, 4}:
+        return pixels.shape[1], pixels.shape[0], pixels.shape[2]
+    raise ValueError("gray input must have shape (height, width) or (height, width, 3|4)")
+
+
+def _decode_array(
+    pixels: np.ndarray,
+    *,
+    historical: bool,
+    strict: bool,
+    max_gray: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    try:
+        import numpy as np
+    except ImportError as exc:
+        raise MissingDependencyError(
+            "gray array decoding requires NumPy; install radiust[science]", cause=exc
+        ) from exc
+    array = np.asarray(pixels)
+    if array.dtype.kind not in "biuf":
+        raise ValueError("gray pixels must be numeric")
+    width, height, channels = _array_shape(array)
+    alpha_bit_depth = 0
+    if not historical and channels == 4:
+        if array.dtype == np.dtype("uint8"):
+            alpha_bit_depth = 8
+        elif array.dtype == np.dtype("uint16"):
+            alpha_bit_depth = 16
+    decoded, quality = _bridge._decode_gray_array_native(
+        width,
+        height,
+        channels,
+        array.reshape(-1).tolist(),
+        alpha_bit_depth=alpha_bit_depth,
+        historical=historical,
+        strict=strict,
+        max_gray=max_gray,
+    )
+    values = np.asarray(decoded, dtype=np.float32).reshape(height, width)
+    flags = np.asarray(quality, dtype=np.uint16).reshape(height, width)
+    return values, flags
+
+
+class GrayDbzDecoder:
+    """Strict ``gray-dbz-v1`` decoder returning ``(dBZ, quality)`` arrays."""
+
+    def decode(self, pixels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        return _decode_array(pixels, historical=False, strict=True, max_gray=224)
 
 
 class LegacyGrayDbzDecoder:
-    """Decode ``旧项目`` grayscale pixels into reflectivity.
-
-    The legacy post-processing step stored reflectivity as ``gray = dBZ *
-    16 / 5`` and clipped the result to ``0..224``.  The inverse therefore is
-    ``dBZ = gray / 16 * 5``.  Opaque black is a valid ``0 dBZ`` sample; only
-    transparent pixels are treated as missing by this decoder.
-    """
+    """Compatibility adapter for the former configurable uint8 decoder."""
 
     def __init__(self, *, strict: bool = True, max_gray: int = 224) -> None:
         if not 0 <= max_gray <= 255:
             raise ValueError("max_gray must be between 0 and 255")
-        self.strict = strict
+        self.strict = bool(strict)
         self.max_gray = int(max_gray)
 
     def decode(self, pixels: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        array = np.asarray(pixels)
-        if array.ndim == 2:
-            gray = array
-            alpha = np.full(gray.shape, 255, dtype=np.uint8)
-            grayscale = np.ones(gray.shape, dtype=bool)
-        elif array.ndim == 3 and array.shape[2] in {3, 4}:
-            rgb = array[..., :3]
-            gray = rgb[..., 0]
-            alpha = array[..., 3] if array.shape[2] == 4 else np.full(gray.shape, 255, dtype=np.uint8)
-            grayscale = np.all(rgb == gray[..., None], axis=2)
-        else:
-            raise ValueError("legacy gray input must have shape (height, width) or (height, width, 3|4)")
-        if array.dtype.kind not in "biuf" or not np.isfinite(array).all() or np.any(array < 0) or np.any(array > 255):
-            raise ValueError("legacy gray pixels must be finite values in the range 0..255")
-
-        gray = np.asarray(gray, dtype=np.uint8)
-        alpha = np.asarray(alpha, dtype=np.uint8)
-        visible = alpha != 0
-        unknown = visible & (~grayscale | (gray > self.max_gray))
-        if unknown.any() and self.strict:
-            raise UnknownColorError(f"{int(unknown.sum())} pixel(s) are not valid legacy grayscale reflectivity")
-
-        values = np.full(gray.shape, np.nan, dtype=np.float32)
-        valid = visible & ~unknown
-        values[valid] = gray[valid].astype(np.float32) / 16.0 * 5.0
-        quality = np.zeros(gray.shape, dtype="uint16")
-        quality[~visible] = QUALITY_MISSING
-        quality[unknown] = QUALITY_UNKNOWN
-        return values, quality
+        try:
+            return _decode_array(
+                pixels,
+                historical=True,
+                strict=self.strict,
+                max_gray=self.max_gray,
+            )
+        except DecodeError as exc:
+            if self.strict and "pixel(s) are not valid legacy grayscale reflectivity" in str(exc):
+                raise UnknownColorError(
+                    str(exc), context=ErrorContext(stage="decode", code="unknown_color"), cause=exc
+                ) from exc
+            raise ValueError(str(exc)) from exc
 
 
-__all__ = ["LegacyGrayDbzDecoder"]
+__all__ = ["GrayDbzDecoder", "LegacyGrayDbzDecoder"]

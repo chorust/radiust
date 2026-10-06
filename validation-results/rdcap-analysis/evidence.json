@@ -1,0 +1,47 @@
+{
+  "checked_at": "2026-10-01T06:16:17.356Z",
+  "sample_timestamps_ms": {
+    "RCHL": 1790834708000,
+    "ISHI": 1790834268000,
+    "SUBI": 1790833210000
+  },
+  "ticket_reuse": {
+    "first_response": "nonempty JSON CSV string",
+    "immediate_second_response": "empty JSON string"
+  },
+  "source_scripts": [
+    "https://rdcap.cwa.gov.tw/pages/data_access/radar_display/radar_display.js",
+    "https://rdcap.cwa.gov.tw/packages/KXD-vue-map/3.0.0/KXDviz-e.min.js"
+  ],
+  "history_probe": [
+    {
+      "datetime": "2026-10-01 13:00:00",
+      "status": 200,
+      "text": "<html><head><title>Request Rejected</title></head><body>The requested URL was rejected. Please consult with your administrator.<br><br>Your support ID is: 11462675029612051665</body></html>",
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "datetime": "202610011300",
+      "status": 400,
+      "text": "[\"No History Radar Data\"]",
+      "type": "application/json; charset=utf-8"
+    },
+    {
+      "datetime": "1790830800000",
+      "status": 400,
+      "text": "[\"No History Radar Data\"]",
+      "type": "application/json; charset=utf-8"
+    }
+  ],
+  "independent_http": {
+    "index": "curl succeeded without login",
+    "file": "PHL/SUBI curl timed out after 40 seconds",
+    "urllib": "upstream closed connection"
+  },
+  "annotation_website_pick": {
+    "lng": 121.355,
+    "lat": 28.105,
+    "display_value": 999.9000000000001,
+    "color_index": 14
+  }
+}

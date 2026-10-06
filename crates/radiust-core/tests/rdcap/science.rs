@@ -6,6 +6,7 @@ use radiust_core::engine::{Engine, EngineError};
 use radiust_core::errors::{CoreError, ProviderError};
 use radiust_core::limits::Limits;
 use radiust_core::model::{RadarField, RawFrame};
+use radiust_core::raster::RasterResultData;
 use radiust_core::source::SourceRegistry;
 use serde_json::Value;
 use std::sync::Arc;
@@ -93,6 +94,22 @@ async fn three_country_csr_fixtures_keep_native_geometry_and_markers_out_of_scie
         assert!(field.grid.y[0] > field.grid.y[height - 1]);
         assert!(field.provenance.iter().any(|entry| entry.contains("confidence=inferred")));
         assert!(field.provenance.iter().any(|entry| entry.contains("raw_sha256=")));
+
+        let result =
+            engine.decode_dbz(Arc::new(raw_fixture(station_id, root.path()))).await.unwrap();
+        let RasterResultData::Native(native) = result.data else {
+            panic!("RDCAP dBZ was routed through gray conversion");
+        };
+        assert_eq!(native.shape, field.shape);
+        assert_eq!(native.quality, field.quality);
+        assert_eq!(native.grid, field.grid);
+        assert_eq!(native.units, field.units);
+        assert_eq!(native.valid_time, field.valid_time);
+        assert!(native.values.iter().zip(&field.values).all(|(actual, expected)| {
+            (actual.is_nan() && expected.is_nan()) || actual == expected
+        }));
+        assert!(result.processing.encoding_basis.is_none());
+        assert_eq!(result.mode_info.actual.as_deref(), Some("dbz"));
     }
 }
 

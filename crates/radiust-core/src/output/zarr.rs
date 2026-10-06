@@ -19,6 +19,7 @@ use zarrs::storage::{ListableStorageTraits, ReadableStorageTraits};
 use crate::errors::{CoreError, CoreResult};
 use crate::limits::Limits;
 use crate::model::{RadarDataset, RadarField, parse_utc_time};
+use crate::raster::{AlphaPlane, PixelDbzField};
 
 const CHUNK_EDGE: usize = 512;
 const QUALITY_FLAGS: [u16; 7] = [1, 2, 4, 8, 16, 32, 64];
@@ -54,6 +55,405 @@ pub fn write_dataset(
 ) -> CoreResult<PathBuf> {
     dataset.validate().map_err(|error| storage_error(error.to_string()))?;
     write_fields(&dataset.fields, destination.as_ref(), limits)
+}
+
+/// Write a standalone pixel-space dBZ raster as Zarr v2.
+pub fn write_pixel_dbz(
+    field: &PixelDbzField,
+    destination: impl AsRef<Path>,
+    limits: &Limits,
+) -> CoreResult<PathBuf> {
+    field.validate().map_err(|error| storage_error(error.to_string()))?;
+    validate_pixel_dbz_budget(field, limits)?;
+    let destination = destination.as_ref().to_path_buf();
+    let parent = destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)
+        .map_err(|_| storage_error("Zarr output directory could not be prepared"))?;
+    let stage = tempfile::Builder::new()
+        .prefix(".radiust-pixel-zarr-")
+        .tempdir_in(parent)
+        .map_err(|_| CoreError::Temporary("Zarr staging directory could not be created".into()))?;
+    let store_path = stage.path().join("store.zarr");
+    fs::create_dir(&store_path)
+        .map_err(|_| CoreError::Temporary("Zarr staging store could not be created".into()))?;
+    if store_path.to_str().is_none() {
+        return Err(storage_error("Zarr output path must be valid UTF-8"));
+    }
+    let store = Arc::new(
+        FilesystemStore::new(&store_path)
+            .map_err(|_| storage_error("Zarr filesystem store could not be initialized"))?,
+    );
+    let mut root_attrs = Map::new();
+    root_attrs.insert("Conventions".into(), json!("CF-1.8"));
+    root_attrs.insert("radiust_raster_schema_version".into(), json!(1));
+    root_attrs.insert("raster_profile".into(), json!("pixel-dbz-v1"));
+    root_attrs.insert("coordinate_space".into(), json!("pixel"));
+    root_attrs.insert("orientation".into(), json!("row-zero-at-top; column-zero-at-left"));
+    root_attrs.insert(
+        "time_status".into(),
+        json!(if field.valid_time.is_some() { "known" } else { "unknown" }),
+    );
+    root_attrs.insert(
+        "geometry_status".into(),
+        json!(if field.geometry.as_ref().is_some_and(|value| value.mapping_complete) {
+            "trusted"
+        } else {
+            "unknown"
+        }),
+    );
+    root_attrs.insert(
+        "radiust_processing_record".into(),
+        serde_json::to_value(&field.processing)
+            .map_err(|_| storage_error("Zarr processing record could not be serialized"))?,
+    );
+    if let Some(valid_time) = &field.valid_time {
+        parse_utc_time(valid_time).map_err(|_| storage_error("Zarr valid_time is invalid"))?;
+        root_attrs.insert("radiust_valid_time".into(), json!(valid_time));
+    }
+    if let Some(geometry) = &field.geometry {
+        root_attrs.insert(
+            "radiust_geometry_evidence".into(),
+            serde_json::to_value(geometry)
+                .map_err(|_| storage_error("Zarr geometry evidence could not be serialized"))?,
+        );
+    }
+    let root = Group::new_with_metadata(
+        store.clone(),
+        "/",
+        GroupMetadataV2::new().with_attributes(root_attrs).into(),
+    )
+    .map_err(|_| storage_error("Zarr root group could not be created"))?;
+    root.store_metadata().map_err(|_| storage_error("Zarr root metadata could not be written"))?;
+
+    let shape = [field.height, field.width];
+    let chunks = default_chunk_shape(&shape);
+    for (name, size) in [("row", field.height), ("column", field.width)] {
+        let dimensions = vec![name.to_owned()];
+        let attrs = dimension_attributes(name);
+        let array = create_array::<i32>(
+            store.clone(),
+            &format!("/{name}"),
+            &[size],
+            &[size.min(CHUNK_EDGE)],
+            "<i4",
+            FillValueMetadata::Null,
+            true,
+            attrs,
+        )?;
+        let values = (0..size)
+            .map(|value| {
+                i32::try_from(value)
+                    .map_err(|_| CoreError::ResourceLimit("pixel coordinate exceeds int32".into()))
+            })
+            .collect::<CoreResult<Vec<_>>>()?;
+        let coordinate_chunks = [size.min(CHUNK_EDGE)];
+        let _ = dimensions;
+        write_array_chunks(&array, &[size], &coordinate_chunks, &values, 0_i32)?;
+    }
+    let mut data_attrs = dimension_attributes("row");
+    data_attrs.insert("_ARRAY_DIMENSIONS".into(), json!(["row", "column"]));
+    data_attrs.insert("units".into(), json!("dBZ"));
+    data_attrs.insert("long_name".into(), json!("radar reflectivity"));
+    data_attrs.insert("ancillary_variables".into(), json!("quality"));
+    let data = create_array::<f32>(
+        store.clone(),
+        "/reflectivity",
+        &shape,
+        &chunks,
+        "<f4",
+        FillValueMetadata::from(f32::NAN),
+        true,
+        data_attrs,
+    )?;
+    write_array_chunks(&data, &shape, &chunks, &field.values, f32::NAN)?;
+
+    let mut quality_attrs = dimension_attributes("row");
+    quality_attrs.insert("_ARRAY_DIMENSIONS".into(), json!(["row", "column"]));
+    quality_attrs.insert(
+        "flag_masks".into(),
+        serde_json::to_value(crate::raster::QUALITY_FLAG_MASKS).unwrap_or_else(|_| json!([])),
+    );
+    quality_attrs
+        .insert("flag_meanings".into(), json!(crate::raster::QUALITY_FLAG_MEANINGS.join(" ")));
+    quality_attrs.insert("long_name".into(), json!("quality flags"));
+    let quality = create_array::<u16>(
+        store.clone(),
+        "/quality",
+        &shape,
+        &chunks,
+        "<u2",
+        FillValueMetadata::Null,
+        true,
+        quality_attrs,
+    )?;
+    write_array_chunks(&quality, &shape, &chunks, &field.quality, 0_u16)?;
+
+    if let Some(values) = &field.origin_quality {
+        let mut attrs = dimension_attributes("row");
+        attrs.insert("_ARRAY_DIMENSIONS".into(), json!(["row", "column"]));
+        attrs.insert("long_name".into(), json!("origin quality flags"));
+        let array = create_array::<u16>(
+            store.clone(),
+            "/origin_quality",
+            &shape,
+            &chunks,
+            "<u2",
+            FillValueMetadata::Null,
+            true,
+            attrs,
+        )?;
+        write_array_chunks(&array, &shape, &chunks, values, 0_u16)?;
+    }
+    if let Some(values) = &field.encoding_adjustment {
+        let mut attrs = dimension_attributes("row");
+        attrs.insert("_ARRAY_DIMENSIONS".into(), json!(["row", "column"]));
+        attrs.insert("flag_masks".into(), json!([1]));
+        attrs.insert("flag_meanings".into(), json!("upper_clipped"));
+        let array = create_array::<u8>(
+            store.clone(),
+            "/encoding_adjustment",
+            &shape,
+            &chunks,
+            "|u1",
+            FillValueMetadata::Null,
+            true,
+            attrs,
+        )?;
+        write_array_chunks(&array, &shape, &chunks, values, 0_u8)?;
+    }
+    match &field.alpha {
+        Some(AlphaPlane::U8(values)) => {
+            let mut attrs = dimension_attributes("row");
+            attrs.insert("_ARRAY_DIMENSIONS".into(), json!(["row", "column"]));
+            attrs.insert("alpha_bit_depth".into(), json!(8));
+            let array = create_array::<u8>(
+                store.clone(),
+                "/alpha",
+                &shape,
+                &chunks,
+                "|u1",
+                FillValueMetadata::Null,
+                true,
+                attrs,
+            )?;
+            write_array_chunks(&array, &shape, &chunks, values, 0_u8)?;
+        }
+        Some(AlphaPlane::U16(values)) => {
+            let mut attrs = dimension_attributes("row");
+            attrs.insert("_ARRAY_DIMENSIONS".into(), json!(["row", "column"]));
+            attrs.insert("alpha_bit_depth".into(), json!(16));
+            let array = create_array::<u16>(
+                store.clone(),
+                "/alpha",
+                &shape,
+                &chunks,
+                "<u2",
+                FillValueMetadata::Null,
+                true,
+                attrs,
+            )?;
+            write_array_chunks(&array, &shape, &chunks, values, 0_u16)?;
+        }
+        None => {}
+    }
+    consolidate_metadata(&store, &store_path)?;
+    let output_bytes = directory_size(&store_path)?;
+    if output_bytes > limits.max_temp_bytes {
+        return Err(CoreError::ResourceLimit(
+            "Zarr output exceeds the configured temporary-file limit".into(),
+        ));
+    }
+    publish_directory(&store_path, &destination)?;
+    Ok(destination)
+}
+
+fn validate_pixel_dbz_budget(field: &PixelDbzField, limits: &Limits) -> CoreResult<u64> {
+    let pixels = (field.width as u64)
+        .checked_mul(field.height as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("Zarr field shape overflows".into()))?;
+    limits.validate_pixels(pixels)?;
+    let per_pixel = 6_u64
+        + u64::from(field.origin_quality.is_some()) * 2
+        + u64::from(field.encoding_adjustment.is_some())
+        + match &field.alpha {
+            Some(AlphaPlane::U8(_)) => 1,
+            Some(AlphaPlane::U16(_)) => 2,
+            None => 0,
+        };
+    let bytes = pixels
+        .checked_mul(per_pixel)
+        .ok_or_else(|| CoreError::ResourceLimit("Zarr raster byte size overflows".into()))?;
+    if bytes > limits.max_frame_bytes || bytes > limits.max_temp_bytes {
+        return Err(CoreError::ResourceLimit(
+            "Zarr raster exceeds configured frame or temporary-file limit".into(),
+        ));
+    }
+    Ok(pixels)
+}
+
+/// Read a `pixel-dbz-v1` Zarr store and restore its typed companion arrays.
+pub fn read_pixel_dbz(path: impl AsRef<Path>, limits: &Limits) -> CoreResult<PixelDbzField> {
+    let (store_path, _) = inspect_input_directory(path.as_ref(), limits)?;
+    let (root_attrs, descriptors) = read_consolidated_metadata(&store_path)?;
+    if root_attrs.get("raster_profile") != Some(&json!("pixel-dbz-v1")) {
+        return Err(storage_error("Zarr store is not a pixel-dbz-v1 raster"));
+    }
+    if root_attrs.get("coordinate_space") != Some(&json!("pixel")) {
+        return Err(storage_error("Zarr pixel coordinate metadata is invalid"));
+    }
+    let data_descriptor = descriptors
+        .get("reflectivity")
+        .ok_or_else(|| storage_error("Zarr reflectivity array is missing"))?;
+    if data_descriptor.dtype != "<f4"
+        || dimensions_attribute(&data_descriptor.attributes)? != ["row", "column"]
+        || data_descriptor.shape.len() != 2
+    {
+        return Err(storage_error("Zarr reflectivity array metadata is invalid"));
+    }
+    let height = data_descriptor.shape[0];
+    let width = data_descriptor.shape[1];
+    let pixels = validate_pixel_dbz_budget_shape(height, width, limits)?;
+    validate_all_chunks_exist(&store_path, &descriptors)?;
+    let store = Arc::new(
+        FilesystemStore::new(&store_path)
+            .map_err(|_| storage_error("Zarr filesystem store could not be initialized"))?,
+    );
+    let open_array = |name: &str| -> CoreResult<Array<FilesystemStore>> {
+        let descriptor = descriptors
+            .get(name)
+            .ok_or_else(|| storage_error(format!("Zarr {name} array is missing")))?;
+        let array = Array::open(store.clone(), &format!("/{name}"))
+            .map_err(|_| storage_error("Zarr array metadata is invalid or unsupported"))?;
+        if array.shape() != descriptor.shape_u64.as_slice()
+            || array.attributes() != &descriptor.attributes
+        {
+            return Err(storage_error("Zarr array metadata conflicts with consolidated metadata"));
+        }
+        Ok(array)
+    };
+    let read_optional = |name: &str, dtype: &str| -> CoreResult<Option<Vec<u16>>> {
+        let Some(descriptor) = descriptors.get(name) else { return Ok(None) };
+        validate_pixel_companion(descriptor, height, width, dtype)?;
+        let array = open_array(name)?;
+        Ok(Some(read_array_values::<u16>(&array, &[height, width], &descriptor.chunks)?))
+    };
+    let data = open_array("reflectivity")?;
+    let values = read_array_values::<f32>(&data, &[height, width], &data_descriptor.chunks)?;
+    let quality_descriptor =
+        descriptors.get("quality").ok_or_else(|| storage_error("Zarr quality array is missing"))?;
+    validate_pixel_companion(quality_descriptor, height, width, "<u2")?;
+    let quality_array = open_array("quality")?;
+    let quality =
+        read_array_values::<u16>(&quality_array, &[height, width], &quality_descriptor.chunks)?;
+    let origin_quality = read_optional("origin_quality", "<u2")?;
+    let encoding_adjustment = if let Some(descriptor) = descriptors.get("encoding_adjustment") {
+        validate_pixel_companion(descriptor, height, width, "|u1")?;
+        Some(read_array_values::<u8>(
+            &open_array("encoding_adjustment")?,
+            &[height, width],
+            &descriptor.chunks,
+        )?)
+    } else {
+        None
+    };
+    let alpha = if let Some(descriptor) = descriptors.get("alpha") {
+        validate_pixel_companion(descriptor, height, width, &descriptor.dtype)?;
+        let depth = descriptor
+            .attributes
+            .get("alpha_bit_depth")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| storage_error("Zarr alpha bit depth is missing"))?;
+        let array = open_array("alpha")?;
+        match (depth, descriptor.dtype.as_str()) {
+            (8, "|u1") => Some(AlphaPlane::U8(read_array_values::<u8>(
+                &array,
+                &[height, width],
+                &descriptor.chunks,
+            )?)),
+            (16, "<u2") => Some(AlphaPlane::U16(read_array_values::<u16>(
+                &array,
+                &[height, width],
+                &descriptor.chunks,
+            )?)),
+            _ => return Err(storage_error("Zarr alpha dtype and bit depth disagree")),
+        }
+    } else {
+        None
+    };
+    let processing: crate::raster::ProcessingRecord = serde_json::from_value(
+        root_attrs
+            .get("radiust_processing_record")
+            .cloned()
+            .ok_or_else(|| storage_error("Zarr processing record is missing"))?,
+    )
+    .map_err(|_| storage_error("Zarr processing record is invalid"))?;
+    let geometry = root_attrs
+        .get("radiust_geometry_evidence")
+        .cloned()
+        .map(serde_json::from_value)
+        .transpose()
+        .map_err(|_| storage_error("Zarr geometry evidence is invalid"))?;
+    let field = PixelDbzField {
+        variable: "reflectivity".into(),
+        units: required_string(&data_descriptor.attributes, "units")?,
+        width,
+        height,
+        values,
+        quality,
+        origin_quality,
+        encoding_adjustment,
+        alpha,
+        valid_time: optional_string(&root_attrs, "radiust_valid_time")?,
+        geometry,
+        processing,
+    };
+    if field.values.len() != pixels {
+        return Err(storage_error("Zarr raster shape is invalid"));
+    }
+    field.validate().map_err(|error| storage_error(error.to_string()))?;
+    Ok(field)
+}
+
+pub fn is_pixel_dbz_store(path: impl AsRef<Path>, limits: &Limits) -> CoreResult<bool> {
+    let (store_path, _) = inspect_input_directory(path.as_ref(), limits)?;
+    let (root_attrs, _) = read_consolidated_metadata(&store_path)?;
+    Ok(root_attrs.get("raster_profile") == Some(&json!("pixel-dbz-v1")))
+}
+
+fn validate_pixel_dbz_budget_shape(
+    height: usize,
+    width: usize,
+    limits: &Limits,
+) -> CoreResult<usize> {
+    let pixels = height
+        .checked_mul(width)
+        .ok_or_else(|| CoreError::ResourceLimit("Zarr raster shape overflows".into()))?;
+    limits.validate_pixels(pixels as u64)?;
+    let bytes = (pixels as u64)
+        .checked_mul(10)
+        .ok_or_else(|| CoreError::ResourceLimit("Zarr raster byte size overflows".into()))?;
+    if bytes > limits.max_frame_bytes || bytes > limits.max_temp_bytes {
+        return Err(CoreError::ResourceLimit("Zarr raster exceeds configured read budget".into()));
+    }
+    Ok(pixels)
+}
+
+fn validate_pixel_companion(
+    descriptor: &ZarrArrayDescriptor,
+    height: usize,
+    width: usize,
+    dtype: &str,
+) -> CoreResult<()> {
+    if descriptor.dtype != dtype
+        || descriptor.shape != [height, width]
+        || dimensions_attribute(&descriptor.attributes)? != ["row", "column"]
+    {
+        return Err(storage_error("Zarr companion array metadata is invalid"));
+    }
+    Ok(())
 }
 
 /// Read one field from a consolidated Zarr v2 directory written in Radiust's

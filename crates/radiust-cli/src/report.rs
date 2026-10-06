@@ -95,6 +95,125 @@ pub fn envelope(command: &str, items: Vec<Value>, result: Option<Value>) -> Valu
     })
 }
 
+pub fn with_mode_info(mut envelope: Value, mode_info: Value) -> Value {
+    let failed = envelope.get("error").is_some_and(|error| !error.is_null());
+    let mut layer_info = mode_info.clone();
+    if failed {
+        layer_info["actual"] = Value::Null;
+    }
+    let mut has_items = false;
+    let mut has_completed_item = false;
+    if let Some(items) = envelope.get_mut("items").and_then(Value::as_array_mut) {
+        for item in items {
+            has_items = true;
+            let mut item_info = mode_info.clone();
+            let status = item.get("status").and_then(Value::as_str).unwrap_or_default();
+            if matches!(status, "failed" | "cancelled" | "not_started" | "planned") {
+                item_info["actual"] = Value::Null;
+            } else {
+                has_completed_item = true;
+            }
+            if let Some(object) = item.as_object_mut() {
+                object.insert("mode_info".into(), item_info);
+            }
+        }
+    }
+    if has_items && !has_completed_item {
+        layer_info["actual"] = Value::Null;
+    }
+    if let Some(result) = envelope.get_mut("result").and_then(Value::as_object_mut) {
+        result.insert("mode_info".into(), layer_info.clone());
+    }
+    envelope["mode_schema_version"] = json!(1);
+    envelope["mode_info"] = layer_info;
+    envelope
+}
+
+pub fn local_mode_info(mode: &str, actual: Option<&str>) -> Value {
+    let is_dbz = mode == "dbz";
+    let is_gray = mode == "gray";
+    json!({
+        "requested": mode,
+        "actual": actual,
+        "variable": if is_dbz { Some("reflectivity") } else { None::<&str> },
+        "units": if is_dbz { Some("dBZ") } else if is_gray { Some("gray_code") } else { None::<&str> },
+        "method": if is_dbz { Some("local_gray_dbz") } else if is_gray { Some("gray_preview") } else { Some("raw_preview") },
+        "encoding": if is_dbz { Some("gray-dbz-v1") } else { None::<&str> },
+        "range_policy": if is_dbz { Some("strict-v1") } else { None::<&str> },
+        "time_status": "unknown",
+        "geolocation": "unknown",
+        "limitations": if is_dbz || is_gray { vec!["time_unknown", "geolocation_unknown"] } else { vec!["scientific_decoding_not_requested"] },
+    })
+}
+
+pub fn native_mode_info(
+    requested: &str,
+    actual: &str,
+    variable: &str,
+    units: Option<&str>,
+    time_status: &str,
+    geolocation: &str,
+) -> Value {
+    json!({
+        "requested": requested,
+        "actual": actual,
+        "variable": if variable.is_empty() { None } else { Some(variable) },
+        "units": units,
+        "method": "native_numeric",
+        "encoding": null,
+        "range_policy": null,
+        "time_status": time_status,
+        "geolocation": geolocation,
+        "limitations": [],
+    })
+}
+
+pub fn gray_source_mode_info(
+    actual: &str,
+    rule_version: Option<&str>,
+    reason: Option<&str>,
+) -> Value {
+    let applied = actual == "gray";
+    let limitation = if applied {
+        "historical_gray_display_rule"
+    } else {
+        "gray_rule_unavailable_raw_preserved"
+    };
+    json!({
+        "requested": "gray",
+        "actual": actual,
+        "variable": null,
+        "units": if applied { Some("gray_code") } else { None::<&str> },
+        "method": if applied { Some("verified_gray_display") } else { Some("raw_preview") },
+        "encoding": null,
+        "range_policy": null,
+        "rule_version": rule_version,
+        "time_status": "known",
+        "geolocation": "unknown",
+        "limitations": [limitation],
+        "reason": reason,
+    })
+}
+
+pub fn failed_mode_info(requested: &str) -> Value {
+    json!({
+        "requested": requested,
+        "actual": null,
+        "variable": if requested == "dbz" { Some("reflectivity") } else { None::<&str> },
+        "units": if requested == "gray" { Some("gray_code") } else if requested == "dbz" { Some("dBZ") } else { None::<&str> },
+        "method": null,
+        "encoding": null,
+        "range_policy": null,
+        "time_status": "unknown",
+        "geolocation": "unknown",
+        "limitations": [],
+    })
+}
+
+pub fn local_mode_error(code: &str, message: &str, mode: &str) -> Value {
+    with_mode_info(error_envelope(code, message, "decode"), local_mode_info(mode, None))
+}
+
 pub fn error_envelope(code: &str, message: &str, stage: &str) -> Value {
     json!({
         "schema_version": 1,
@@ -367,6 +486,56 @@ pub fn download_execution(
         "interrupted": interrupted,
     });
     (report, exit_code)
+}
+
+#[cfg(test)]
+mod mode_info_tests {
+    use super::*;
+
+    #[test]
+    fn mode_info_is_additive_and_failed_items_do_not_claim_a_decode() {
+        let items = vec![
+            json!({"status":"written", "output_uri":"out.nc"}),
+            json!({"status":"failed", "output_uri":null}),
+            json!({"status":"planned", "output_uri":null}),
+        ];
+        let report = with_mode_info(
+            envelope("download", items, None),
+            native_mode_info("dbz", "dbz", "reflectivity", Some("dBZ"), "known", "unknown"),
+        );
+        assert_eq!(report["schema_version"], 1);
+        assert_eq!(report["items"][0]["mode_info"]["actual"], "dbz");
+        assert_eq!(report["items"][1]["mode_info"]["actual"], Value::Null);
+        assert_eq!(report["items"][2]["mode_info"]["actual"], Value::Null);
+
+        let failed = with_mode_info(
+            error_envelope("unit_mismatch", "units differ", "decode"),
+            native_mode_info("dbz", "dbz", "reflectivity", Some("dBZ"), "unknown", "unknown"),
+        );
+        assert_eq!(failed["mode_info"]["actual"], Value::Null);
+
+        let all_failed = with_mode_info(
+            envelope("replay", vec![json!({"status": "failed"})], None),
+            native_mode_info(
+                "scientific",
+                "scientific",
+                "rain_rate",
+                Some("mm h-1"),
+                "known",
+                "unknown",
+            ),
+        );
+        assert_eq!(all_failed["mode_info"]["actual"], Value::Null);
+        assert_eq!(all_failed["items"][0]["mode_info"]["actual"], Value::Null);
+    }
+
+    #[test]
+    fn unavailable_gray_rule_reports_raw_as_the_actual_fallback() {
+        let mode = gray_source_mode_info("raw", None, Some("no path-specific rule"));
+        assert_eq!(mode["requested"], "gray");
+        assert_eq!(mode["actual"], "raw");
+        assert_eq!(mode["method"], "raw_preview");
+    }
 }
 
 pub fn download_interrupted(query: &Query) -> Value {

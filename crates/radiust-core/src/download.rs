@@ -9,6 +9,7 @@ use crate::identity::{
 };
 use crate::limits::Limits;
 use crate::model::{FrameRef, Grid, RadarField, RawFrame, parse_utc_time};
+use crate::raster::{GrayDecision, RasterResult};
 use crate::storage::manifest::is_safe_relative_path;
 use crate::storage::object::{ObjectStore, ObjectStoreConfig};
 use crate::storage::{
@@ -147,6 +148,271 @@ impl DecodedFetchBatchReport {
             }
         }
         report
+    }
+}
+
+/// One source-frame result from an explicit gray or dBZ fetch batch.
+#[derive(Debug)]
+pub struct ModeFetchItem {
+    pub input_index: usize,
+    pub frame: FrameRef,
+    pub status: FetchStatus,
+    pub gray: Option<GrayDecision>,
+    pub dbz: Option<RasterResult>,
+    pub error: Option<String>,
+    pub error_details: Option<ErrorReport>,
+}
+
+#[derive(Debug, Default)]
+pub struct ModeFetchBatchReport {
+    pub items: Vec<ModeFetchItem>,
+    pub planned: usize,
+    pub success: usize,
+    pub failed: usize,
+    pub cancelled: usize,
+    pub not_started: usize,
+}
+
+impl ModeFetchBatchReport {
+    fn from_items(items: Vec<ModeFetchItem>) -> Self {
+        let mut report = Self { items, ..Self::default() };
+        for item in &report.items {
+            match item.status {
+                FetchStatus::Planned => report.planned += 1,
+                FetchStatus::Success => report.success += 1,
+                FetchStatus::Failed => report.failed += 1,
+                FetchStatus::Cancelled => report.cancelled += 1,
+                FetchStatus::NotStarted => report.not_started += 1,
+            }
+        }
+        report
+    }
+}
+
+#[cfg(any(feature = "extension-module", test))]
+pub struct ModeFetchStream {
+    engine: Arc<Engine>,
+    frames: Vec<FrameRef>,
+    mode: &'static str,
+    concurrency: usize,
+    policy: FetchErrorPolicy,
+    next_index: usize,
+    in_flight: FuturesUnordered<BoxFuture<'static, ModeFetchItem>>,
+    running: BTreeMap<usize, CancellationToken>,
+    cancellation: CancellationToken,
+    emitted: Vec<Option<ModeFetchItem>>,
+    closed: bool,
+}
+
+#[derive(Debug)]
+#[cfg(any(feature = "extension-module", test))]
+pub struct ModeFetchStreamFailure {
+    pub partial_result: ModeFetchBatchReport,
+    pub cause: String,
+}
+
+#[cfg(any(feature = "extension-module", test))]
+impl ModeFetchStream {
+    pub(crate) fn new(
+        engine: Arc<Engine>,
+        frames: Vec<FrameRef>,
+        concurrency: usize,
+        policy: FetchErrorPolicy,
+        mode: &'static str,
+    ) -> Self {
+        let count = frames.len();
+        Self {
+            engine,
+            frames,
+            mode,
+            concurrency: concurrency.max(1),
+            policy,
+            next_index: 0,
+            in_flight: FuturesUnordered::new(),
+            running: BTreeMap::new(),
+            cancellation: CancellationToken::new(),
+            emitted: std::iter::repeat_with(|| None).take(count).collect(),
+            closed: false,
+        }
+    }
+
+    pub(crate) fn cancellation_token(&self) -> CancellationToken {
+        self.cancellation.clone()
+    }
+
+    pub(crate) async fn next(&mut self) -> Result<Option<ModeFetchItem>, ModeFetchStreamFailure> {
+        if self.closed {
+            return Ok(None);
+        }
+        self.fill();
+        let completed = tokio::select! {
+            biased;
+            _ = self.cancellation.cancelled() => None,
+            item = self.in_flight.next() => item,
+        };
+        let Some(item) = completed else {
+            self.close();
+            return Ok(None);
+        };
+        self.running.remove(&item.input_index);
+
+        if self.policy == FetchErrorPolicy::Stop {
+            self.emitted[item.input_index] = Some(mode_item_summary(&item));
+            if item.status == FetchStatus::Failed {
+                let cause = item.error.clone().unwrap_or_else(|| "native fetch failed".into());
+                let partial_result = self.partial_result();
+                self.close();
+                return Err(ModeFetchStreamFailure { partial_result, cause });
+            }
+        }
+        self.fill();
+        Ok(Some(item))
+    }
+
+    pub(crate) fn close(&mut self) {
+        if self.closed {
+            return;
+        }
+        self.closed = true;
+        self.cancellation.cancel();
+        for cancellation in self.running.values() {
+            cancellation.cancel();
+        }
+        self.running.clear();
+        self.in_flight = FuturesUnordered::new();
+        self.emitted.clear();
+    }
+
+    fn fill(&mut self) {
+        while self.next_index < self.frames.len() && self.in_flight.len() < self.concurrency {
+            let index = self.next_index;
+            self.next_index += 1;
+            let frame = self.frames[index].clone();
+            let engine = self.engine.clone();
+            let mode = self.mode;
+            let cancellation = self.cancellation.child_token();
+            self.running.insert(index, cancellation.clone());
+            self.in_flight.push(Box::pin(async move {
+                decode_mode_item(&engine, index, frame, mode, cancellation).await
+            }));
+        }
+    }
+
+    fn partial_result(&self) -> ModeFetchBatchReport {
+        let items = self
+            .frames
+            .iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                if let Some(item) = self.emitted[index].as_ref() {
+                    mode_item_summary(item)
+                } else if self.running.contains_key(&index) {
+                    ModeFetchItem {
+                        input_index: index,
+                        frame: frame.clone(),
+                        status: FetchStatus::Cancelled,
+                        gray: None,
+                        dbz: None,
+                        error: Some("cancelled after another frame failed".into()),
+                        error_details: None,
+                    }
+                } else {
+                    ModeFetchItem {
+                        input_index: index,
+                        frame: frame.clone(),
+                        status: FetchStatus::NotStarted,
+                        gray: None,
+                        dbz: None,
+                        error: Some("not started after another frame failed".into()),
+                        error_details: None,
+                    }
+                }
+            })
+            .collect();
+        ModeFetchBatchReport::from_items(items)
+    }
+}
+
+#[cfg(any(feature = "extension-module", test))]
+fn mode_item_summary(item: &ModeFetchItem) -> ModeFetchItem {
+    ModeFetchItem {
+        input_index: item.input_index,
+        frame: item.frame.clone(),
+        status: item.status,
+        gray: None,
+        dbz: None,
+        error: item.error.clone(),
+        error_details: item.error_details.clone(),
+    }
+}
+
+#[cfg(any(feature = "extension-module", test))]
+async fn decode_mode_item(
+    engine: &Engine,
+    index: usize,
+    frame: FrameRef,
+    mode: &'static str,
+    cancellation: CancellationToken,
+) -> ModeFetchItem {
+    let raw_result = tokio::select! {
+        biased;
+        _ = cancellation.cancelled() => Err((EngineError::Core(CoreError::Cancelled), ErrorStage::Acquire)),
+        result = engine.fetch_raw(frame.clone()) => result.map_err(|error| (error, ErrorStage::Acquire)),
+    };
+    let result = match raw_result {
+        Ok(raw) => tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => Err((EngineError::Core(CoreError::Cancelled), ErrorStage::Decode)),
+            result = async {
+                match mode {
+                    "gray" => engine.decode_gray(Arc::new(raw)).await.map(ModeDecodedValue::Gray),
+                    "dbz" => engine.decode_dbz(Arc::new(raw)).await.map(ModeDecodedValue::Dbz),
+                    _ => unreachable!("mode was validated before stream creation"),
+                }
+            } => result.map_err(|error| (error, ErrorStage::Decode)),
+        },
+        Err(error) => Err(error),
+    };
+    match result {
+        Ok(ModeDecodedValue::Gray(gray)) => ModeFetchItem {
+            input_index: index,
+            frame,
+            status: FetchStatus::Success,
+            gray: Some(gray),
+            dbz: None,
+            error: None,
+            error_details: None,
+        },
+        Ok(ModeDecodedValue::Dbz(dbz)) => ModeFetchItem {
+            input_index: index,
+            frame,
+            status: FetchStatus::Success,
+            gray: None,
+            dbz: Some(dbz),
+            error: None,
+            error_details: None,
+        },
+        Err((EngineError::Core(CoreError::Cancelled), _)) => ModeFetchItem {
+            input_index: index,
+            frame,
+            status: FetchStatus::Cancelled,
+            gray: None,
+            dbz: None,
+            error: Some("operation cancelled".into()),
+            error_details: None,
+        },
+        Err((error, stage)) => {
+            let details = engine_error_report(&error, stage);
+            ModeFetchItem {
+                input_index: index,
+                frame,
+                status: FetchStatus::Failed,
+                gray: None,
+                dbz: None,
+                error: Some(details.message.clone()),
+                error_details: Some(details),
+            }
+        }
     }
 }
 
@@ -682,6 +948,278 @@ pub async fn fetch_many_decoded(
         })
         .collect();
     DecodedFetchBatchReport::from_items(items)
+}
+
+enum ModeDecodedValue {
+    Gray(GrayDecision),
+    Dbz(RasterResult),
+}
+
+fn schedule_mode_fetch<'a>(
+    index: usize,
+    frame: FrameRef,
+    mode: &'static str,
+    engine: &'a Engine,
+    cancellation: CancellationToken,
+    in_flight: &mut FuturesUnordered<
+        BoxFuture<'a, (usize, FrameRef, Result<ModeDecodedValue, (EngineError, ErrorStage)>)>,
+    >,
+    running: &mut BTreeMap<usize, (FrameRef, CancellationToken)>,
+) {
+    let frame_for_fetch = frame.clone();
+    let frame_for_result = frame.clone();
+    let cancellation_for_fetch = cancellation.clone();
+    in_flight.push(Box::pin(async move {
+        let result = tokio::select! {
+            biased;
+            _ = cancellation_for_fetch.cancelled() => {
+                Err((EngineError::Core(CoreError::Cancelled), ErrorStage::Acquire))
+            }
+            result = async {
+                let raw = engine
+                    .fetch_raw(frame_for_fetch)
+                    .await
+                    .map_err(|error| (error, ErrorStage::Acquire))?;
+                match mode {
+                    "gray" => engine
+                        .decode_gray(Arc::new(raw))
+                        .await
+                        .map(ModeDecodedValue::Gray)
+                        .map_err(|error| (error, ErrorStage::Decode)),
+                    "dbz" => engine
+                        .decode_dbz(Arc::new(raw))
+                        .await
+                        .map(ModeDecodedValue::Dbz)
+                        .map_err(|error| (error, ErrorStage::Decode)),
+                    _ => unreachable!("mode was validated before scheduling"),
+                }
+            } => result,
+        };
+        (index, frame_for_result, result)
+    }));
+    running.insert(index, (frame, cancellation));
+}
+
+/// Acquire and decode an explicit gray or dBZ batch with the same bounded
+/// scheduler, per-item status ordering, stop policy, and Engine deadlines.
+pub async fn fetch_many_mode(
+    engine: &Engine,
+    frames: Vec<FrameRef>,
+    concurrency: usize,
+    policy: FetchErrorPolicy,
+    dry_run: bool,
+    mode: &str,
+) -> ModeFetchBatchReport {
+    if !matches!(mode, "gray" | "dbz") {
+        return ModeFetchBatchReport::from_items(
+            frames
+                .into_iter()
+                .enumerate()
+                .map(|(input_index, frame)| ModeFetchItem {
+                    input_index,
+                    frame,
+                    status: FetchStatus::Failed,
+                    gray: None,
+                    dbz: None,
+                    error: Some("mode must be gray or dbz".into()),
+                    error_details: Some(ErrorReport {
+                        code: ErrorCode::InvalidQuery,
+                        message: "mode must be gray or dbz".into(),
+                        stage: ErrorStage::Validate,
+                        retryable: false,
+                    }),
+                })
+                .collect(),
+        );
+    }
+    let mode: &'static str = if mode == "gray" { "gray" } else { "dbz" };
+    if dry_run {
+        return ModeFetchBatchReport::from_items(
+            frames
+                .into_iter()
+                .enumerate()
+                .map(|(input_index, frame)| ModeFetchItem {
+                    input_index,
+                    frame,
+                    status: FetchStatus::Planned,
+                    gray: None,
+                    dbz: None,
+                    error: None,
+                    error_details: None,
+                })
+                .collect(),
+        );
+    }
+
+    let count = frames.len();
+    if engine.is_cancelled() {
+        return ModeFetchBatchReport::from_items(
+            frames
+                .into_iter()
+                .enumerate()
+                .map(|(input_index, frame)| ModeFetchItem {
+                    input_index,
+                    frame,
+                    status: FetchStatus::NotStarted,
+                    gray: None,
+                    dbz: None,
+                    error: Some("not started after cancellation".into()),
+                    error_details: None,
+                })
+                .collect(),
+        );
+    }
+
+    let mut items: Vec<Option<ModeFetchItem>> =
+        std::iter::repeat_with(|| None).take(count).collect();
+    let mut in_flight: FuturesUnordered<
+        BoxFuture<'_, (usize, FrameRef, Result<ModeDecodedValue, (EngineError, ErrorStage)>)>,
+    > = FuturesUnordered::new();
+    let mut running = BTreeMap::<usize, (FrameRef, CancellationToken)>::new();
+    let mut next = 0;
+    let concurrency = concurrency.max(1);
+    let mut stop_after = None;
+
+    while next < count && in_flight.len() < concurrency {
+        schedule_mode_fetch(
+            next,
+            frames[next].clone(),
+            mode,
+            engine,
+            CancellationToken::new(),
+            &mut in_flight,
+            &mut running,
+        );
+        next += 1;
+    }
+
+    while let Some((index, frame, result)) = in_flight.next().await {
+        running.remove(&index);
+        let cancelled = matches!(&result, Err((EngineError::Core(CoreError::Cancelled), _)));
+        let after_failure = stop_after.is_some_and(|failed_index| index > failed_index);
+        let item = if after_failure {
+            ModeFetchItem {
+                input_index: index,
+                frame,
+                status: FetchStatus::Cancelled,
+                gray: None,
+                dbz: None,
+                error: Some("cancelled after another frame failed".into()),
+                error_details: None,
+            }
+        } else {
+            match result {
+                Ok(ModeDecodedValue::Gray(gray)) => ModeFetchItem {
+                    input_index: index,
+                    frame,
+                    status: FetchStatus::Success,
+                    gray: Some(gray),
+                    dbz: None,
+                    error: None,
+                    error_details: None,
+                },
+                Ok(ModeDecodedValue::Dbz(dbz)) => ModeFetchItem {
+                    input_index: index,
+                    frame,
+                    status: FetchStatus::Success,
+                    gray: None,
+                    dbz: Some(dbz),
+                    error: None,
+                    error_details: None,
+                },
+                Err((EngineError::Core(CoreError::Cancelled), _)) => ModeFetchItem {
+                    input_index: index,
+                    frame,
+                    status: FetchStatus::Cancelled,
+                    gray: None,
+                    dbz: None,
+                    error: Some("operation cancelled".into()),
+                    error_details: None,
+                },
+                Err((error, stage)) => {
+                    let details = engine_error_report(&error, stage);
+                    ModeFetchItem {
+                        input_index: index,
+                        frame,
+                        status: FetchStatus::Failed,
+                        gray: None,
+                        dbz: None,
+                        error: Some(details.message.clone()),
+                        error_details: Some(details),
+                    }
+                }
+            }
+        };
+        let failed = item.status == FetchStatus::Failed;
+        items[index] = Some(item);
+
+        if engine.is_cancelled() || (cancelled && !after_failure) {
+            for (running_index, (frame, cancellation)) in std::mem::take(&mut running) {
+                cancellation.cancel();
+                items[running_index] = Some(ModeFetchItem {
+                    input_index: running_index,
+                    frame,
+                    status: FetchStatus::Cancelled,
+                    gray: None,
+                    dbz: None,
+                    error: Some("operation cancelled".into()),
+                    error_details: None,
+                });
+            }
+            drop(in_flight);
+            for pending_index in next..count {
+                items[pending_index] = Some(ModeFetchItem {
+                    input_index: pending_index,
+                    frame: frames[pending_index].clone(),
+                    status: FetchStatus::NotStarted,
+                    gray: None,
+                    dbz: None,
+                    error: Some("not started after cancellation".into()),
+                    error_details: None,
+                });
+            }
+            break;
+        }
+
+        if failed && policy == FetchErrorPolicy::Stop {
+            stop_after = Some(stop_after.map_or(index, |earlier: usize| earlier.min(index)));
+            for (running_index, (_, cancellation)) in &running {
+                if stop_after.is_some_and(|failed_index| *running_index > failed_index) {
+                    cancellation.cancel();
+                }
+            }
+        }
+
+        if stop_after.is_none() && next < count {
+            schedule_mode_fetch(
+                next,
+                frames[next].clone(),
+                mode,
+                engine,
+                CancellationToken::new(),
+                &mut in_flight,
+                &mut running,
+            );
+            next += 1;
+        }
+    }
+
+    let items = items
+        .into_iter()
+        .enumerate()
+        .map(|(index, item)| {
+            item.unwrap_or_else(|| ModeFetchItem {
+                input_index: index,
+                frame: frames[index].clone(),
+                status: FetchStatus::NotStarted,
+                gray: None,
+                dbz: None,
+                error: Some("not started after an earlier frame failed".into()),
+                error_details: None,
+            })
+        })
+        .collect();
+    ModeFetchBatchReport::from_items(items)
 }
 
 pub async fn fetch_many_raw(
@@ -1951,6 +2489,299 @@ pub async fn download_decoded_to_with_processing_and_raw(
         include_raw,
     )
     .await
+}
+
+struct DbzDownloadWorkItem {
+    input_index: usize,
+    frame: FrameRef,
+    status: FetchStatus,
+    result: Option<RasterResult>,
+    raw: Option<Arc<RawFrame>>,
+    error: Option<ErrorReport>,
+}
+
+/// Download explicit dBZ mode through the shared receipt-bound raster writer.
+/// When requested, the acquired raw files and decoded output share one commit.
+pub async fn download_dbz_to(
+    engine: &Engine,
+    frames: Vec<FrameRef>,
+    policy: FetchErrorPolicy,
+    dry_run: bool,
+    overwrite: bool,
+    output_root: PathBuf,
+    format: &str,
+    include_raw: bool,
+) -> DownloadBatchReport {
+    if !matches!(format, "png" | "netcdf" | "geotiff" | "zarr") {
+        return DownloadBatchReport::from_items(
+            frames
+                .into_iter()
+                .enumerate()
+                .map(|(input_index, frame)| DownloadItem {
+                    input_index,
+                    frame,
+                    status: DownloadStatus::Failed,
+                    output_uri: None,
+                    error: Some(ErrorReport {
+                        code: ErrorCode::Unsupported,
+                        message: "dBZ output format is unsupported".into(),
+                        stage: ErrorStage::Validate,
+                        retryable: false,
+                    }),
+                })
+                .collect(),
+        );
+    }
+    if dry_run {
+        return DownloadBatchReport::from_items(
+            frames
+                .into_iter()
+                .enumerate()
+                .map(|(input_index, frame)| DownloadItem {
+                    input_index,
+                    frame,
+                    status: DownloadStatus::Planned,
+                    output_uri: None,
+                    error: None,
+                })
+                .collect(),
+        );
+    }
+    if output_root.to_string_lossy().contains("://") {
+        return DownloadBatchReport::from_items(
+            frames
+                .into_iter()
+                .enumerate()
+                .map(|(input_index, frame)| DownloadItem {
+                    input_index,
+                    frame,
+                    status: DownloadStatus::Failed,
+                    output_uri: None,
+                    error: Some(ErrorReport {
+                        code: ErrorCode::Unsupported,
+                        message: "receipt-bound dBZ output currently requires a local output root"
+                            .into(),
+                        stage: ErrorStage::Validate,
+                        retryable: false,
+                    }),
+                })
+                .collect(),
+        );
+    }
+    if frames.is_empty() {
+        return DownloadBatchReport::default();
+    }
+
+    let concurrency = engine.config().runtime.frame_concurrency.max(1);
+    let extension = match format {
+        "png" => "png",
+        "netcdf" => "nc",
+        "geotiff" => "tif",
+        "zarr" => "zarr",
+        _ => unreachable!("format checked above"),
+    };
+    let mut items = Vec::with_capacity(frames.len());
+    let mut offset = 0;
+    let mut stop_after_failure = false;
+    while offset < frames.len() && !stop_after_failure && !engine.is_cancelled() {
+        let end = (offset + concurrency).min(frames.len());
+        let work = if include_raw {
+            let fetched = engine
+                .fetch_many_raw_with_concurrency(
+                    frames[offset..end].to_vec(),
+                    policy,
+                    false,
+                    concurrency,
+                )
+                .await;
+            let mut work = Vec::with_capacity(fetched.items.len());
+            for item in fetched.items {
+                if item.status == FetchStatus::Success {
+                    if let Some(raw) = item.raw {
+                        let raw = Arc::new(raw);
+                        match engine.decode_dbz(raw.clone()).await {
+                            Ok(result) => work.push(DbzDownloadWorkItem {
+                                input_index: offset + item.input_index,
+                                frame: item.frame,
+                                status: FetchStatus::Success,
+                                result: Some(result),
+                                raw: Some(raw),
+                                error: None,
+                            }),
+                            Err(error) => work.push(DbzDownloadWorkItem {
+                                input_index: offset + item.input_index,
+                                frame: item.frame,
+                                status: FetchStatus::Failed,
+                                result: None,
+                                raw: None,
+                                error: Some(engine_error_report(&error, ErrorStage::Decode)),
+                            }),
+                        }
+                    } else {
+                        work.push(DbzDownloadWorkItem {
+                            input_index: offset + item.input_index,
+                            frame: item.frame,
+                            status: FetchStatus::Failed,
+                            result: None,
+                            raw: None,
+                            error: Some(internal_error()),
+                        });
+                    }
+                } else {
+                    work.push(DbzDownloadWorkItem {
+                        input_index: offset + item.input_index,
+                        frame: item.frame,
+                        status: item.status,
+                        result: None,
+                        raw: None,
+                        error: item.error_details,
+                    });
+                }
+            }
+            work
+        } else {
+            engine
+                .fetch_many_mode(
+                    frames[offset..end].to_vec(),
+                    "dbz",
+                    policy,
+                    false,
+                    Some(concurrency),
+                )
+                .await
+                .items
+                .into_iter()
+                .map(|item| DbzDownloadWorkItem {
+                    input_index: offset + item.input_index,
+                    frame: item.frame,
+                    status: item.status,
+                    result: item.dbz,
+                    raw: None,
+                    error: item.error_details,
+                })
+                .collect()
+        };
+
+        for mut item in work {
+            let mut status = match item.status {
+                FetchStatus::Planned => DownloadStatus::Planned,
+                FetchStatus::Success => DownloadStatus::Failed,
+                FetchStatus::Failed => DownloadStatus::Failed,
+                FetchStatus::Cancelled => DownloadStatus::Cancelled,
+                FetchStatus::NotStarted => DownloadStatus::NotStarted,
+            };
+            let mut output_uri = None;
+            let mut error = item.error.take();
+            if stop_after_failure && policy == FetchErrorPolicy::Stop {
+                status = DownloadStatus::Cancelled;
+                error = Some(cancelled_after_failure());
+            } else if item.status == FetchStatus::Success {
+                if let Some(result) = item.result.take() {
+                    let output_name = match logical_id(&item.frame) {
+                        Ok(id) => format!("frames/{id}/reflectivity.{extension}"),
+                        Err(identity_error) => {
+                            error = Some(ErrorReport {
+                                code: ErrorCode::Integrity,
+                                message: identity_error.to_string(),
+                                stage: ErrorStage::Validate,
+                                retryable: false,
+                            });
+                            String::new()
+                        }
+                    };
+                    if !output_name.is_empty() {
+                        let output_root_for_commit = output_root.clone();
+                        let format_for_commit = format.to_owned();
+                        let cancellation = engine.cancellation_token();
+                        let limits = engine.resource_limits();
+                        let raw = item.raw.take();
+                        let result_for_commit = result;
+                        let name_for_commit = output_name.clone();
+                        let committed = engine
+                            .run_commit(move || match raw {
+                                Some(raw) => {
+                                    crate::output::write_raster_result_with_raw_cancellable(
+                                        &result_for_commit,
+                                        &raw,
+                                        output_root_for_commit,
+                                        &name_for_commit,
+                                        &format_for_commit,
+                                        &json!({}),
+                                        overwrite,
+                                        &limits,
+                                        &cancellation,
+                                    )
+                                }
+                                None => crate::output::write_raster_result_cancellable(
+                                    &result_for_commit,
+                                    output_root_for_commit,
+                                    &name_for_commit,
+                                    &format_for_commit,
+                                    &json!({}),
+                                    overwrite,
+                                    &limits,
+                                    &cancellation,
+                                ),
+                            })
+                            .await;
+                        match committed {
+                            Ok(committed) => {
+                                status = match committed.status {
+                                    LocalCommitStatus::Written => DownloadStatus::Written,
+                                    LocalCommitStatus::Skipped => DownloadStatus::Skipped,
+                                };
+                                output_uri =
+                                    Some(output_root.join(output_name).display().to_string());
+                                error = None;
+                            }
+                            Err(commit_error) => {
+                                status = if matches!(commit_error, CoreError::Cancelled) {
+                                    DownloadStatus::Cancelled
+                                } else {
+                                    DownloadStatus::Failed
+                                };
+                                error =
+                                    Some(ErrorReport::from_core(&commit_error, ErrorStage::Commit));
+                            }
+                        }
+                    } else {
+                        status = DownloadStatus::Failed;
+                    }
+                } else {
+                    status = DownloadStatus::Failed;
+                    error = Some(internal_error());
+                }
+            }
+            if matches!(status, DownloadStatus::Failed | DownloadStatus::Cancelled)
+                && policy == FetchErrorPolicy::Stop
+            {
+                stop_after_failure = true;
+            }
+            items.push(DownloadItem {
+                input_index: item.input_index,
+                frame: item.frame,
+                status,
+                output_uri,
+                error,
+            });
+        }
+        offset = end;
+    }
+    if offset < frames.len() {
+        for (index, frame) in frames[offset..].iter().cloned().enumerate() {
+            items.push(DownloadItem {
+                input_index: offset + index,
+                frame,
+                status: DownloadStatus::NotStarted,
+                output_uri: None,
+                error: Some(not_started_error()),
+            });
+        }
+    }
+    items.sort_by_key(|item| item.input_index);
+    let mut report = DownloadBatchReport::from_items(items);
+    report.interrupted = engine.is_cancelled();
+    report
 }
 
 async fn download_decoded(

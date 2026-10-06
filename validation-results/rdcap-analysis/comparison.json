@@ -1,0 +1,78 @@
+{
+  "timestamp_ms": 1790834708000,
+  "points": [
+    {
+      "lng": 122.435,
+      "lat": 25.534999999999997,
+      "expected": 14.0,
+      "website": {
+        "data": 14,
+        "index": 1
+      }
+    },
+    {
+      "lng": 122.44500000000001,
+      "lat": 25.534999999999997,
+      "expected": 13.5,
+      "website": {
+        "data": 13.5,
+        "index": 1
+      }
+    },
+    {
+      "lng": 122.455,
+      "lat": 25.525,
+      "expected": 14.0,
+      "website": {
+        "data": 14,
+        "index": 1
+      }
+    },
+    {
+      "lng": 122.465,
+      "lat": 25.525,
+      "expected": 39.0,
+      "website": {
+        "data": 39,
+        "index": 6
+      }
+    },
+    {
+      "lng": 122.485,
+      "lat": 25.514999999999997,
+      "expected": 41.0,
+      "website": {
+        "data": 41,
+        "index": 7
+      }
+    },
+    {
+      "lng": 121.875,
+      "lat": 24.025,
+      "expected": -1.5,
+      "website": {
+        "data": -1.5,
+        "index": -1
+      }
+    },
+    {
+      "lng": 121.625,
+      "lat": 23.985,
+      "expected": null,
+      "website": {
+        "data": null,
+        "index": -1
+      }
+    },
+    {
+      "lng": 118,
+      "lat": 27,
+      "expected": null,
+      "website": {
+        "data": null,
+        "index": -1
+      }
+    }
+  ],
+  "passed": true
+}

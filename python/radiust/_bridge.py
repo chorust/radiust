@@ -21,6 +21,7 @@ from .errors import (
     ErrorContext,
     GridError,
     IntegrityError,
+    OperationCancelled,
     RadiustError,
     ResourceLimitError,
     StorageError,
@@ -44,8 +45,78 @@ def _native_error_context(exc: Exception, stage: str, *, source: str | None = No
     )
 
 
+def _raise_if_cancelled(exc: Exception, stage: str) -> None:
+    context = _native_error_context(exc, stage)
+    if context.code == "cancelled":
+        raise OperationCancelled(
+            "operation cancelled", context=context, cause=exc
+        ) from exc
+
+
 def sha256(data: bytes) -> str:
     return _core.sha256(data) if _core is not None else hashlib.sha256(data).hexdigest()
+
+
+_DIRECT_DBZ_PATHS = {
+    ("rainviewer", "composite"),
+    ("tw", "grid"),
+    ("rdcap", "reflectivity"),
+}
+
+
+def _legacy_direct_dbz_fallback_allowed(
+    source: str,
+    product: str,
+    *,
+    extension: Any = None,
+    required_method: str = "decode_dbz",
+) -> bool:
+    """Allow an older extension only when a direct native mode is absent.
+
+    This predicate never invokes the missing capability, so a runtime failure
+    from an available method cannot be mistaken for a compatibility fallback.
+    """
+    target = _core if extension is None else extension
+    return (source, product) in _DIRECT_DBZ_PATHS and not callable(
+        getattr(target, required_method, None)
+    )
+
+
+def _decode_gray_array_native(
+    width: int,
+    height: int,
+    channels: int,
+    values: list[float],
+    *,
+    alpha_bit_depth: int = 0,
+    historical: bool = False,
+    strict: bool = True,
+    max_gray: int = 224,
+) -> tuple[list[float], list[int]]:
+    if _core is None:
+        raise UnsupportedQueryError(
+            "the compiled Rust extension is required for gray decoding",
+            context=ErrorContext(stage="validate", code="unsupported"),
+        )
+    method_name = "decode_gray_array_historical" if historical else "decode_gray_array"
+    method = getattr(_core, method_name, None)
+    if not callable(method):
+        raise UnsupportedQueryError(
+            f"the installed Rust extension does not support {method_name}",
+            context=ErrorContext(stage="validate", code="unsupported"),
+        )
+    try:
+        if historical:
+            return method(width, height, channels, values, strict, max_gray)
+        return method(width, height, channels, values, alpha_bit_depth)
+    except (OSError, ValueError) as exc:
+        _raise_if_cancelled(exc, "decode")
+        context = _native_error_context(exc, "decode")
+        if context.code == "resource_limit":
+            raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+        if context.code == "unsupported":
+            raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+        raise DecodeError(str(exc), context=context, cause=exc) from exc
 
 
 def validate_size(size: int, limit: int) -> int:
@@ -296,6 +367,7 @@ class CoreEngineSession:
         try:
             return await self._engine.discover(native_query)
         except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "discover")
             native_code = getattr(exc, "radiust_code", None)
             error_type = RadiustError if native_code else ConfigError
             raise error_type(
@@ -307,6 +379,7 @@ class CoreEngineSession:
         try:
             return await self._engine.fetch_raw(native_frame)
         except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "acquire")
             raise UnsupportedQueryError(
                 str(exc), context=_native_error_context(exc, "acquire"), cause=exc
             ) from exc
@@ -315,6 +388,7 @@ class CoreEngineSession:
         try:
             return await self._engine.load_raw_manifest(os.fspath(manifest_path))
         except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "validate")
             raise IntegrityError(
                 "raw manifest or retained artifacts failed Rust validation",
                 context=_native_error_context(exc, "validate"),
@@ -325,6 +399,7 @@ class CoreEngineSession:
         try:
             return await self._engine.decode_science(raw_frame)
         except ValueError as exc:
+            _raise_if_cancelled(exc, "decode")
             message = str(exc)
             context = _native_error_context(exc, "decode")
             if "resource limit" in message:
@@ -335,19 +410,220 @@ class CoreEngineSession:
                 ) from exc
             raise DecodeError(message, context=context, cause=exc) from exc
         except OSError as exc:
+            _raise_if_cancelled(exc, "decode")
             raise DecodeError(
                 str(exc), context=_native_error_context(exc, "decode"), cause=exc
             ) from exc
 
-    async def replay_raw_manifest(self, manifest_path: str | os.PathLike[str]) -> Any:
+    async def decode_gray(self, raw_frame: Any) -> Any:
+        method = getattr(self._engine, "decode_gray", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support source gray decoding",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
         try:
-            return await self._engine.replay_raw_manifest(os.fspath(manifest_path))
+            return await method(raw_frame)
         except (OSError, ValueError) as exc:
-            raise IntegrityError(
-                "raw manifest or retained artifacts failed Rust validation",
-                context=_native_error_context(exc, "validate"),
-                cause=exc,
-            ) from exc
+            _raise_if_cancelled(exc, "decode")
+            context = _native_error_context(exc, "decode")
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            if context.code == "integrity":
+                raise IntegrityError(str(exc), context=context, cause=exc) from exc
+            raise DecodeError(str(exc), context=context, cause=exc) from exc
+
+    async def decode_dbz(self, raw_frame: Any) -> Any:
+        method = getattr(self._engine, "decode_dbz", None)
+        if callable(method):
+            try:
+                return await method(raw_frame)
+            except (OSError, ValueError) as exc:
+                _raise_if_cancelled(exc, "decode")
+                context = _native_error_context(exc, "decode")
+                if context.code == "resource_limit":
+                    raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+                if context.code == "unsupported":
+                    raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+                if context.code == "integrity":
+                    raise IntegrityError(str(exc), context=context, cause=exc) from exc
+                raise DecodeError(str(exc), context=context, cause=exc) from exc
+
+        frame = raw_frame.frame()
+        source = str(frame.source)
+        product = str(frame.product)
+        if _legacy_direct_dbz_fallback_allowed(
+            source, product, extension=type(self._engine), required_method="decode_dbz"
+        ):
+            native = await self.decode_science(raw_frame)
+            if getattr(native, "name", None) == "reflectivity" and getattr(native, "units", None) == "dBZ":
+                return native
+            raise DecodeError(
+                "legacy native decoder did not return reflectivity in dBZ",
+                context=ErrorContext(stage="decode", code="unit_mismatch", source=source),
+            )
+        raise UnsupportedQueryError(
+            "the installed Rust extension does not support source dBZ decoding",
+            context=ErrorContext(stage="validate", code="unsupported", source=source),
+        )
+
+    async def decode_gray_file(
+        self, path: str | os.PathLike[str], frame_index: int | None = None
+    ) -> Any:
+        method = getattr(self._engine, "decode_gray_file", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support local gray dBZ decoding",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
+        try:
+            return await method(os.fspath(path), frame_index)
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "decode")
+            context = _native_error_context(exc, "decode")
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            raise DecodeError(str(exc), context=context, cause=exc) from exc
+
+    async def read_dbz_file(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        variable: str | None = None,
+        valid_time: str | None = None,
+    ) -> Any:
+        method = getattr(self._engine, "read_dbz_file", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support receipt-bound numeric dBZ reads",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
+        try:
+            return await method(os.fspath(path), variable, valid_time)
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "decode")
+            context = _native_error_context(exc, "decode")
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unit_mismatch":
+                raise DecodeError(str(exc), context=context, cause=exc) from exc
+            if context.code == "integrity":
+                raise IntegrityError(str(exc), context=context, cause=exc) from exc
+            raise DecodeError(str(exc), context=context, cause=exc) from exc
+
+    async def write_raster(
+        self,
+        result: Any,
+        *,
+        output_name: str,
+        format: str,
+        options_json: str,
+        overwrite: bool,
+        output_root: str | os.PathLike[str] | None = None,
+        ref: Any = None,
+    ) -> dict[str, Any]:
+        method = getattr(self._engine, "write_raster_to", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support receipt-bound raster writes",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
+        try:
+            ref_json = None
+            if ref is not None:
+                native_ref = _native_frames([ref])[0]
+                ref_json = native_ref.to_json()
+            encoded = await method(
+                result,
+                output_name,
+                format,
+                options_json,
+                bool(overwrite),
+                None if output_root is None else os.fspath(output_root),
+                ref_json,
+            )
+            payload = json.loads(encoded)
+            if not isinstance(payload, dict) or payload.get("status") not in {"written", "skipped"}:
+                raise ValueError("Rust returned an invalid raster write report")
+            return payload
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "commit")
+            context = _native_error_context(exc, "commit")
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "output_conflict":
+                raise StorageError(str(exc), context=context, cause=exc) from exc
+            if context.code == "invalid_grid":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            raise StorageError(str(exc), context=context, cause=exc) from exc
+
+    async def decode_gray_values(
+        self,
+        width: int,
+        height: int,
+        values: Any,
+        *,
+        alpha_json: str | None = None,
+        declared_encoding: str = "gray-dbz-v1",
+    ) -> Any:
+        method = getattr(self._engine, "decode_gray_values", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support strict gray array decoding",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
+        try:
+            return await method(width, height, values, alpha_json, declared_encoding)
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "decode")
+            context = _native_error_context(exc, "decode")
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            raise DecodeError(str(exc), context=context, cause=exc) from exc
+
+    async def replay_raw_manifest(
+        self, manifest_path: str | os.PathLike[str], *, mode: str | None = None
+    ) -> Any:
+        try:
+            method = self._engine.replay_raw_manifest
+            if mode is None:
+                return await method(os.fspath(manifest_path))
+            if mode not in {"gray", "dbz"}:
+                raise ValueError("mode must be gray or dbz")
+            try:
+                return await method(os.fspath(manifest_path), mode)
+            except TypeError as exc:
+                raise UnsupportedQueryError(
+                    f"the installed Rust extension does not support replay mode={mode}",
+                    context=ErrorContext(stage="validate", code="unsupported"),
+                    cause=exc,
+                ) from exc
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "decode" if mode else "validate")
+            context = _native_error_context(exc, "decode" if mode else "validate")
+            if context.code == "integrity" or (mode is None and context.code is None):
+                raise IntegrityError(
+                    "raw manifest or retained artifacts failed Rust validation",
+                    context=context,
+                    cause=exc,
+                ) from exc
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            if context.code in {"invalid_gray_encoding", "unit_mismatch", "decode_unverified"}:
+                raise DecodeError(str(exc), context=context, cause=exc) from exc
+            raise DecodeError(str(exc), context=context, cause=exc) from exc
 
     async def fetch_many_raw(
         self,
@@ -389,6 +665,60 @@ class CoreEngineSession:
                 ) from exc
             raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
 
+    async def fetch_many_mode(
+        self,
+        frames: list[Any],
+        *,
+        mode: str,
+        on_error: str = "collect",
+        dry_run: bool = False,
+        max_concurrency: int | None = None,
+    ) -> Any:
+        if mode not in {"gray", "dbz"}:
+            raise ValueError("mode must be gray or dbz")
+        method = getattr(self._engine, "fetch_many_mode", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support gray/dbz batch decoding",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
+        native_frames = _native_frames(frames)
+        try:
+            return await method(native_frames, mode, on_error, bool(dry_run), max_concurrency)
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "decode")
+            context = _native_error_context(exc, "decode")
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            raise DecodeError(str(exc), context=context, cause=exc) from exc
+
+    def open_fetch_mode_stream(
+        self,
+        frames: list[Any],
+        *,
+        mode: str,
+        on_error: str = "collect",
+        max_concurrency: int | None = None,
+    ) -> Any:
+        if mode not in {"gray", "dbz"}:
+            raise ValueError("mode must be gray or dbz")
+        method = getattr(self._engine, "open_fetch_mode_stream", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support gray/dbz fetch streams",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
+        try:
+            return method(_native_frames(frames), mode, on_error, max_concurrency)
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "decode")
+            context = _native_error_context(exc, "decode")
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            raise DecodeError(str(exc), context=context, cause=exc) from exc
+
     def open_fetch_stream(
         self,
         frames: list[Any],
@@ -423,6 +753,41 @@ class CoreEngineSession:
                 bool(dry_run),
                 bool(overwrite),
                 os.fspath(output_root) if output_root is not None else None,
+            )
+        except ValueError as exc:
+            if "on_error" in str(exc):
+                raise UnsupportedQueryError(
+                    str(exc), context=ErrorContext(stage="validate"), cause=exc
+                ) from exc
+            raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
+
+    async def download_dbz_mode(
+        self,
+        frames: list[Any],
+        *,
+        on_error: str = "collect",
+        dry_run: bool = False,
+        overwrite: bool = False,
+        output_root: str | os.PathLike[str] | None = None,
+        format: str = "netcdf",
+        include_raw: bool = False,
+    ) -> Any:
+        native_frames = _native_frames(frames)
+        method = getattr(self._engine, "download_dbz_mode", None)
+        if not callable(method):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support source dBZ downloads",
+                context=ErrorContext(stage="validate"),
+            )
+        try:
+            return await method(
+                native_frames,
+                on_error,
+                bool(dry_run),
+                bool(overwrite),
+                os.fspath(output_root) if output_root is not None else None,
+                format,
+                bool(include_raw),
             )
         except ValueError as exc:
             if "on_error" in str(exc):

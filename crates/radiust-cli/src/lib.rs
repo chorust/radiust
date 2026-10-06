@@ -13,6 +13,7 @@ use radiust_core::grid::Resampling;
 use radiust_core::limits::Limits;
 use radiust_core::model::{DiscoveryReport, DiscoveryStatus, PreviewMode, Query, TimeSelector};
 use radiust_core::preview::preview_file;
+use radiust_core::raster::RasterResultData;
 use radiust_core::source::SourceRegistry;
 use radiust_core::source::catalog::SourceCatalog;
 use serde_json::{Value, json};
@@ -73,14 +74,21 @@ enum Command {
     },
     /// Plan or acquire selected frames.
     Download {
-        source: String,
+        #[arg(required_unless_present = "file", conflicts_with = "file")]
+        source: Option<String>,
+        /// Decode and save a local gray image or numeric reflectivity file.
+        #[arg(long, requires = "dbz")]
+        file: Option<PathBuf>,
         #[arg(long)]
         dry_run: bool,
-        #[arg(long = "raw-only")]
+        #[arg(long = "raw-only", conflicts_with = "raw")]
         raw_only: bool,
         /// Include the verified source artifacts alongside decoded output.
         #[arg(long)]
         raw: bool,
+        /// Require direct native reflectivity values with dBZ units.
+        #[arg(long, conflicts_with = "raw_only")]
+        dbz: bool,
         #[arg(long)]
         overwrite: bool,
         #[arg(long, value_parser = ["collect", "continue", "stop", "raise"], default_value = "collect")]
@@ -142,6 +150,9 @@ enum Command {
         formats: Vec<String>,
         #[arg(long)]
         overwrite: bool,
+        /// Require direct native reflectivity values with dBZ units.
+        #[arg(long)]
+        dbz: bool,
     },
     /// Preview a local image or a selected NetCDF field.
     Cat {
@@ -160,13 +171,22 @@ enum Command {
         #[arg(long)]
         height: Option<usize>,
         /// Preview the source image without scientific decoding (the default).
-        #[arg(long, conflicts_with = "decoded")]
+        #[arg(long, conflicts_with_all = ["decoded", "gray", "dbz", "legacy_display"])]
         raw: bool,
         /// Decode a source frame using a validated native scientific decoder.
-        #[arg(long, conflicts_with = "raw")]
+        #[arg(long, conflicts_with_all = ["raw", "gray", "dbz", "legacy_display"])]
         decoded: bool,
-        /// Apply an evidence-validated presentation rule to the selected source image.
-        #[arg(long = "legacy-display")]
+        /// Show the source image using gray-code display semantics.
+        #[arg(long, conflicts_with_all = ["raw", "decoded", "dbz", "legacy_display"])]
+        gray: bool,
+        /// Decode a declared local gray image or native reflectivity to dBZ.
+        #[arg(long, conflicts_with_all = ["raw", "decoded", "gray", "legacy_display"])]
+        dbz: bool,
+        /// Select an explicit frame from a multi-frame local image.
+        #[arg(long = "frame-index")]
+        frame_index: Option<u32>,
+        /// Compatibility alias for --gray; use --gray for gray-code display.
+        #[arg(long = "legacy-display", conflicts_with_all = ["raw", "decoded", "gray", "dbz"])]
         legacy_display: bool,
         source: Option<String>,
         #[arg(long)]
@@ -686,6 +706,352 @@ fn download_decoded_command(
         .map_err(|error| error.to_string())
 }
 
+fn download_dbz_mode_command(
+    config: CoreConfig,
+    query: Query,
+    policy: FetchErrorPolicy,
+    overwrite: bool,
+    include_raw: bool,
+    format: String,
+    progress_enabled: bool,
+) -> Result<(Value, u8), String> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(config.runtime.decode_workers.max(1))
+        .enable_all()
+        .build()
+        .map_err(|_| "native runtime could not be initialized".to_owned())?;
+    let engine =
+        Engine::new(config, SourceRegistry::default()).map_err(|error| error.to_string())?;
+    runtime
+        .block_on(with_progress(
+            &engine,
+            download_dbz_mode_cancellable(&engine, query, policy, overwrite, include_raw, format),
+            progress_enabled,
+        ))
+        .map_err(|error| error.to_string())
+}
+
+struct SourceDbzOutput {
+    input_index: usize,
+    frame: radiust_core::model::FrameRef,
+    status: radiust_core::download::FetchStatus,
+    result: Option<radiust_core::raster::RasterResult>,
+    raw: Option<Arc<radiust_core::model::RawFrame>>,
+    error: Option<radiust_core::error_contract::ErrorReport>,
+}
+
+fn source_dbz_error_report(error: &EngineError) -> radiust_core::error_contract::ErrorReport {
+    use radiust_core::error_contract::{ErrorCode, ErrorReport, ErrorStage};
+    match error {
+        EngineError::Core(error) => ErrorReport::from_core(error, ErrorStage::Decode),
+        EngineError::UnsupportedScience(_) | EngineError::UnsupportedSource(_) => ErrorReport {
+            code: ErrorCode::Unsupported,
+            message: "source does not have a validated dBZ decoder".into(),
+            stage: ErrorStage::Decode,
+            retryable: false,
+        },
+        EngineError::UnsupportedVariable { .. } => ErrorReport {
+            code: ErrorCode::Unsupported,
+            message: "source dBZ decoder does not provide the requested variable".into(),
+            stage: ErrorStage::Decode,
+            retryable: false,
+        },
+        EngineError::InvalidQuery(_) => ErrorReport {
+            code: ErrorCode::InvalidQuery,
+            message: "source dBZ request is invalid".into(),
+            stage: ErrorStage::Validate,
+            retryable: false,
+        },
+        _ => ErrorReport {
+            code: ErrorCode::Internal,
+            message: "source dBZ decoding failed".into(),
+            stage: ErrorStage::Decode,
+            retryable: false,
+        },
+    }
+}
+
+async fn download_dbz_mode_cancellable(
+    engine: &Engine,
+    query: Query,
+    policy: FetchErrorPolicy,
+    overwrite: bool,
+    include_raw: bool,
+    format: String,
+) -> Result<(Value, u8), EngineError> {
+    let report_query = query.clone();
+    let operation = async {
+        let discovery = engine.discover(query).await?;
+        if discovery.interrupted {
+            return Ok((report::download_interrupted(&report_query), 130));
+        }
+        let frames = discovery
+            .items
+            .iter()
+            .filter(|item| item.status == DiscoveryStatus::Success)
+            .filter_map(|item| item.frame.clone())
+            .collect::<Vec<_>>();
+        let (outputs, batch_cancelled) = if include_raw {
+            let fetched = engine.fetch_many_raw(frames, policy, false).await;
+            let mut outputs = Vec::with_capacity(fetched.items.len());
+            for item in fetched.items {
+                if item.status == radiust_core::download::FetchStatus::Success {
+                    if let Some(raw) = item.raw {
+                        let raw = Arc::new(raw);
+                        match engine.decode_dbz(raw.clone()).await {
+                            Ok(result) => outputs.push(SourceDbzOutput {
+                                input_index: item.input_index,
+                                frame: item.frame,
+                                status: radiust_core::download::FetchStatus::Success,
+                                result: Some(result),
+                                raw: Some(raw),
+                                error: None,
+                            }),
+                            Err(error) => outputs.push(SourceDbzOutput {
+                                input_index: item.input_index,
+                                frame: item.frame,
+                                status: radiust_core::download::FetchStatus::Failed,
+                                result: None,
+                                raw: None,
+                                error: Some(source_dbz_error_report(&error)),
+                            }),
+                        }
+                    } else {
+                        outputs.push(SourceDbzOutput {
+                            input_index: item.input_index,
+                            frame: item.frame,
+                            status: radiust_core::download::FetchStatus::Failed,
+                            result: None,
+                            raw: None,
+                            error: Some(radiust_core::error_contract::ErrorReport {
+                                code: radiust_core::error_contract::ErrorCode::Internal,
+                                message: "raw acquisition omitted its artifacts".into(),
+                                stage: radiust_core::error_contract::ErrorStage::Acquire,
+                                retryable: false,
+                            }),
+                        });
+                    }
+                } else {
+                    outputs.push(SourceDbzOutput {
+                        input_index: item.input_index,
+                        frame: item.frame,
+                        status: item.status,
+                        result: None,
+                        raw: None,
+                        error: item.error_details,
+                    });
+                }
+            }
+            (outputs, fetched.cancelled > 0 && fetched.failed == 0)
+        } else {
+            let decoded = engine.fetch_many_mode(frames, "dbz", policy, false, None).await;
+            let outputs = decoded
+                .items
+                .into_iter()
+                .map(|item| SourceDbzOutput {
+                    input_index: item.input_index,
+                    frame: item.frame,
+                    status: item.status,
+                    result: item.dbz,
+                    raw: None,
+                    error: item.error_details,
+                })
+                .collect();
+            (outputs, decoded.cancelled > 0 && decoded.failed == 0)
+        };
+        let mut downloaded = radiust_core::download::DownloadBatchReport::default();
+        let mut decoded_mode_info = Vec::with_capacity(outputs.len());
+        let extension = match format.as_str() {
+            "png" => "png",
+            "netcdf" => "nc",
+            "geotiff" => "tif",
+            "zarr" => "zarr",
+            _ => "nc",
+        };
+        let mut stop_after_failure = false;
+        for item in outputs {
+            let mut status = match item.status {
+                radiust_core::download::FetchStatus::Planned => {
+                    radiust_core::download::DownloadStatus::Planned
+                }
+                radiust_core::download::FetchStatus::Success => {
+                    radiust_core::download::DownloadStatus::Failed
+                }
+                radiust_core::download::FetchStatus::Failed => {
+                    radiust_core::download::DownloadStatus::Failed
+                }
+                radiust_core::download::FetchStatus::Cancelled => {
+                    radiust_core::download::DownloadStatus::Cancelled
+                }
+                radiust_core::download::FetchStatus::NotStarted => {
+                    radiust_core::download::DownloadStatus::NotStarted
+                }
+            };
+            let mut output_uri = None;
+            let mut error = item.error.clone();
+            let mut mode_info = report::failed_mode_info("dbz");
+            if item.status == radiust_core::download::FetchStatus::Success {
+                if stop_after_failure {
+                    status = radiust_core::download::DownloadStatus::Cancelled;
+                    error = Some(radiust_core::error_contract::ErrorReport {
+                        code: radiust_core::error_contract::ErrorCode::Cancelled,
+                        message: "cancelled after an earlier output failed".into(),
+                        stage: radiust_core::error_contract::ErrorStage::Commit,
+                        retryable: false,
+                    });
+                } else if let Some(result) = item.result {
+                    mode_info = serde_json::to_value(&result.mode_info).unwrap_or(Value::Null);
+                    mode_info["requested"] = json!("dbz");
+                    let logical_id = match radiust_core::identity::logical_id(&item.frame) {
+                        Ok(value) => value,
+                        Err(identity_error) => {
+                            status = radiust_core::download::DownloadStatus::Failed;
+                            error = Some(radiust_core::error_contract::ErrorReport {
+                                code: radiust_core::error_contract::ErrorCode::Integrity,
+                                message: identity_error.to_string(),
+                                stage: radiust_core::error_contract::ErrorStage::Validate,
+                                retryable: false,
+                            });
+                            String::new()
+                        }
+                    };
+                    if !logical_id.is_empty() {
+                        let output_name = format!("frames/{logical_id}/reflectivity.{extension}");
+                        let output_root = engine.config().storage.output.clone();
+                        let result = Arc::new(result);
+                        let committed = match item.raw {
+                            Some(raw) => {
+                                engine
+                                    .write_raster_result_to_with_raw(
+                                        result,
+                                        raw,
+                                        output_root.clone(),
+                                        output_name.clone(),
+                                        format.clone(),
+                                        overwrite,
+                                    )
+                                    .await
+                            }
+                            None => {
+                                engine
+                                    .write_raster_result_to(
+                                        result,
+                                        output_root.clone(),
+                                        output_name.clone(),
+                                        format.clone(),
+                                        overwrite,
+                                    )
+                                    .await
+                            }
+                        };
+                        match committed {
+                            Ok(committed) => {
+                                status = match committed.status {
+                                    radiust_core::storage::LocalCommitStatus::Written => {
+                                        radiust_core::download::DownloadStatus::Written
+                                    }
+                                    radiust_core::storage::LocalCommitStatus::Skipped => {
+                                        radiust_core::download::DownloadStatus::Skipped
+                                    }
+                                };
+                                output_uri =
+                                    Some(output_root.join(output_name).display().to_string());
+                                error = None;
+                            }
+                            Err(commit_error) => {
+                                status = radiust_core::download::DownloadStatus::Failed;
+                                error = Some(radiust_core::error_contract::ErrorReport::from_core(
+                                    &commit_error,
+                                    radiust_core::error_contract::ErrorStage::Commit,
+                                ));
+                            }
+                        }
+                    }
+                } else {
+                    status = radiust_core::download::DownloadStatus::Failed;
+                    error = Some(radiust_core::error_contract::ErrorReport {
+                        code: radiust_core::error_contract::ErrorCode::Internal,
+                        message: "dBZ decoder omitted the raster result".into(),
+                        stage: radiust_core::error_contract::ErrorStage::Decode,
+                        retryable: false,
+                    });
+                }
+                if !matches!(
+                    status,
+                    radiust_core::download::DownloadStatus::Written
+                        | radiust_core::download::DownloadStatus::Skipped
+                ) {
+                    mode_info["actual"] = Value::Null;
+                    if policy == FetchErrorPolicy::Stop {
+                        stop_after_failure = true;
+                    }
+                }
+            }
+            decoded_mode_info.push(mode_info);
+            downloaded.items.push(radiust_core::download::DownloadItem {
+                input_index: item.input_index,
+                frame: item.frame,
+                status,
+                output_uri,
+                error,
+            });
+        }
+        downloaded.interrupted = batch_cancelled;
+        let (mut payload, exit_code) = report::download_execution(&discovery, &downloaded);
+        let mut item_mode_infos = Vec::with_capacity(discovery.items.len());
+        let mut success_index = 0;
+        for item in &discovery.items {
+            if item.status == DiscoveryStatus::Success {
+                item_mode_infos.push(
+                    decoded_mode_info
+                        .get(success_index)
+                        .cloned()
+                        .unwrap_or_else(|| report::failed_mode_info("dbz")),
+                );
+                success_index += 1;
+            } else {
+                item_mode_infos.push(report::failed_mode_info("dbz"));
+            }
+        }
+        let summary = item_mode_infos
+            .iter()
+            .find(|mode| mode["actual"] == "dbz")
+            .cloned()
+            .unwrap_or_else(|| report::failed_mode_info("dbz"));
+        payload = report::with_mode_info(payload, summary);
+        if let Some(items) = payload.get_mut("items").and_then(Value::as_array_mut) {
+            for (item, mode_info) in items.iter_mut().zip(item_mode_infos) {
+                if let Some(object) = item.as_object_mut() {
+                    object.insert("mode_info".into(), mode_info);
+                }
+            }
+        }
+        Ok((payload, exit_code))
+    };
+    tokio::pin!(operation);
+    let cancellation = tokio::signal::ctrl_c();
+    tokio::pin!(cancellation);
+    tokio::select! {
+        biased;
+        signal = &mut cancellation => {
+            signal.map_err(|_| EngineError::RuntimeUnavailable)?;
+            engine.cancel();
+            let mut result = operation.await.unwrap_or_else(|_| {
+                (report::download_interrupted(&report_query), 130)
+            });
+            result.0["interrupted"] = json!(true);
+            result.0["error"] = json!({
+                "code": "cancelled",
+                "message": "operation cancelled",
+                "stage": "download",
+                "retryable": false,
+            });
+            Ok((result.0, 130))
+        }
+        result = &mut operation => result,
+    }
+}
+
 async fn download_raw_cancellable(
     engine: &Engine,
     query: Query,
@@ -834,7 +1200,9 @@ fn cat_file(
     config: &CoreConfig,
     as_json: bool,
     options: &CatRenderOptions,
-) -> Result<(), String> {
+    mode: &str,
+    frame_index: Option<u32>,
+) -> Result<u8, String> {
     let renderer = resolve_preview_renderer(renderer, std::io::stdout().is_terminal(), as_json)?;
     let extension =
         path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
@@ -845,11 +1213,27 @@ fn cat_file(
         _ if variable.is_some() => Some(("NetCDF4", true)),
         _ => None,
     };
-    if format.is_none() && (variable.is_some() || options.has_science_options()) {
+    let mode = if mode == "default" && format.is_some() {
+        "scientific"
+    } else if mode == "default" {
+        "raw"
+    } else {
+        mode
+    };
+    if format.is_none() && mode == "scientific" {
+        return Err("--decoded requires a scientific --file or SOURCE".into());
+    }
+    if format.is_none() && mode != "dbz" && (variable.is_some() || options.has_science_options()) {
         return Err("raw image preview does not accept scientific decoding options".into());
     }
     options.validate()?;
     if let Some((format_name, is_netcdf)) = format {
+        if mode == "gray" || mode == "raw" {
+            return Err("--raw and --gray apply only to local images".into());
+        }
+        if frame_index.is_some() {
+            return Err("--frame-index applies only to local multi-frame images".into());
+        }
         if let Some(valid_time) = valid_time {
             radiust_core::model::parse_utc_time(valid_time)
                 .map_err(|_| "--at time must be ISO-8601 with a timezone".to_owned())?;
@@ -893,6 +1277,26 @@ fn cat_file(
             validate_local_field_selection(&field, variable, valid_time)?;
             field
         };
+        if mode == "dbz" && (field.name != "reflectivity" || field.units.as_deref() != Some("dBZ"))
+        {
+            let message = format!(
+                "--dbz requires reflectivity in dBZ; selected {} [{}]",
+                field.name,
+                field.units.as_deref().unwrap_or("unknown")
+            );
+            if as_json {
+                let error = report::with_mode_info(
+                    report::error_envelope("unit_mismatch", &message, "decode"),
+                    json!({
+                        "requested":"dbz", "actual":null,
+                        "time_status":"unknown", "geolocation":"unknown"
+                    }),
+                );
+                emit(&error, true)?;
+                return Ok(5);
+            }
+            return Err(message);
+        }
         let preview = radiust_core::output::png::preview_field_with_options(
             &field,
             &limits,
@@ -909,46 +1313,154 @@ fn cat_file(
             "width": preview.width,
             "height": preview.height,
             "crs": field.grid.crs,
-            "display_mode": "decoded",
+            "display_mode": if mode == "dbz" { "dbz" } else { "decoded" },
         });
         let text = format!(
-            "field path={name} format={format_name} variable={} time={} units={} size={}x{} crs={} display=decoded",
+            "field path={name} format={format_name} variable={} time={} units={} size={}x{} crs={} display={}",
             field.name,
             field.valid_time,
             field.units.as_deref().unwrap_or("unknown"),
             preview.width,
             preview.height,
             field.grid.crs.as_deref().unwrap_or("unknown"),
+            if mode == "dbz" { "dbz" } else { "decoded" },
         );
-        if as_json {
-            emit(&report::envelope("cat", vec![result.clone()], Some(result)), true)
+        let report_value = if mode == "dbz" {
+            report::with_mode_info(
+                report::envelope("cat", vec![result.clone()], Some(result.clone())),
+                json!({
+                    "requested":"dbz", "actual":"dbz", "variable":field.name,
+                    "units":field.units, "method":"native_numeric", "encoding":null,
+                    "range_policy":null, "time_status":"known", "geolocation":
+                        if field.grid.crs.is_some() { "known" } else { "unknown" },
+                    "limitations":[]
+                }),
+            )
         } else {
-            render_cat_preview(&preview, &text, renderer, options.width, options.height)
+            report::with_mode_info(
+                report::envelope("cat", vec![result.clone()], Some(result.clone())),
+                json!({
+                    "requested":"scientific", "actual":"scientific", "variable":field.name,
+                    "units":field.units, "method":"native_numeric", "encoding":null,
+                    "time_status":"known", "geolocation":if field.grid.crs.is_some() { "known" } else { "unknown" },
+                    "limitations":[]
+                }),
+            )
+        };
+        if as_json {
+            emit(&report_value, true)?;
+            Ok(0)
+        } else {
+            render_cat_preview(&preview, &text, renderer, options.width, options.height)?;
+            Ok(0)
         }
     } else {
         if valid_time.is_some() {
             return Err("--at requires a scientific --file".into());
         }
-        let preview = preview_file(
-            path,
-            &Limits {
-                max_artifact_bytes: config.runtime.max_artifact_bytes,
-                max_pixels: config.runtime.max_pixels,
-                max_temp_bytes: config.runtime.max_temp_bytes,
-                ..Limits::default()
-            },
-        )
-        .map_err(|error| error.to_string())?;
+        let limits = Limits {
+            max_artifact_bytes: config.runtime.max_artifact_bytes,
+            max_pixels: config.runtime.max_pixels,
+            max_temp_bytes: config.runtime.max_temp_bytes,
+            ..Limits::default()
+        };
+        if mode == "dbz" {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(config.runtime.decode_workers.max(1))
+                .enable_all()
+                .build()
+                .map_err(|_| "native runtime could not be initialized".to_owned())?;
+            let engine = Engine::new(config.clone(), SourceRegistry::default())
+                .map_err(|error| error.to_string())?;
+            let result =
+                match runtime.block_on(engine.decode_gray_file(path.to_path_buf(), frame_index)) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        let code = local_dbz_error_code(&error);
+                        if as_json {
+                            emit(&report::local_mode_error(code, &error.to_string(), "dbz"), true)?;
+                            return Ok(5);
+                        }
+                        return Err(error.to_string());
+                    }
+                };
+            let RasterResultData::Pixel(field) = &result.data else {
+                return Err("local gray decoding did not produce a pixel field".into());
+            };
+            let preview = radiust_core::output::png::preview_pixel_dbz_with_options(
+                field,
+                &limits,
+                &options.as_png_options(),
+            )
+            .map_err(|error| error.to_string())?;
+            let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("image");
+            let text = format!(
+                "field path={name} variable=reflectivity units=dBZ size={}x{} display=dbz encoding=gray-dbz-v1 range=strict-v1",
+                preview.width, preview.height,
+            );
+            if as_json {
+                let envelope = report::with_mode_info(
+                    report::envelope("cat", Vec::new(), Some(json!(text))),
+                    serde_json::to_value(&result.mode_info).unwrap_or(Value::Null),
+                );
+                emit(&envelope, true)?;
+            } else {
+                render_cat_preview(&preview, &text, renderer, options.width, options.height)?;
+            }
+            return Ok(0);
+        }
+        if frame_index.is_some() {
+            return Err("--frame-index currently applies to --dbz image decoding".into());
+        }
+        let preview = preview_file(path, &limits).map_err(|error| error.to_string())?;
+        if mode == "gray" && !preview_is_gray(&preview.preview.rgba) {
+            let message = "visible image pixels are not grayscale";
+            if as_json {
+                emit(&report::local_mode_error("invalid_gray_encoding", message, "gray"), true)?;
+                return Ok(5);
+            }
+            return Err(message.into());
+        }
         let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("image");
         let text = format!(
-            "image path={name} raw source=unknown product=unknown station=unknown time=unknown units=unknown format={} size={}x{} sha256={} display=original rule=unknown; original source pixels preserved",
-            preview.format, preview.preview.width, preview.preview.height, preview.sha256,
+            "image path={name} {} source=unknown product=unknown station=unknown time=unknown units={} format={} size={}x{} sha256={} display=original rule=unknown; original source pixels preserved",
+            mode,
+            if mode == "gray" { "gray_code" } else { "unknown" },
+            preview.format,
+            preview.preview.width,
+            preview.preview.height,
+            preview.sha256,
         );
         if as_json {
-            emit(&report::envelope("cat", Vec::new(), Some(json!(text))), true)
+            let envelope = report::with_mode_info(
+                report::envelope("cat", Vec::new(), Some(json!(text))),
+                report::local_mode_info(mode, Some(mode)),
+            );
+            emit(&envelope, true)?;
+            Ok(0)
         } else {
-            render_cat_preview(&preview.preview, &text, renderer, options.width, options.height)
+            render_cat_preview(&preview.preview, &text, renderer, options.width, options.height)?;
+            Ok(0)
         }
+    }
+}
+
+fn preview_is_gray(rgba: &[u8]) -> bool {
+    rgba.len().is_multiple_of(4)
+        && rgba
+            .chunks_exact(4)
+            .all(|pixel| pixel[3] == 0 || (pixel[0] == pixel[1] && pixel[1] == pixel[2]))
+}
+
+fn local_dbz_error_code(error: &EngineError) -> &'static str {
+    match error {
+        EngineError::Core(radiust_core::errors::CoreError::InvalidGrayEncoding { .. }) => {
+            "invalid_gray_encoding"
+        }
+        EngineError::Core(radiust_core::errors::CoreError::ResourceLimit(_)) => "resource_limit",
+        EngineError::Core(radiust_core::errors::CoreError::Cancelled) => "cancelled",
+        EngineError::Core(radiust_core::errors::CoreError::UnitMismatch { .. }) => "unit_mismatch",
+        _ => "decode",
     }
 }
 
@@ -980,6 +1492,7 @@ fn validate_local_field_selection(
 struct CatSourcePreview {
     preview: radiust_core::model::Preview,
     result: Value,
+    mode_info: Value,
     text: String,
 }
 
@@ -1002,7 +1515,7 @@ async fn cat_source_operation<F>(
     engine: &Engine,
     config: &CoreConfig,
     query: Query,
-    legacy_display: bool,
+    gray_mode: bool,
     after_raw_acquisition: F,
 ) -> Result<CatSourceOutcome, String>
 where
@@ -1012,8 +1525,9 @@ where
         engine,
         config,
         query,
-        legacy_display,
-        false,
+        gray_mode,
+        gray_mode,
+        None,
         None,
         CatRenderOptions::default(),
         after_raw_acquisition,
@@ -1025,8 +1539,9 @@ async fn cat_source_operation_with_mode<F>(
     engine: &Engine,
     config: &CoreConfig,
     query: Query,
-    legacy_display: bool,
-    decoded: bool,
+    gray_mode: bool,
+    compatibility_display_mode: bool,
+    science_mode: Option<&str>,
     variable: Option<String>,
     options: CatRenderOptions,
     after_raw_acquisition: F,
@@ -1034,10 +1549,10 @@ async fn cat_source_operation_with_mode<F>(
 where
     F: Future<Output = ()>,
 {
-    if decoded && legacy_display {
-        return Err("--legacy-display cannot be combined with --raw or --decoded".into());
+    if science_mode.is_some() && gray_mode {
+        return Err("--gray cannot be combined with --raw, --decoded, or --dbz".into());
     }
-    if !decoded && options.has_science_options() {
+    if science_mode.is_none() && options.has_science_options() {
         return Err("raw image preview does not accept scientific decoding options".into());
     }
     options.validate()?;
@@ -1063,7 +1578,7 @@ where
     }
 
     let frame = candidates[0].clone();
-    if decoded && !supports_decoded_frame(&frame) {
+    if science_mode == Some("scientific") && !supports_decoded_frame(&frame) {
         return Err(format!(
             "native --decoded preview supports only rainviewer/composite or tw/grid; selected {}/{}",
             frame.source, frame.product
@@ -1077,9 +1592,106 @@ where
         Err(error) => return Err(error.to_string()),
     };
     after_raw_acquisition.await;
-    if decoded {
+    if science_mode == Some("dbz") {
+        let raster = engine.decode_dbz(Arc::new(raw)).await.map_err(|error| error.to_string())?;
+        let limits = Limits {
+            max_artifact_bytes: config.runtime.max_artifact_bytes,
+            max_frame_bytes: config.runtime.max_frame_bytes,
+            max_pixels: config.runtime.max_pixels,
+            max_temp_bytes: config.runtime.max_temp_bytes,
+            ..Limits::default()
+        };
+        let mut preview = match &raster.data {
+            radiust_core::raster::RasterResultData::Native(field) => {
+                if variable.as_deref().is_some_and(|name| name != field.name) {
+                    return Err(format!(
+                        "native {} decoder provides only variable {}; requested {}",
+                        frame.source,
+                        field.name,
+                        variable.as_deref().unwrap_or_default()
+                    ));
+                }
+                radiust_core::output::png::preview_field_with_options(
+                    field,
+                    &limits,
+                    &options.as_png_options(),
+                )
+            }
+            radiust_core::raster::RasterResultData::Pixel(field) => {
+                if variable.as_deref().is_some_and(|name| name != "reflectivity") {
+                    return Err("source gray decoding provides only variable reflectivity".into());
+                }
+                radiust_core::output::png::preview_pixel_dbz_with_options(
+                    field,
+                    &limits,
+                    &options.as_png_options(),
+                )
+            }
+            radiust_core::raster::RasterResultData::NativeDataset { .. } => {
+                return Err("dbz preview requires a single reflectivity field".into());
+            }
+        }
+        .map_err(|error| error.to_string())?;
+        preview.frame = Some(frame.clone());
+        preview.mode = PreviewMode::Decoded;
+        let mode_info = serde_json::to_value(&raster.mode_info)
+            .map_err(|error| format!("dBZ mode information could not be serialized: {error}"))?;
+        let (width, height, crs, valid_time) = match &raster.data {
+            radiust_core::raster::RasterResultData::Native(field) => (
+                preview.width,
+                preview.height,
+                field.grid.crs.clone(),
+                Some(field.valid_time.clone()),
+            ),
+            radiust_core::raster::RasterResultData::Pixel(field) => {
+                (field.width as u32, field.height as u32, None, field.valid_time.clone())
+            }
+            radiust_core::raster::RasterResultData::NativeDataset { .. } => unreachable!(),
+        };
+        let mut result = json!({
+            "source": frame.source,
+            "product": frame.product,
+            "station": frame.station,
+            "valid_time": valid_time,
+            "logical_id": frame.logical_id,
+            "variable": "reflectivity",
+            "units": "dBZ",
+            "width": width,
+            "height": height,
+            "crs": crs,
+            "display_mode": "dbz",
+            "source_urls": public_source_urls(&frame),
+        });
+        result["mode_info"] = mode_info.clone();
+        let text = format!(
+            "field source={} product={} station={} variable=reflectivity time={} units=dBZ size={}x{} crs={} display=dbz",
+            safe_summary_text(&frame.source),
+            safe_summary_text(&frame.product),
+            safe_summary_text(frame.station.as_deref().unwrap_or("unknown")),
+            safe_summary_text(valid_time.as_deref().unwrap_or("unknown")),
+            width,
+            height,
+            safe_summary_text(crs.as_deref().unwrap_or("unknown")),
+        );
+        return Ok(CatSourceOutcome::Preview(CatSourcePreview {
+            preview,
+            result,
+            mode_info,
+            text,
+        }));
+    }
+    if science_mode.is_some() {
         let field =
             engine.decode_science(Arc::new(raw)).await.map_err(|error| error.to_string())?;
+        if science_mode == Some("dbz")
+            && (field.name != "reflectivity" || field.units.as_deref() != Some("dBZ"))
+        {
+            return Err(format!(
+                "--dbz requires reflectivity in dBZ; selected {} [{}]",
+                field.name,
+                field.units.as_deref().unwrap_or("unknown")
+            ));
+        }
         if variable.as_deref().is_some_and(|name| name != field.name) {
             return Err(format!(
                 "native {} decoder provides only variable {}; requested {}",
@@ -1109,7 +1721,7 @@ where
         let time = safe_summary_text(&field.valid_time);
         let units = safe_summary_text(field.units.as_deref().unwrap_or("unknown"));
         let crs = safe_summary_text(field.grid.crs.as_deref().unwrap_or("unknown"));
-        let result = json!({
+        let mut result = json!({
             "source": frame.source,
             "product": frame.product,
             "station": frame.station,
@@ -1120,15 +1732,31 @@ where
             "width": preview.width,
             "height": preview.height,
             "crs": field.grid.crs,
-            "display_mode": "decoded",
+            "display_mode": if science_mode == Some("dbz") { "dbz" } else { "decoded" },
             "rule_version": preview.rule_version,
             "source_urls": public_source_urls(&frame),
         });
         let text = format!(
-            "field source={source} product={product} station={station} variable={name} time={time} units={units} size={}x{} crs={crs} display=decoded",
-            preview.width, preview.height,
+            "field source={source} product={product} station={station} variable={name} time={time} units={units} size={}x{} crs={crs} display={}",
+            preview.width,
+            preview.height,
+            science_mode.unwrap_or("scientific"),
         );
-        return Ok(CatSourceOutcome::Preview(CatSourcePreview { preview, result, text }));
+        let mode_info = report::native_mode_info(
+            science_mode.unwrap_or("scientific"),
+            science_mode.unwrap_or("scientific"),
+            &field.name,
+            field.units.as_deref(),
+            "known",
+            if field.grid.crs.is_some() { "known" } else { "unknown" },
+        );
+        result["mode_info"] = mode_info.clone();
+        return Ok(CatSourceOutcome::Preview(CatSourcePreview {
+            preview,
+            result,
+            mode_info,
+            text,
+        }));
     }
     let image_artifacts = raw
         .artifacts
@@ -1159,9 +1787,9 @@ where
     };
     preview.preview.frame = Some(frame.clone());
     preview.preview.mode = PreviewMode::Raw;
-    let mut legacy_result = if legacy_display {
+    let mut gray_result = if gray_mode {
         Some(
-            radiust_core::legacy_display::apply_for_source(
+            radiust_core::gray::apply_for_source(
                 &frame.source,
                 &frame.product,
                 frame.station.as_deref(),
@@ -1176,17 +1804,28 @@ where
     } else {
         None
     };
-    if let Some(legacy) = &mut legacy_result {
-        preview.preview.width = legacy.width;
-        preview.preview.height = legacy.height;
-        preview.preview.rgba = std::mem::take(&mut legacy.rgba);
-        preview.preview.mode =
-            if legacy.applied { PreviewMode::LegacyDisplay } else { PreviewMode::Raw };
-        preview.preview.rule_version = legacy.rule_version.clone();
+    if let Some(gray) = &mut gray_result {
+        preview.preview.width = gray.width;
+        preview.preview.height = gray.height;
+        preview.preview.rgba = std::mem::take(&mut gray.rgba);
+        preview.preview.mode = if gray.applied {
+            if compatibility_display_mode { PreviewMode::LegacyDisplay } else { PreviewMode::Gray }
+        } else {
+            PreviewMode::Raw
+        };
+        preview.preview.rule_version = gray.rule_version.clone();
     }
-    let display_mode = legacy_result
+    let display_mode = gray_result
         .as_ref()
-        .map(|legacy| if legacy.applied { "legacy" } else { "original" })
+        .map(|gray| {
+            if gray.applied {
+                if compatibility_display_mode { "legacy" } else { "gray" }
+            } else if compatibility_display_mode {
+                "original"
+            } else {
+                "raw"
+            }
+        })
         .unwrap_or("raw");
     let mut result = json!({
         "source": frame.source,
@@ -1202,11 +1841,11 @@ where
         "display_mode": display_mode,
         "source_urls": public_source_urls(&frame),
     });
-    if let Some(legacy) = &legacy_result {
-        result["rule_version"] = json!(legacy.rule_version.clone());
-        result["display_reason"] = json!(legacy.reason.clone());
+    if let Some(gray) = &gray_result {
+        result["rule_version"] = json!(gray.rule_version.clone());
+        result["display_reason"] = json!(gray.reason.clone());
     }
-    let text = if let Some(legacy) = &legacy_result {
+    let text = if let Some(gray) = &gray_result {
         format!(
             "image source={} product={} station={} time={} format={} size={}x{} sha256={} display={} rule={}; {}",
             safe_summary_text(&frame.source),
@@ -1218,10 +1857,8 @@ where
             preview.preview.height,
             preview.sha256,
             display_mode,
-            legacy.rule_version.as_deref().unwrap_or("unknown"),
-            safe_summary_text(
-                legacy.reason.as_deref().unwrap_or("original source pixels preserved"),
-            ),
+            gray.rule_version.as_deref().unwrap_or("unknown"),
+            safe_summary_text(gray.reason.as_deref().unwrap_or("original source pixels preserved"),),
         )
     } else {
         format!(
@@ -1236,7 +1873,22 @@ where
             preview.sha256,
         )
     };
-    Ok(CatSourceOutcome::Preview(CatSourcePreview { preview: preview.preview, result, text }))
+    let mode_info = if let Some(gray) = &gray_result {
+        report::gray_source_mode_info(
+            if gray.applied { "gray" } else { "raw" },
+            gray.rule_version.as_deref(),
+            gray.reason.as_deref(),
+        )
+    } else {
+        report::native_mode_info("raw", "raw", "", None, "known", "unknown")
+    };
+    result["mode_info"] = mode_info.clone();
+    Ok(CatSourceOutcome::Preview(CatSourcePreview {
+        preview: preview.preview,
+        result,
+        mode_info,
+        text,
+    }))
 }
 
 #[cfg(test)]
@@ -1244,7 +1896,7 @@ async fn cat_source_cancellable<F, H>(
     engine: &Engine,
     config: &CoreConfig,
     query: Query,
-    legacy_display: bool,
+    gray_mode: bool,
     cancellation: F,
     after_raw_acquisition: H,
 ) -> Result<CatSourceOutcome, String>
@@ -1256,8 +1908,9 @@ where
         engine,
         config,
         query,
-        legacy_display,
-        false,
+        gray_mode,
+        gray_mode,
+        None,
         None,
         CatRenderOptions::default(),
         cancellation,
@@ -1270,8 +1923,9 @@ async fn cat_source_cancellable_with_mode<F, H>(
     engine: &Engine,
     config: &CoreConfig,
     query: Query,
-    legacy_display: bool,
-    decoded: bool,
+    gray_mode: bool,
+    compatibility_display_mode: bool,
+    science_mode: Option<&str>,
     variable: Option<String>,
     options: CatRenderOptions,
     cancellation: F,
@@ -1285,8 +1939,9 @@ where
         engine,
         config,
         query,
-        legacy_display,
-        decoded,
+        gray_mode,
+        compatibility_display_mode,
+        science_mode,
         variable,
         options,
         after_raw_acquisition,
@@ -1321,8 +1976,9 @@ fn cat_interrupted_envelope() -> Value {
 fn cat_source(
     config: CoreConfig,
     query: Query,
-    legacy_display: bool,
-    decoded: bool,
+    gray_mode: bool,
+    compatibility_display_mode: bool,
+    science_mode: Option<&str>,
     variable: Option<String>,
     options: CatRenderOptions,
     renderer: &str,
@@ -1343,15 +1999,39 @@ fn cat_source(
             &engine,
             &config,
             query,
-            legacy_display,
-            decoded,
+            gray_mode,
+            compatibility_display_mode,
+            science_mode,
             variable,
             options.clone(),
             tokio::signal::ctrl_c(),
             std::future::ready(()),
         ),
         progress_enabled,
-    ))?;
+    ));
+    let outcome = match outcome {
+        Ok(outcome) => outcome,
+        Err(error) if as_json => {
+            let network_preflight = error.contains("public network access is disabled");
+            let code = if error.contains("requires reflectivity in dBZ") {
+                "unit_mismatch"
+            } else if error.contains("supports only") {
+                "unsupported"
+            } else {
+                "decode"
+            };
+            let stage =
+                if code == "unsupported" || network_preflight { "validate" } else { "decode" };
+            let requested = science_mode.unwrap_or(if gray_mode { "gray" } else { "raw" });
+            let report = report::with_mode_info(
+                report::error_envelope(code, &error, stage),
+                report::failed_mode_info(requested),
+            );
+            emit(&report, true)?;
+            return Ok(if code == "unsupported" || network_preflight { 2 } else { 5 });
+        }
+        Err(error) => return Err(error),
+    };
     let exit_code = outcome.exit_code();
     match outcome {
         CatSourceOutcome::Interrupted => {
@@ -1363,7 +2043,10 @@ fn cat_source(
         CatSourceOutcome::Preview(preview) => {
             if as_json {
                 emit(
-                    &report::envelope("cat", vec![preview.result.clone()], Some(preview.result)),
+                    &report::with_mode_info(
+                        report::envelope("cat", vec![preview.result.clone()], Some(preview.result)),
+                        preview.mode_info,
+                    ),
                     true,
                 )?;
             } else {
@@ -1840,9 +2523,11 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
         ),
         Command::Download {
             source,
+            file,
             dry_run,
             raw_only,
             raw,
+            dbz,
             overwrite,
             on_error,
             output,
@@ -1869,9 +2554,11 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
         } => commands::download::run(
             commands::download::Args {
                 source,
+                file,
                 dry_run,
                 raw_only,
                 raw,
+                dbz,
                 overwrite,
                 on_error,
                 output,
@@ -1898,8 +2585,8 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             },
             &context,
         ),
-        Command::Replay { manifest, output, formats, overwrite } => commands::replay::run(
-            commands::replay::Args { manifest, output, formats, overwrite },
+        Command::Replay { manifest, output, formats, overwrite, dbz } => commands::replay::run(
+            commands::replay::Args { manifest, output, formats, overwrite, dbz },
             &context,
         ),
         Command::Cat {
@@ -1912,6 +2599,9 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             height,
             raw,
             decoded,
+            gray,
+            dbz,
+            frame_index,
             legacy_display,
             source,
             product,
@@ -1922,18 +2612,22 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             renderer,
         } => {
             let options = CatRenderOptions { palette, vmin, vmax, width, height };
-            if legacy_display && (raw || decoded) {
-                return Err("--legacy-display cannot be combined with --raw or --decoded".into());
+            if legacy_display && (raw || decoded || gray || dbz) {
+                return Err(
+                    "--legacy-display cannot be combined with --raw, --decoded, --gray, or --dbz"
+                        .into(),
+                );
             }
-            if source.is_some() && !decoded && options.has_science_options() {
+            if source.is_some() && !decoded && !dbz && options.has_science_options() {
                 return Err("raw image preview does not accept scientific decoding options".into());
             }
             options.validate()?;
+            if legacy_display && !cli.json {
+                eprintln!("warning: --legacy-display is deprecated; use --gray");
+            }
+            let gray_requested = gray || legacy_display;
             match (file, source) {
                 (Some(path), None) => {
-                    if raw || decoded {
-                        return Err("--raw and --decoded require SOURCE".into());
-                    }
                     if legacy_display {
                         return Err("--legacy-display requires SOURCE".into());
                     }
@@ -1941,6 +2635,17 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                         return Err("source query options require SOURCE; local NetCDF selection uses --variable and --at".into());
                     }
                     let config = load_config(cli.config_path.as_deref())?;
+                    let mode = if dbz {
+                        "dbz"
+                    } else if gray_requested {
+                        "gray"
+                    } else if raw {
+                        "raw"
+                    } else if decoded {
+                        "scientific"
+                    } else {
+                        "default"
+                    };
                     cat_file(
                         &path,
                         variable.as_deref(),
@@ -1949,12 +2654,18 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                         &config,
                         cli.json,
                         &options,
-                    )?;
-                    Ok(0)
+                        mode,
+                        frame_index,
+                    )
                 }
                 (None, Some(source)) => {
-                    if variable.is_some() && !decoded {
-                        return Err("--variable requires --decoded for SOURCE previews".into());
+                    if frame_index.is_some() {
+                        return Err("--frame-index applies only to a local --file image".into());
+                    }
+                    if variable.is_some() && !decoded && !dbz {
+                        return Err(
+                            "--variable requires --decoded or --dbz for SOURCE previews".into()
+                        );
                     }
                     let query = build_query(
                         vec![source],
@@ -1969,7 +2680,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                     )?;
                     if decoded && !supports_native_decoded(&query) {
                         return Err(format!(
-                            "native --decoded preview supports only rainviewer/composite or tw/grid; selected {}{}",
+                            "native scientific preview supports only rainviewer/composite, tw/grid, or rdcap/reflectivity; selected {}{}",
                             query.source.as_deref().unwrap_or("unknown"),
                             query
                                 .product
@@ -1981,8 +2692,15 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                     cat_source(
                         config,
                         query,
+                        gray_requested,
                         legacy_display,
-                        decoded,
+                        if dbz {
+                            Some("dbz")
+                        } else if decoded {
+                            Some("scientific")
+                        } else {
+                            None
+                        },
                         variable,
                         options,
                         &renderer,
@@ -2096,6 +2814,17 @@ fn replace_configured_marker(value: &mut Value) {
 
 pub fn run_args(args: Vec<String>) -> u8 {
     let as_json = args.iter().any(|argument| argument == "--json");
+    let local_file_cat = args.iter().any(|argument| argument == "cat")
+        && args.iter().any(|argument| argument == "--file");
+    let local_file_download = args.iter().any(|argument| argument == "download")
+        && args.iter().any(|argument| argument == "--file");
+    let requested_local_mode = if args.iter().any(|argument| argument == "--dbz") {
+        "dbz"
+    } else if args.iter().any(|argument| argument == "--gray") {
+        "gray"
+    } else {
+        "raw"
+    };
     let argv = std::iter::once("radiust".to_owned()).chain(args);
     let cli = match Cli::try_parse_from(argv) {
         Ok(cli) => cli,
@@ -2108,7 +2837,18 @@ pub fn run_args(args: Vec<String>) -> u8 {
                 return 0;
             }
             if as_json {
-                let report = report::error_envelope("error", &error.to_string(), "validate");
+                let report = if local_file_cat || local_file_download {
+                    report::with_mode_info(
+                        report::error_envelope("mode_conflict", &error.to_string(), "validate"),
+                        if local_file_download {
+                            report::failed_mode_info("dbz")
+                        } else {
+                            report::local_mode_info(requested_local_mode, None)
+                        },
+                    )
+                } else {
+                    report::error_envelope("error", &error.to_string(), "validate")
+                };
                 let _ = emit(&report, true);
             } else {
                 let _ = error.print();
@@ -2647,6 +3387,31 @@ mod tests {
     }
 
     #[test]
+    fn cat_parser_accepts_canonical_gray_alongside_the_compatibility_flag() {
+        let canonical = Cli::try_parse_from(["radiust", "cat", "fr", "--gray"]).unwrap();
+        assert!(matches!(
+            canonical.command,
+            Command::Cat { gray: true, legacy_display: false, .. }
+        ));
+        let compatibility =
+            Cli::try_parse_from(["radiust", "cat", "fr", "--legacy-display"]).unwrap();
+        assert!(matches!(
+            compatibility.command,
+            Command::Cat { gray: false, legacy_display: true, .. }
+        ));
+    }
+
+    #[test]
+    fn download_raw_is_an_attachment_flag_and_conflicts_with_raw_only() {
+        let attached = Cli::try_parse_from(["radiust", "download", "rainviewer", "--raw"]).unwrap();
+        assert!(matches!(attached.command, Command::Download { raw: true, raw_only: false, .. }));
+        assert!(
+            Cli::try_parse_from(["radiust", "download", "rainviewer", "--raw", "--raw-only",])
+                .is_err()
+        );
+    }
+
+    #[test]
     fn local_netcdf_cat_requires_time_disambiguation_and_previews_selected_field() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("series.nc");
@@ -2674,9 +3439,18 @@ mod tests {
             width: Some(80),
             height: Some(24),
         };
-        let ambiguity =
-            cat_file(&path, Some("reflectivity"), None, "text", &config, true, &options)
-                .unwrap_err();
+        let ambiguity = cat_file(
+            &path,
+            Some("reflectivity"),
+            None,
+            "text",
+            &config,
+            true,
+            &options,
+            "scientific",
+            None,
+        )
+        .unwrap_err();
         assert!(ambiguity.contains("time selection is ambiguous"));
         cat_file(
             &path,
@@ -2686,6 +3460,8 @@ mod tests {
             &config,
             true,
             &options,
+            "scientific",
+            None,
         )
         .unwrap();
     }
@@ -2707,6 +3483,8 @@ mod tests {
             &config,
             false,
             &CatRenderOptions::default(),
+            "raw",
+            None,
         )
         .unwrap_err();
 
@@ -2929,6 +3707,68 @@ mod tests {
         Engine::new(isolated_config, overrides).unwrap()
     }
 
+    fn cat_source_fixture_engine(
+        config: &CoreConfig,
+        source_id: &'static str,
+        frame: FrameRef,
+        raw_fixtures: Vec<CatRawArtifactFixture>,
+    ) -> Engine {
+        let mut overrides = SourceRegistry::default();
+        overrides
+            .register(Arc::new(CatTestAdapter {
+                source_id,
+                frame,
+                additional_frames: Vec::new(),
+                discovery_started: None,
+                wait_during_discovery: false,
+                fetch_attempts: None,
+                raw_fixtures: Some(raw_fixtures),
+            }))
+            .unwrap();
+        let mut isolated_config = config.clone();
+        isolated_config.cache.enabled = false;
+        Engine::new(isolated_config, overrides).unwrap()
+    }
+
+    fn fr_cat_fixture() -> (FrameRef, Vec<CatRawArtifactFixture>) {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/sources/fr");
+        let manifest: Value =
+            serde_json::from_str(include_str!("../../../tests/fixtures/sources/fr/fixture.json"))
+                .unwrap();
+        let frame_data = &manifest["frames"][0];
+        let mut frame = FrameRef {
+            source: "fr".into(),
+            product: frame_data["product"].as_str().unwrap().into(),
+            station: frame_data["station"].as_str().map(str::to_owned),
+            valid_time: frame_data["valid_time"].as_str().unwrap().into(),
+            base_time: None,
+            logical_id: String::new(),
+            revision: frame_data["revision"].as_str().map(str::to_owned),
+            locator_version: frame_data["locator_version"].as_str().unwrap().into(),
+            locator: frame_data["locator"].clone(),
+        };
+        frame.logical_id = logical_id(&frame).unwrap();
+        let fixtures = frame_data["artifacts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|artifact| {
+                let bytes = std::fs::read(root.join(artifact["path"].as_str().unwrap())).unwrap();
+                CatRawArtifactFixture {
+                    receipt: ArtifactReceipt {
+                        name: artifact["name"].as_str().unwrap().into(),
+                        media_type: artifact["media_type"].as_str().unwrap().into(),
+                        size_bytes: bytes.len() as u64,
+                        sha256: artifact["sha256"].as_str().unwrap().into(),
+                    },
+                    bytes,
+                }
+            })
+            .collect();
+        (frame, fixtures)
+    }
+
     fn cat_test_query() -> Query {
         Query { source: Some("au".into()), product: Some("composite".into()), ..Query::default() }
     }
@@ -3062,7 +3902,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn source_cat_applies_only_the_matched_evidence_bound_legacy_display_rule() {
+    async fn source_cat_applies_only_the_matched_evidence_bound_gray_rule() {
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
         let server = tokio::spawn(async move {
@@ -3117,12 +3957,58 @@ mod tests {
         assert_eq!(preview.result["logical_id"], expected_logical_id);
         assert_eq!(preview.result["display_mode"], "legacy");
         assert_eq!(preview.result["rule_version"], "old-8d251601-fr-frcomp-replay-v1");
+        assert_eq!(preview.result["mode_info"]["requested"], "gray");
+        assert_eq!(preview.result["mode_info"]["actual"], "gray");
+        assert_eq!(preview.mode_info["actual"], "gray");
         assert_eq!(preview.preview.mode, PreviewMode::LegacyDisplay);
         assert_eq!(preview.preview.width, 700);
         assert_eq!(preview.preview.height, 600);
         assert_eq!(preview.preview.rgba, expected.preview.rgba);
         assert_eq!(std::fs::read_dir(&temp_root).unwrap().count(), 0);
         server.await.unwrap();
+        std::fs::remove_dir_all(temp_root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn source_cat_dbz_uses_the_same_acquired_raw_frame_and_gray_rule() {
+        let temp_root = unique_cat_temp_root();
+        let mut config = CoreConfig::default();
+        config.runtime.allow_network = true;
+        config.runtime.temp_root = Some(temp_root.clone());
+        let (frame, raw_fixtures) = fr_cat_fixture();
+        let expected_logical_id = frame.logical_id.clone();
+        let engine = cat_source_fixture_engine(&config, "fr", frame, raw_fixtures);
+        let query = Query {
+            source: Some("fr".into()),
+            product: Some("composite".into()),
+            stations: vec!["FRCOMP".into()],
+            ..Query::default()
+        };
+
+        let outcome = cat_source_operation_with_mode(
+            &engine,
+            &config,
+            query,
+            false,
+            false,
+            Some("dbz"),
+            Some("reflectivity".into()),
+            CatRenderOptions::default(),
+            std::future::ready(()),
+        )
+        .await
+        .unwrap();
+        let CatSourceOutcome::Preview(preview) = outcome else {
+            panic!("verified gray source should produce a dBZ preview");
+        };
+        assert_eq!(preview.result["logical_id"], expected_logical_id);
+        assert_eq!(preview.result["variable"], "reflectivity");
+        assert_eq!(preview.result["units"], "dBZ");
+        assert_eq!(preview.result["mode_info"]["actual"], "dbz");
+        assert_eq!(preview.result["mode_info"]["method"], "verified_source_gray_dbz");
+        assert_eq!((preview.preview.width, preview.preview.height), (700, 600));
+        assert_eq!(preview.preview.frame.as_ref().unwrap().logical_id, expected_logical_id);
+        assert_eq!(std::fs::read_dir(&temp_root).unwrap().count(), 0);
         std::fs::remove_dir_all(temp_root).unwrap();
     }
 

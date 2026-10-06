@@ -92,7 +92,7 @@ fn assert_staging_empty(root: &Path) {
 
 async fn assert_manifest_rejected(engine: &Engine, manifest: PathBuf) {
     let error = engine.replay_raw_manifest(manifest).await.unwrap_err();
-    assert!(matches!(error, EngineError::Core(CoreError::Storage(_))));
+    assert!(matches!(error, EngineError::Core(CoreError::Integrity(_))));
 }
 
 #[tokio::test]
@@ -110,13 +110,53 @@ async fn rust_replays_the_same_retained_python_tw_raw_fixture_offline() {
 }
 
 #[tokio::test]
+async fn replay_mode_none_keeps_science_and_dbz_wraps_native_values_without_changes() {
+    let root = tempfile::tempdir().unwrap();
+    let manifest = write_python_compatible_manifest(root.path(), false);
+    let engine = offline_engine(root.path());
+
+    let science = engine
+        .replay_raw_manifest_mode(manifest.clone(), None)
+        .await
+        .expect("default replay keeps the historical science result");
+    let radiust_core::engine::ReplayRawResult::Science(science) = science else {
+        panic!("mode=None changed the replay result type");
+    };
+    assert_eq!(science.name, "reflectivity");
+    assert_eq!(science.units.as_deref(), Some("dBZ"));
+
+    let dbz = engine
+        .replay_raw_manifest_mode(manifest.clone(), Some("dbz"))
+        .await
+        .expect("native reflectivity is available offline");
+    let radiust_core::engine::ReplayRawResult::Dbz(dbz) = dbz else {
+        panic!("dbz replay did not return RasterResult");
+    };
+    assert_eq!(dbz.mode_info.actual.as_deref(), Some("dbz"));
+    assert_eq!(dbz.mode_info.units.as_deref(), Some("dBZ"));
+    let radiust_core::raster::RasterResultData::Native(dbz_field) = dbz.data else {
+        panic!("TW replay should use its direct native decoder");
+    };
+    assert_eq!(
+        science.values.iter().map(|value| value.to_bits()).collect::<Vec<_>>(),
+        dbz_field.values.iter().map(|value| value.to_bits()).collect::<Vec<_>>(),
+    );
+    assert_eq!(science.quality, dbz_field.quality);
+    assert_eq!(science.grid, dbz_field.grid);
+
+    let error = engine.replay_raw_manifest_mode(manifest, Some("gray-dbzz")).await.unwrap_err();
+    assert!(matches!(error, EngineError::InvalidQuery("mode must be gray or dbz")));
+    assert_staging_empty(root.path());
+}
+
+#[tokio::test]
 async fn corrupt_python_compatible_fixture_is_rejected_and_staging_is_removed() {
     let root = tempfile::tempdir().unwrap();
     let manifest = write_python_compatible_manifest(root.path(), true);
     let engine = offline_engine(root.path());
 
     let error = engine.replay_raw_manifest(manifest).await.unwrap_err();
-    assert!(matches!(error, EngineError::Core(CoreError::Storage(_))));
+    assert!(matches!(error, EngineError::Core(CoreError::Integrity(_))));
     assert_staging_empty(root.path());
 }
 

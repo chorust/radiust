@@ -27,12 +27,16 @@ pub(crate) fn core_error_to_py(error: CoreError) -> PyErr {
     match error {
         CoreError::NetworkDisabled(_) => PyPermissionError::new_err(message),
         CoreError::ResourceLimit(_) => PyValueError::new_err(message),
+        CoreError::InvalidGrayEncoding { .. } | CoreError::UnitMismatch { .. } => {
+            PyValueError::new_err(message)
+        }
         CoreError::Cancelled => PyInterruptedError::new_err(message),
         CoreError::Provider(ProviderError::AccessDenied) => PyPermissionError::new_err(message),
         CoreError::Transport(_)
         | CoreError::HttpStatus { .. }
         | CoreError::Temporary(_)
         | CoreError::Cache(_)
+        | CoreError::Integrity(_)
         | CoreError::Provider(_)
         | CoreError::OutputConflict
         | CoreError::Storage(_)

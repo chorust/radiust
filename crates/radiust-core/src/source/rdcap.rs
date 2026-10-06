@@ -567,39 +567,39 @@ fn write_temp_artifact(root: &std::path::Path, bytes: &[u8]) -> CoreResult<tempf
 
 pub(crate) fn validate_binding(frame: &FrameRef, artifacts: &[RawArtifact]) -> CoreResult<()> {
     if frame.source != SOURCE || frame.product != PRODUCT || frame.validate_identity().is_err() {
-        return Err(CoreError::Storage("RDCAP raw binding does not match its frame".into()));
+        return Err(CoreError::Integrity("RDCAP raw binding does not match its frame".into()));
     }
     let data = artifacts
         .iter()
         .find(|artifact| artifact.receipt.name == "file-response.json")
-        .ok_or_else(|| CoreError::Storage("RDCAP raw response is missing".into()))?;
+        .ok_or_else(|| CoreError::Integrity("RDCAP raw response is missing".into()))?;
     let binding_artifact = artifacts
         .iter()
         .find(|artifact| artifact.receipt.name == "binding.json")
-        .ok_or_else(|| CoreError::Storage("RDCAP raw binding is missing".into()))?;
+        .ok_or_else(|| CoreError::Integrity("RDCAP raw binding is missing".into()))?;
     if artifacts.len() != 2 {
-        return Err(CoreError::Storage("RDCAP raw artifact set is invalid".into()));
+        return Err(CoreError::Integrity("RDCAP raw artifact set is invalid".into()));
     }
     let data_bytes = std::fs::read(&data.path)
-        .map_err(|_| CoreError::Storage("RDCAP raw response could not be read".into()))?;
+        .map_err(|_| CoreError::Integrity("RDCAP raw response could not be read".into()))?;
     let binding_bytes = std::fs::read(&binding_artifact.path)
-        .map_err(|_| CoreError::Storage("RDCAP binding could not be read".into()))?;
+        .map_err(|_| CoreError::Integrity("RDCAP binding could not be read".into()))?;
     if data_bytes.len() as u64 != data.receipt.size_bytes
         || hex::encode(Sha256::digest(&data_bytes)) != data.receipt.sha256
         || !validate_file_response(&data_bytes).unwrap_or(false)
         || binding_bytes.len() as u64 != binding_artifact.receipt.size_bytes
         || hex::encode(Sha256::digest(&binding_bytes)) != binding_artifact.receipt.sha256
     {
-        return Err(CoreError::Storage("RDCAP raw receipts are invalid".into()));
+        return Err(CoreError::Integrity("RDCAP raw receipts are invalid".into()));
     }
     let binding: RdcapBinding = serde_json::from_slice(&binding_bytes)
-        .map_err(|_| CoreError::Storage("RDCAP binding is invalid".into()))?;
+        .map_err(|_| CoreError::Integrity("RDCAP binding is invalid".into()))?;
     let station_id = frame.station.as_deref().unwrap_or_default();
     let station = parse_station_id(station_id)
-        .ok_or_else(|| CoreError::Storage("RDCAP binding station is invalid".into()))?;
+        .ok_or_else(|| CoreError::Integrity("RDCAP binding station is invalid".into()))?;
     let key = frame.locator.get("key").and_then(Value::as_str).unwrap_or_default();
     let expected_time = crate::identity::normalize_time(&frame.valid_time)
-        .map_err(|_| CoreError::Storage("RDCAP binding time is invalid".into()))?;
+        .map_err(|_| CoreError::Integrity("RDCAP binding time is invalid".into()))?;
     if binding.schema_version != 1
         || binding.source != SOURCE
         || binding.product != PRODUCT
@@ -613,7 +613,7 @@ pub(crate) fn validate_binding(frame: &FrameRef, artifacts: &[RawArtifact]) -> C
         || binding.content_size_bytes != data.receipt.size_bytes
         || frame.revision.as_deref() != Some(data.receipt.sha256.as_str())
     {
-        return Err(CoreError::Storage("RDCAP raw binding does not match its frame".into()));
+        return Err(CoreError::Integrity("RDCAP raw binding does not match its frame".into()));
     }
     Ok(())
 }

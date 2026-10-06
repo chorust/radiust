@@ -2,6 +2,8 @@
 
 本文描述当前 checkout 的实现。Python console command 转发到 Rust CLI，Python SDK 通过 PyO3 调用共享 Rust Engine；Rust 迁移尚处于部分实现状态。目录登记、模块存在、离线 fixture 或一次 raw 获取成功，都不等于来源科学解码或输出格式已验收。项目为 `0.1.0 alpha`。
 
+长期方向见[项目理念](../PHILOSOPHY.md)和[发展路线](../ROADMAP.md)。下文实现描述与未来 Desktop 目标分别理解；规划目标不表示现有功能或接口已经稳定。
+
 ## 原生 Rust 路径
 
 ```mermaid
@@ -57,7 +59,15 @@ Python 项目的 `radiust` console script 由 [`python/radiust/cli/main.py`](../
 
 - 原生网络默认关闭，配置通过默认值、YAML、`RADIUST_` 环境变量合并。Core 的请求/帧并发、响应大小、像素和临时数据限制由配置控制；目录发现以逐目标状态保留失败、中断和未开始目标。
 - Rust 缓存默认根目录是 `~/.cache/radiust-rust`，与 Python 缓存隔离；revision-pinned raw artifact 以帧身份为键流式写入并增量校验 SHA-256，manifest 最后发布，完整 cache hit 可在禁网模式下读取。无可信 revision 的 latest 与瓦片来源不缓存。兼容代码可在显式复用旧根时识别旧 `entries` 布局，但 Python/Rust 并发访问尚未验收。Cache CLI 提供 status 与 clear。对象存储的 S3/OSS generation/pointer 提交流水线已接入 Engine，真实 provider 尚未验收。
-- Native image preview 通过 [`preview.rs`](../crates/radiust-core/src/preview.rs) 有界读取 PNG/WebP 并保留原始像素；不做科学解码或 legacy 显示映射。终端 renderer 由 CLI 实现，当前只支持 `auto` 和 `text`。
+- Native image preview 通过 [`preview.rs`](../crates/radiust-core/src/preview.rs) 有界读取 PNG/WebP 并保留原始像素。规范 gray 显示处理位于 [`gray.rs`](../crates/radiust-core/src/gray.rs)，科学 dBZ 反算位于 [`dbz.rs`](../crates/radiust-core/src/dbz.rs)；两者是分开的模式。旧 `legacy_display` 模块和资源路径只保留兼容入口，原规则 wire/hash 不变。终端 renderer 由 CLI 实现，当前只支持 `auto` 和 `text`。
 - 原生 `download` 支持 dry-run、raw-only 和 RainViewer composite/TW grid 的 PNG、NetCDF4、GeoTIFF、Zarr 正式提交。获取、解码和四种格式编码按 frame concurrency 有界派发；解码与编码共用 CPU worker 池，结果按输入顺序报告并提交。四种格式共用 manifest-last 完整性边界；Zarr 将 store 内文件作为清单 artifact，GeoTIFF 将数据、quality 和 provenance 作为一个发布组。远端目标支持 `s3://`/`oss://` URI、generation 写入、逐 artifact SHA-256 读回和最终 pointer 发布；真实 AWS/阿里云环境的并发与故障验收仍缺。RainViewer/TW 之外的科学解码和干净机器 NetCDF/HDF5 动态库定位也未验收。
 
 迁移规格明确批准的兼容变化包括提供无需 Python 的 Rust CLI、增加多来源 `discover`、将 Python source entry point 扩展迁至编译期 Rust adapter，以及让 `fetch()` 默认返回绑定对象并通过显式 `to_xarray()` 转换；这些入口变化已实施。科学值、质量标记、时间和地理语义、原图与科学解码的区别没有获准静默变化。具体 CLI 限制见[命令文档](cli.md#原生-rust-cli)，安装路径见[安装文档](installation.md#原生-rust-命令行程序)。
+
+## 后续 Desktop 与扩展的架构约束
+
+2026-10-06 确认的方向是用户设备默认直接连接所选来源，在本地发现、获取、缓存、处理和展示；核心观测功能不依赖 Radiust 账号或 Radiust 数据中转服务。用户主动配置的 S3／OSS 输出目标仍是可选输出能力。当前 CLI／SDK 的网络 opt-in 继续有效，不因 Desktop 方向而静默启用联网。
+
+Desktop 将复用来源独立的获取与处理边界，增加默认来源、手动切换和故障回退，并呈现实际来源、时间和产品差异。跨来源自动选择、回退及桌面 UI 尚未由本文交付；实现与验收要求见[发展路线](../ROADMAP.md)。
+
+现有 `FrameRef`、`RawFrame`、`RadarField`／`RadarDataset` 提供时间、网格、值、质量和出处的演进基础。后续稳定观测接口需保留这些语义；预测结果另外标注模型、输入观测、运行时间和未来有效时间，不修改观测的含义。当前不新增预测插件 ABI。跨来源拼图同样留待后续规格，同时保留各来源的身份与处理记录；已有瓦片组合和提供方合成产品继续按单个来源产品理解。

@@ -3,6 +3,7 @@
 use crate::errors::{CoreError, CoreResult};
 use crate::limits::Limits;
 use crate::model::{Grid, RadarField, parse_utc_time};
+use crate::raster::{AlphaPlane, PixelDbzField, QUALITY_FLAG_MASKS, QUALITY_FLAG_MEANINGS};
 use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
 use netcdf::{AttributeValue, Extent};
 use std::path::{Path, PathBuf};
@@ -22,6 +23,353 @@ fn valid_variable_name(value: &str) -> bool {
     let mut characters = value.chars();
     characters.next().is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+}
+
+/// Write a pixel-space dBZ raster using the versioned `pixel-dbz-v1` profile.
+/// No geographic coordinate system is inferred from the row/column indices.
+pub fn write_pixel_dbz(
+    field: &PixelDbzField,
+    destination: impl AsRef<Path>,
+    limits: &Limits,
+) -> CoreResult<PathBuf> {
+    field.validate().map_err(|error| storage_error(error.to_string()))?;
+    validate_pixel_dbz_budget(field, limits)?;
+    let destination = destination.as_ref();
+    let parent = destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent)
+        .map_err(|_| storage_error("NetCDF output directory could not be prepared"))?;
+    let staging = tempfile::Builder::new()
+        .prefix(".radiust-pixel-netcdf-")
+        .tempfile_in(parent)
+        .map_err(|_| storage_error("NetCDF staging file could not be created"))?;
+    let staging_path = staging.into_temp_path();
+    write_staged_pixel_dbz(field, &staging_path)?;
+    staging_path
+        .persist(destination)
+        .map_err(|_| storage_error("NetCDF file could not be atomically published"))?;
+    Ok(destination.to_path_buf())
+}
+
+fn validate_pixel_dbz_budget(field: &PixelDbzField, limits: &Limits) -> CoreResult<u64> {
+    let pixels = (field.width as u64)
+        .checked_mul(field.height as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("NetCDF field shape overflows".into()))?;
+    limits.validate_pixels(pixels)?;
+    let per_pixel = 4_u64
+        .checked_add(2)
+        .and_then(|value| value.checked_add(u64::from(field.origin_quality.is_some()) * 2))
+        .and_then(|value| value.checked_add(u64::from(field.encoding_adjustment.is_some())))
+        .and_then(|value| {
+            value.checked_add(match &field.alpha {
+                Some(AlphaPlane::U8(_)) => 1,
+                Some(AlphaPlane::U16(_)) => 2,
+                None => 0,
+            })
+        })
+        .ok_or_else(|| CoreError::ResourceLimit("NetCDF raster byte size overflows".into()))?;
+    let bytes = pixels
+        .checked_mul(per_pixel)
+        .ok_or_else(|| CoreError::ResourceLimit("NetCDF raster byte size overflows".into()))?;
+    if bytes > limits.max_frame_bytes || bytes > limits.max_temp_bytes {
+        return Err(CoreError::ResourceLimit(
+            "NetCDF raster exceeds configured frame or temporary-file limit".into(),
+        ));
+    }
+    Ok(pixels)
+}
+
+fn write_staged_pixel_dbz(field: &PixelDbzField, path: &Path) -> CoreResult<()> {
+    let mut file = netcdf::create(path).map_err(|_| netcdf_error())?;
+    file.add_dimension("row", field.height).map_err(|_| netcdf_error())?;
+    file.add_dimension("column", field.width).map_err(|_| netcdf_error())?;
+    file.add_attribute("radiust_raster_schema_version", 1_i32).map_err(|_| netcdf_error())?;
+    file.add_attribute("raster_profile", "pixel-dbz-v1").map_err(|_| netcdf_error())?;
+    file.add_attribute("coordinate_space", "pixel").map_err(|_| netcdf_error())?;
+    file.add_attribute("orientation", "row-zero-at-top; column-zero-at-left")
+        .map_err(|_| netcdf_error())?;
+    file.add_attribute("time_status", if field.valid_time.is_some() { "known" } else { "unknown" })
+        .map_err(|_| netcdf_error())?;
+    file.add_attribute(
+        "geometry_status",
+        if field.geometry.as_ref().is_some_and(|value| value.mapping_complete) {
+            "trusted"
+        } else {
+            "unknown"
+        },
+    )
+    .map_err(|_| netcdf_error())?;
+    file.add_attribute(
+        "radiust_processing_record",
+        serde_json::to_string(&field.processing).map_err(|_| netcdf_error())?,
+    )
+    .map_err(|_| netcdf_error())?;
+    file.add_attribute(
+        "radiust_input_identity",
+        serde_json::to_string(&field.processing.input_identity).map_err(|_| netcdf_error())?,
+    )
+    .map_err(|_| netcdf_error())?;
+    if let Some(time_text) = field.valid_time.as_deref() {
+        let time = parse_utc_time(time_text).map_err(|_| storage_error("valid_time is invalid"))?;
+        file.add_attribute("radiust_valid_time", time_text).map_err(|_| netcdf_error())?;
+        let mut variable = file.add_variable::<f64>("time", &[]).map_err(|_| netcdf_error())?;
+        variable.put_attribute("standard_name", "time").map_err(|_| netcdf_error())?;
+        variable
+            .put_attribute("units", "seconds since 1970-01-01 00:00:00 UTC")
+            .map_err(|_| netcdf_error())?;
+        variable.put_attribute("calendar", "proleptic_gregorian").map_err(|_| netcdf_error())?;
+        let seconds =
+            time.timestamp() as f64 + f64::from(time.timestamp_subsec_nanos()) / 1_000_000_000.0;
+        variable.put_value(seconds, ()).map_err(|_| netcdf_error())?;
+    }
+    if let Some(geometry) = &field.geometry {
+        file.add_attribute(
+            "radiust_geometry_evidence",
+            serde_json::to_string(geometry).map_err(|_| netcdf_error())?,
+        )
+        .map_err(|_| netcdf_error())?;
+    }
+    {
+        let mut row = file.add_variable::<i32>("row", &["row"]).map_err(|_| netcdf_error())?;
+        row.put_values(&(0..field.height).map(|value| value as i32).collect::<Vec<_>>(), ..)
+            .map_err(|_| netcdf_error())?;
+        let mut column =
+            file.add_variable::<i32>("column", &["column"]).map_err(|_| netcdf_error())?;
+        column
+            .put_values(&(0..field.width).map(|value| value as i32).collect::<Vec<_>>(), ..)
+            .map_err(|_| netcdf_error())?;
+    }
+    {
+        let mut data = file
+            .add_variable::<f32>("reflectivity", &["row", "column"])
+            .map_err(|_| netcdf_error())?;
+        data.put_attribute("units", "dBZ").map_err(|_| netcdf_error())?;
+        data.put_attribute("long_name", "radar reflectivity").map_err(|_| netcdf_error())?;
+        data.put_attribute("ancillary_variables", "quality").map_err(|_| netcdf_error())?;
+        data.put_values(&field.values, ..).map_err(|_| netcdf_error())?;
+    }
+    {
+        let mut quality =
+            file.add_variable::<u16>("quality", &["row", "column"]).map_err(|_| netcdf_error())?;
+        quality.put_attribute("long_name", "quality flags").map_err(|_| netcdf_error())?;
+        quality
+            .put_attribute(
+                "flag_masks",
+                QUALITY_FLAG_MASKS.iter().map(|value| i32::from(*value)).collect::<Vec<_>>(),
+            )
+            .map_err(|_| netcdf_error())?;
+        quality
+            .put_attribute("flag_meanings", QUALITY_FLAG_MEANINGS.join(" "))
+            .map_err(|_| netcdf_error())?;
+        quality.put_values(&field.quality, ..).map_err(|_| netcdf_error())?;
+    }
+    if let Some(values) = &field.origin_quality {
+        let mut variable = file
+            .add_variable::<u16>("origin_quality", &["row", "column"])
+            .map_err(|_| netcdf_error())?;
+        variable.put_attribute("long_name", "origin quality flags").map_err(|_| netcdf_error())?;
+        variable.put_values(values, ..).map_err(|_| netcdf_error())?;
+    }
+    if let Some(values) = &field.encoding_adjustment {
+        let mut variable = file
+            .add_variable::<u8>("encoding_adjustment", &["row", "column"])
+            .map_err(|_| netcdf_error())?;
+        variable.put_attribute("flag_masks", vec![1_i32]).map_err(|_| netcdf_error())?;
+        variable.put_attribute("flag_meanings", "upper_clipped").map_err(|_| netcdf_error())?;
+        variable.put_values(values, ..).map_err(|_| netcdf_error())?;
+    }
+    if let Some(alpha) = &field.alpha {
+        match alpha {
+            AlphaPlane::U8(values) => {
+                let mut variable = file
+                    .add_variable::<u8>("alpha", &["row", "column"])
+                    .map_err(|_| netcdf_error())?;
+                variable.put_attribute("alpha_bit_depth", 8_i32).map_err(|_| netcdf_error())?;
+                variable.put_values(values, ..).map_err(|_| netcdf_error())?;
+            }
+            AlphaPlane::U16(values) => {
+                let mut variable = file
+                    .add_variable::<u16>("alpha", &["row", "column"])
+                    .map_err(|_| netcdf_error())?;
+                variable.put_attribute("alpha_bit_depth", 16_i32).map_err(|_| netcdf_error())?;
+                variable.put_values(values, ..).map_err(|_| netcdf_error())?;
+            }
+        }
+    }
+    file.close().map_err(|_| netcdf_error())
+}
+
+/// Read the standalone pixel dBZ profile without interpreting embedded source
+/// metadata as a current input receipt.
+pub fn read_pixel_dbz(path: impl AsRef<Path>, limits: &Limits) -> CoreResult<PixelDbzField> {
+    let file = netcdf::open(path).map_err(|_| storage_error("NetCDF file could not be opened"))?;
+    if text_attribute(&file, "raster_profile").as_deref() != Some("pixel-dbz-v1") {
+        return Err(storage_error("NetCDF file is not a pixel-dbz-v1 raster"));
+    }
+    let variable = file
+        .variable("reflectivity")
+        .ok_or_else(|| storage_error("NetCDF reflectivity variable is missing"))?;
+    let dims = variable.dimensions();
+    if dims.len() != 2 || dims[0].name() != "row" || dims[1].name() != "column" {
+        return Err(storage_error("pixel reflectivity must use [row, column] dimensions"));
+    }
+    let height = dims[0].len();
+    let width = dims[1].len();
+    let pixels = (width as u64)
+        .checked_mul(height as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("NetCDF raster shape overflows".into()))?;
+    limits.validate_pixels(pixels)?;
+    let mut values = variable.get_values::<f32, _>(..).map_err(|_| netcdf_error())?;
+    if values.len() != pixels as usize {
+        return Err(storage_error("NetCDF reflectivity shape is invalid"));
+    }
+    let read_u16 = |name: &str| -> CoreResult<Option<Vec<u16>>> {
+        let Some(variable) = file.variable(name) else { return Ok(None) };
+        validate_pixel_dimensions(&variable, height, width)?;
+        let values = variable
+            .get_values::<u16, _>(..)
+            .map_err(|_| storage_error(format!("NetCDF {name} values could not be read")))?;
+        if values.len() != pixels as usize {
+            return Err(storage_error(format!("NetCDF {name} shape is invalid")));
+        }
+        Ok(Some(values))
+    };
+    let read_u8 = |name: &str| -> CoreResult<Option<Vec<u8>>> {
+        let Some(variable) = file.variable(name) else { return Ok(None) };
+        validate_pixel_dimensions(&variable, height, width)?;
+        let values = variable
+            .get_values::<u8, _>(..)
+            .map_err(|_| storage_error(format!("NetCDF {name} values could not be read")))?;
+        if values.len() != pixels as usize {
+            return Err(storage_error(format!("NetCDF {name} shape is invalid")));
+        }
+        Ok(Some(values))
+    };
+    let quality = read_u16("quality")?.ok_or_else(|| storage_error("NetCDF quality is missing"))?;
+    if let Some(fill) = variable.fill_value::<f32>().ok().flatten() {
+        for (value, flags) in values.iter_mut().zip(&quality) {
+            if *value == fill {
+                *value = f32::NAN;
+                if *flags == 0 {
+                    return Err(storage_error(
+                        "NetCDF fill value is indistinguishable from valid quality zero",
+                    ));
+                }
+            }
+        }
+    }
+    let alpha = if let Some(alpha_variable) = file.variable("alpha") {
+        validate_pixel_dimensions(&alpha_variable, height, width)?;
+        let depth = alpha_variable
+            .attribute("alpha_bit_depth")
+            .and_then(|attribute| attribute.value().ok())
+            .and_then(|value| match value {
+                AttributeValue::Int(value) => Some(value as u8),
+                _ => None,
+            })
+            .ok_or_else(|| storage_error("NetCDF alpha bit depth is missing"))?;
+        match depth {
+            8 => Some(AlphaPlane::U8(
+                alpha_variable.get_values::<u8, _>(..).map_err(|_| netcdf_error())?,
+            )),
+            16 => Some(AlphaPlane::U16(
+                alpha_variable.get_values::<u16, _>(..).map_err(|_| netcdf_error())?,
+            )),
+            _ => return Err(storage_error("NetCDF alpha bit depth is unsupported")),
+        }
+    } else {
+        None
+    };
+    let processing: crate::raster::ProcessingRecord = serde_json::from_str(
+        &text_attribute(&file, "radiust_processing_record")
+            .ok_or_else(|| storage_error("NetCDF processing record is missing"))?,
+    )
+    .map_err(|_| storage_error("NetCDF processing record is invalid"))?;
+    let geometry = text_attribute(&file, "radiust_geometry_evidence")
+        .map(|value| serde_json::from_str(&value))
+        .transpose()
+        .map_err(|_| storage_error("NetCDF geometry evidence is invalid"))?;
+    let field = PixelDbzField {
+        variable: "reflectivity".into(),
+        units: text_attribute(&variable, "units").unwrap_or_default(),
+        width,
+        height,
+        values,
+        quality,
+        origin_quality: read_u16("origin_quality")?,
+        encoding_adjustment: read_u8("encoding_adjustment")?,
+        alpha,
+        valid_time: text_attribute(&file, "radiust_valid_time"),
+        geometry,
+        processing,
+    };
+    field.validate().map_err(|error| storage_error(error.to_string()))?;
+    Ok(field)
+}
+
+pub fn is_pixel_dbz_file(path: impl AsRef<Path>) -> CoreResult<bool> {
+    let file = netcdf::open(path).map_err(|_| storage_error("NetCDF file could not be opened"))?;
+    Ok(text_attribute(&file, "raster_profile").as_deref() == Some("pixel-dbz-v1"))
+}
+
+/// Select a native scientific variable while keeping multi-variable files
+/// explicit. Pixel profile files are handled by `read_pixel_dbz`.
+pub fn select_data_variable(path: impl AsRef<Path>, requested: Option<&str>) -> CoreResult<String> {
+    let file = netcdf::open(path).map_err(|_| storage_error("NetCDF file could not be opened"))?;
+    let excluded = [
+        "time",
+        "x",
+        "y",
+        "row",
+        "column",
+        "longitude",
+        "latitude",
+        "crs",
+        "quality",
+        "origin_quality",
+        "encoding_adjustment",
+        "alpha",
+    ];
+    let mut candidates = file
+        .variables()
+        .filter(|variable| {
+            !excluded.contains(&variable.name().as_str())
+                && matches!(variable.dimensions().len(), 2 | 3)
+                && (variable.dimensions().len() != 3 || variable.dimensions()[0].name() == "time")
+        })
+        .map(|variable| variable.name())
+        .collect::<Vec<_>>();
+    candidates.sort();
+    match requested {
+        Some(name) if candidates.iter().any(|candidate| candidate == name) => Ok(name.to_owned()),
+        Some(_) => Err(storage_error("NetCDF data variable was not found")),
+        None if candidates.len() == 1 => Ok(candidates.remove(0)),
+        None if candidates.is_empty() => {
+            Err(storage_error("NetCDF file has no supported data variable"))
+        }
+        None => {
+            Err(storage_error("NetCDF variable selection is ambiguous; provide a variable name"))
+        }
+    }
+}
+
+fn validate_pixel_dimensions(
+    variable: &netcdf::Variable<'_>,
+    height: usize,
+    width: usize,
+) -> CoreResult<()> {
+    let dimensions = variable.dimensions();
+    if dimensions.len() != 2
+        || dimensions[0].name() != "row"
+        || dimensions[1].name() != "column"
+        || dimensions[0].len() != height
+        || dimensions[1].len() != width
+    {
+        return Err(storage_error("NetCDF companion array dimensions do not match reflectivity"));
+    }
+    Ok(())
 }
 
 /// Write one two-dimensional field as a CF-1.8 NetCDF4 file.

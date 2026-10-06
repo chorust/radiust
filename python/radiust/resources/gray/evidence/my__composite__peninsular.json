@@ -1,0 +1,41 @@
+{
+  "source": "my",
+  "product": "composite",
+  "path_id": "my/composite/peninsular",
+  "status": "passed",
+  "blocked_reasons": [],
+  "scientific_status_unchanged": true,
+  "rule_version": "old-8d251601-mycomp71-v1",
+  "config_hash": "052921f980f0feac7b30356555fc706d5b3882626d0e59e6b2fcbd0c740cf83a",
+  "input_hashes": [
+    "a60936811a91ae5f776759fc4072965c321eebc73431b78d3fba7fb1ebd7e68f"
+  ],
+  "output_hash": "d9a799448a0c644b9800485b8708215b4b9232524f267347fe088386fd5dae7f",
+  "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP71_20251229065001_merca_r_map.png",
+  "baseline_hash": "efe5ed56ccdfeb7c64dba11b0a400557323642a553dc971bd840d75c51ce806b",
+  "license_basis": "用户已就本地快照原图/旧灰度配对样本明确确认可用于本次迁移验证；该确认只记录为本地验证依据，不推定对外再分发权。",
+  "sample_provenance": "用户确认可用于迁移验证的旧项目本地配对样本；按同一站点/时间文件名配对。原始路径：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP71_20251229065001_merca_r_source.png；灰度输出：/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP71_20251229065001_merca_r_map.png。",
+  "crop": [
+    0,
+    0,
+    568,
+    640
+  ],
+  "shape": [
+    640,
+    568
+  ],
+  "baseline_shape": [
+    640,
+    568
+  ],
+  "pixel_diff_count": 0,
+  "alpha_diff_count": 0,
+  "missing_diff_count": 0,
+  "background_diff_count": 0,
+  "alpha_comparison": "identical",
+  "missing_comparison": "identical",
+  "background_comparison": "identical",
+  "intentional_differences": [],
+  "review_conclusion": "exact pixel agreement"
+}

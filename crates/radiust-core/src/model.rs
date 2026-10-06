@@ -377,6 +377,7 @@ impl Preview {
 #[serde(rename_all = "snake_case")]
 pub enum PreviewMode {
     Raw,
+    Gray,
     LegacyDisplay,
     Decoded,
 }

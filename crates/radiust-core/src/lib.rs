@@ -4,12 +4,14 @@
 
 pub mod cache;
 pub mod config;
+pub mod dbz;
 pub mod digest;
 pub mod discovery;
 pub mod download;
 pub mod engine;
 pub mod error_contract;
 pub mod errors;
+pub mod gray;
 pub mod grid;
 pub mod identity;
 pub mod legacy_display;
@@ -17,6 +19,7 @@ pub mod limits;
 pub mod model;
 pub mod output;
 pub mod preview;
+pub mod raster;
 pub mod raw_manifest;
 mod rdcap_palette;
 pub mod runtime;

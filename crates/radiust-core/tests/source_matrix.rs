@@ -7,6 +7,7 @@ use radiust_core::limits::{Limits, RequestBudget};
 use radiust_core::model::{
     ArtifactReceipt, DiscoveryStatus, FrameRef, Query, RawArtifact, RawFrame,
 };
+use radiust_core::raster::RasterResultData;
 use radiust_core::source::catalog::SourceCatalog;
 use radiust_core::source::{SourceAdapter, SourceContext, SourceRegistry};
 use radiust_core::transport::ftp::FtpTransport;
@@ -460,6 +461,25 @@ async fn validated_science_capabilities_decode_only_the_retained_local_samples()
     assert_eq!(tw_grid.shape, [881, 921]);
     assert_eq!(tw_grid.grid.crs.as_deref(), Some("EPSG:3821"));
     assert_eq!(tw_grid.units.as_deref(), Some("dBZ"));
+
+    for (generic, raw) in [(rainviewer, rainviewer_fixture()), (tw_grid, tw_grid_fixture())] {
+        let result = engine.decode_dbz(Arc::new(raw)).await.unwrap();
+        let RasterResultData::Native(native) = result.data else {
+            panic!("{} did not remain on its native decoder", result.mode_info.method.unwrap());
+        };
+        assert_eq!(native.name, generic.name);
+        assert_eq!(native.shape, generic.shape);
+        assert_eq!(native.quality, generic.quality);
+        assert_eq!(native.grid, generic.grid);
+        assert_eq!(native.units, generic.units);
+        assert_eq!(native.valid_time, generic.valid_time);
+        assert!(native.values.iter().zip(&generic.values).all(|(actual, expected)| {
+            (actual.is_nan() && expected.is_nan()) || actual == expected
+        }));
+        assert_eq!(result.mode_info.actual.as_deref(), Some("dbz"));
+        assert!(result.processing.encoding_basis.is_none());
+        assert!(result.processing.clipped_pixel_count.is_none());
+    }
 }
 
 #[tokio::test]

@@ -35,7 +35,16 @@ def _fetch_item_result(item: Any) -> FrameResult:
             error = {"code": "native_error", "message": item.error}
         else:
             error = None
-    return FrameResult(ref, status, error=error, data=item.data())
+    raster_result = getattr(item, "raster_result", None)
+    gray_result = getattr(item, "gray_result", None)
+    data = raster_result() if callable(raster_result) else None
+    if data is None and callable(gray_result):
+        data = gray_result()
+    elif data is None and not callable(gray_result):
+        data = item.data()
+    mode_info_json = getattr(item, "mode_info_json", None)
+    mode_info = json.loads(mode_info_json()) if callable(mode_info_json) and mode_info_json() else None
+    return FrameResult(ref, status, error=error, data=data, mode_info=mode_info)
 
 
 def _batch_result(report: Any) -> BatchResult:
@@ -52,6 +61,7 @@ class AsyncFetchStream(AsyncIterator[FrameResult]):
         *,
         on_error: str,
         max_prefetch: int | None,
+        mode: str = "science",
     ):
         if on_error not in {"collect", "raise"}:
             raise ValueError("on_error must be collect or raise for iter_fetch")
@@ -59,6 +69,7 @@ class AsyncFetchStream(AsyncIterator[FrameResult]):
         self.query_or_refs = query_or_refs
         self.on_error = on_error
         self.max_prefetch = max_prefetch
+        self.mode = mode
         self._refs: list[FrameRef] | None = None
         self._native: Any = None
         self._closed = False
@@ -76,11 +87,19 @@ class AsyncFetchStream(AsyncIterator[FrameResult]):
         if limit < 1:
             raise ValueError("max_prefetch must be positive")
         self.max_prefetch = limit
-        self._native = self.client._session.open_fetch_stream(
-            self._refs,
-            on_error=self.on_error,
-            max_concurrency=limit,
-        )
+        if self.mode == "science":
+            self._native = self.client._session.open_fetch_stream(
+                self._refs,
+                on_error=self.on_error,
+                max_concurrency=limit,
+            )
+        else:
+            self._native = self.client._session.open_fetch_mode_stream(
+                self._refs,
+                mode=self.mode,
+                on_error=self.on_error,
+                max_concurrency=limit,
+            )
 
     async def __anext__(self) -> FrameResult:
         if self._closed:
@@ -138,6 +157,7 @@ class SyncFetchStream(Iterator[FrameResult]):
         *,
         on_error: str,
         max_prefetch: int | None,
+        mode: str = "science",
     ):
         self.client = client
         self._async = AsyncFetchStream(
@@ -145,6 +165,7 @@ class SyncFetchStream(Iterator[FrameResult]):
             query_or_refs,
             on_error=on_error,
             max_prefetch=max_prefetch,
+            mode=mode,
         )
         self._closed = False
 

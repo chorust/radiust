@@ -2,6 +2,7 @@ use crate::errors::{CoreError, CoreResult};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 
@@ -60,6 +61,91 @@ impl Limits {
             return Err(CoreError::ResourceLimit(format!("pixels {pixels} > {}", self.max_pixels)));
         }
         Ok(())
+    }
+
+    pub fn raster_memory_budget(&self) -> RasterMemoryBudget {
+        RasterMemoryBudget::new(self.max_temp_bytes)
+    }
+}
+
+/// Shared accounting for simultaneously-live raster buffers in one operation.
+#[derive(Clone)]
+pub struct RasterMemoryBudget {
+    limit: u64,
+    reserved: Arc<AtomicU64>,
+}
+
+pub struct RasterBufferLease {
+    budget: RasterMemoryBudget,
+    bytes: u64,
+}
+
+impl RasterMemoryBudget {
+    pub fn new(limit: u64) -> Self {
+        Self { limit, reserved: Arc::new(AtomicU64::new(0)) }
+    }
+
+    pub fn reserved_bytes(&self) -> u64 {
+        self.reserved.load(Ordering::Acquire)
+    }
+
+    pub fn reserve(&self, bytes: u64) -> CoreResult<RasterBufferLease> {
+        let mut current = self.reserved.load(Ordering::Acquire);
+        loop {
+            let next = current
+                .checked_add(bytes)
+                .ok_or_else(|| CoreError::ResourceLimit("raster buffer size overflows".into()))?;
+            if next > self.limit {
+                return Err(CoreError::ResourceLimit(format!(
+                    "raster buffers {next} > {}",
+                    self.limit
+                )));
+            }
+            match self.reserved.compare_exchange_weak(
+                current,
+                next,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return Ok(RasterBufferLease { budget: self.clone(), bytes }),
+                Err(actual) => current = actual,
+            }
+        }
+    }
+
+    /// Reserve every buffer that will coexist for a raster of this shape.
+    pub fn reserve_shape(
+        &self,
+        height: u64,
+        width: u64,
+        bytes_per_pixel: &[u64],
+    ) -> CoreResult<RasterBufferLease> {
+        if height == 0 || width == 0 || bytes_per_pixel.is_empty() {
+            return Err(CoreError::ResourceLimit("raster buffer shape is invalid".into()));
+        }
+        let pixels = height
+            .checked_mul(width)
+            .ok_or_else(|| CoreError::ResourceLimit("raster dimensions overflow".into()))?;
+        let per_pixel = bytes_per_pixel.iter().try_fold(0_u64, |sum, value| {
+            sum.checked_add(*value)
+                .ok_or_else(|| CoreError::ResourceLimit("raster plane size overflows".into()))
+        })?;
+        let bytes = pixels
+            .checked_mul(per_pixel)
+            .ok_or_else(|| CoreError::ResourceLimit("raster buffer size overflows".into()))?;
+        self.reserve(bytes)
+    }
+}
+
+impl RasterBufferLease {
+    pub fn bytes(&self) -> u64 {
+        self.bytes
+    }
+}
+
+impl Drop for RasterBufferLease {
+    fn drop(&mut self) {
+        self.budget.reserved.fetch_sub(self.bytes, Ordering::AcqRel);
     }
 }
 
@@ -121,5 +207,33 @@ impl RequestBudget {
 
     pub fn cancel(&self) {
         self.cancellation.cancel();
+    }
+}
+
+#[cfg(test)]
+mod raster_memory_tests {
+    use super::*;
+
+    #[test]
+    fn raster_buffer_reservations_track_overlapping_lifetimes() {
+        let budget = RasterMemoryBudget::new(32);
+        let first = budget.reserve_shape(2, 2, &[4, 2]).unwrap();
+        assert_eq!(first.bytes(), 24);
+        assert_eq!(budget.reserved_bytes(), 24);
+        assert!(matches!(budget.reserve(9), Err(CoreError::ResourceLimit(_))));
+        drop(first);
+        assert_eq!(budget.reserved_bytes(), 0);
+        let second = budget.reserve_shape(2, 2, &[4, 2]).unwrap();
+        assert_eq!(second.bytes(), 24);
+    }
+
+    #[test]
+    fn raster_buffer_reservations_reject_overflow_and_empty_shapes() {
+        let budget = RasterMemoryBudget::new(u64::MAX);
+        assert!(matches!(
+            budget.reserve_shape(u64::MAX, 2, &[1]),
+            Err(CoreError::ResourceLimit(_))
+        ));
+        assert!(matches!(budget.reserve_shape(1, 0, &[1]), Err(CoreError::ResourceLimit(_))));
     }
 }

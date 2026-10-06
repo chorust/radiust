@@ -53,6 +53,13 @@ pub struct Engine {
     raw_fetch_locks: Mutex<BTreeMap<String, std::sync::Weak<tokio::sync::Mutex<()>>>>,
 }
 
+#[derive(Clone, Debug)]
+pub enum ReplayRawResult {
+    Science(RadarField),
+    Gray(crate::raster::GrayDecision),
+    Dbz(crate::raster::RasterResult),
+}
+
 impl Engine {
     pub fn new(config: CoreConfig, sources: SourceRegistry) -> Result<Self, EngineError> {
         config.validate().map_err(|_| EngineError::InvalidConfiguration)?;
@@ -117,8 +124,161 @@ impl Engine {
         self.request_budget.cancellation.clone()
     }
 
-    pub(crate) fn resource_limits(&self) -> Limits {
+    pub fn resource_limits(&self) -> Limits {
         limits_from_config(&self.config.runtime)
+    }
+
+    /// Read a numeric raster from disk and bind its current file receipt.
+    pub fn read_raster_file(
+        &self,
+        path: impl AsRef<std::path::Path>,
+        variable: Option<&str>,
+        valid_time: Option<&str>,
+    ) -> crate::errors::CoreResult<crate::raster::RasterResult> {
+        crate::output::read_raster_result(path, variable, valid_time, &self.resource_limits())
+    }
+
+    /// Read a numeric file only when its selected field is reflectivity in dBZ.
+    pub fn read_dbz_file(
+        &self,
+        path: impl AsRef<std::path::Path>,
+        variable: Option<&str>,
+        valid_time: Option<&str>,
+    ) -> crate::errors::CoreResult<crate::raster::RasterResult> {
+        crate::output::read_dbz(path, variable, valid_time, &self.resource_limits())
+    }
+
+    /// Save a receipt-bound raster through the local manifest-last transaction.
+    pub fn write_raster_to(
+        &self,
+        result: &crate::raster::RasterResult,
+        output_root: impl AsRef<std::path::Path>,
+        output_name: &str,
+        format: &str,
+        options: &Value,
+        overwrite: bool,
+    ) -> crate::errors::CoreResult<crate::storage::LocalCommitResult> {
+        self.write_raster_to_with_ref(
+            result,
+            output_root,
+            output_name,
+            format,
+            options,
+            overwrite,
+            None,
+        )
+    }
+
+    pub fn write_raster_to_with_ref(
+        &self,
+        result: &crate::raster::RasterResult,
+        output_root: impl AsRef<std::path::Path>,
+        output_name: &str,
+        format: &str,
+        options: &Value,
+        overwrite: bool,
+        explicit_ref: Option<FrameRef>,
+    ) -> crate::errors::CoreResult<crate::storage::LocalCommitResult> {
+        crate::output::write_raster_result_with_ref_cancellable(
+            result,
+            output_root,
+            output_name,
+            format,
+            options,
+            overwrite,
+            &self.resource_limits(),
+            explicit_ref,
+            &self.request_budget.cancellation,
+        )
+    }
+
+    /// Save a receipt-bound source raster and its exact acquired raw artifacts
+    /// in one manifest-last transaction.
+    pub fn write_raster_to_with_raw(
+        &self,
+        result: &crate::raster::RasterResult,
+        raw: &crate::model::RawFrame,
+        output_root: impl AsRef<std::path::Path>,
+        output_name: &str,
+        format: &str,
+        options: &Value,
+        overwrite: bool,
+    ) -> crate::errors::CoreResult<crate::storage::LocalCommitResult> {
+        crate::output::write_raster_result_with_raw_cancellable(
+            result,
+            raw,
+            output_root,
+            output_name,
+            format,
+            options,
+            overwrite,
+            &self.resource_limits(),
+            &self.request_budget.cancellation,
+        )
+    }
+
+    /// Commit a shared raster result through the Engine's bounded commit pool.
+    /// The Arc keeps native dataset backing alive without cloning its values.
+    pub async fn write_raster_result_to(
+        &self,
+        result: Arc<crate::raster::RasterResult>,
+        output_root: PathBuf,
+        output_name: String,
+        format: String,
+        overwrite: bool,
+    ) -> crate::errors::CoreResult<crate::storage::LocalCommitResult> {
+        if output_root.to_string_lossy().contains("://") {
+            return Err(crate::errors::CoreError::Storage(
+                "receipt-bound raster output currently requires a local output root".into(),
+            ));
+        }
+        let limits = self.resource_limits();
+        let cancellation = self.request_budget.cancellation.clone();
+        self.run_commit(move || {
+            crate::output::write_raster_result_cancellable(
+                &result,
+                output_root,
+                &output_name,
+                &format,
+                &Value::Object(Default::default()),
+                overwrite,
+                &limits,
+                &cancellation,
+            )
+        })
+        .await
+    }
+
+    pub async fn write_raster_result_to_with_raw(
+        &self,
+        result: Arc<crate::raster::RasterResult>,
+        raw: Arc<crate::model::RawFrame>,
+        output_root: PathBuf,
+        output_name: String,
+        format: String,
+        overwrite: bool,
+    ) -> crate::errors::CoreResult<crate::storage::LocalCommitResult> {
+        if output_root.to_string_lossy().contains("://") {
+            return Err(crate::errors::CoreError::Storage(
+                "receipt-bound raster output currently requires a local output root".into(),
+            ));
+        }
+        let limits = self.resource_limits();
+        let cancellation = self.request_budget.cancellation.clone();
+        self.run_commit(move || {
+            crate::output::write_raster_result_with_raw_cancellable(
+                &result,
+                &raw,
+                output_root,
+                &output_name,
+                &format,
+                &Value::Object(Default::default()),
+                overwrite,
+                &limits,
+                &cancellation,
+            )
+        })
+        .await
     }
 
     pub(crate) fn is_cancelled(&self) -> bool {
@@ -217,6 +377,210 @@ impl Engine {
         result
     }
 
+    /// Resolve a source frame to its evidence-bound gray presentation. An
+    /// unavailable decision keeps its path-specific reason and optional raw
+    /// preview for callers that want to show the original image.
+    pub async fn decode_gray(
+        &self,
+        raw: Arc<RawFrame>,
+    ) -> Result<crate::raster::GrayDecision, EngineError> {
+        let operation = self.runtime_events.begin(OperationKind::DecodeScience);
+        let result = self.decode_gray_inner(raw).await;
+        finish_engine_operation(operation, &result, false);
+        result
+    }
+
+    /// Decode a source frame as dBZ, preferring existing native reflectivity
+    /// decoders before applying a passed source gray rule.
+    pub async fn decode_dbz(
+        &self,
+        raw: Arc<RawFrame>,
+    ) -> Result<crate::raster::RasterResult, EngineError> {
+        let operation = self.runtime_events.begin(OperationKind::DecodeScience);
+        let result = self.decode_dbz_inner(raw).await;
+        finish_engine_operation(operation, &result, false);
+        result
+    }
+
+    async fn decode_gray_inner(
+        &self,
+        raw: Arc<RawFrame>,
+    ) -> Result<crate::raster::GrayDecision, EngineError> {
+        if self.is_cancelled() {
+            return Err(CoreError::Cancelled.into());
+        }
+        let limits = limits_from_config(&self.config.runtime);
+        let cancellation = self.request_budget.cancellation.child_token();
+        let worker_cancellation = cancellation.clone();
+        let permit = self.acquire_decode_worker().await?;
+        let task = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            crate::gray::decode_source_frame_with_cancel(&raw, &limits, &worker_cancellation)
+        });
+        let output = tokio::select! {
+            output = tokio::time::timeout(
+                Duration::from_secs_f64(self.config.runtime.frame_deadline),
+                task,
+            ) => {
+                if output.is_err() {
+                    cancellation.cancel();
+                }
+                output
+            }
+            _ = self.request_budget.cancellation.cancelled() => {
+                cancellation.cancel();
+                return Err(CoreError::Cancelled.into());
+            },
+        };
+        output
+            .map_err(|_| CoreError::Transport("source gray decode deadline exceeded".into()))?
+            .map_err(|_| CoreError::Transport("source gray worker failed".into()))?
+            .map_err(EngineError::Core)
+    }
+
+    async fn decode_dbz_inner(
+        &self,
+        raw: Arc<RawFrame>,
+    ) -> Result<crate::raster::RasterResult, EngineError> {
+        if self.is_cancelled() {
+            return Err(CoreError::Cancelled.into());
+        }
+        let limits = limits_from_config(&self.config.runtime);
+        let cancellation = self.request_budget.cancellation.child_token();
+        let worker_cancellation = cancellation.clone();
+        let permit = self.acquire_decode_worker().await?;
+        let task = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            let is_native = matches!(
+                (raw.frame.source.as_str(), raw.frame.product.as_str()),
+                ("rainviewer", "composite") | ("tw", "grid") | ("rdcap", "reflectivity")
+            );
+            if is_native {
+                let field = match (raw.frame.source.as_str(), raw.frame.product.as_str()) {
+                    ("rainviewer", "composite") => {
+                        crate::science::decode_rainviewer(&raw, &limits)?
+                    }
+                    ("tw", "grid") => crate::science::decode_tw_grid(&raw, &limits)?,
+                    ("rdcap", "reflectivity") => crate::science::decode_rdcap(&raw, &limits)?,
+                    _ => unreachable!("native source/product was checked before dispatch"),
+                };
+                return crate::science::wrap_native_reflectivity(&raw, field);
+            }
+            match crate::gray::decode_source_frame_with_cancel(&raw, &limits, &worker_cancellation)?
+            {
+                crate::raster::GrayDecision::Applied(gray) => {
+                    crate::dbz::decode_verified_gray_frame_with_cancel(
+                        gray,
+                        &limits,
+                        &worker_cancellation,
+                    )
+                }
+                crate::raster::GrayDecision::Unavailable { .. } => {
+                    Err(CoreError::Provider(crate::errors::ProviderError::DecodeUnverified))
+                }
+            }
+        });
+        let output = tokio::select! {
+            output = tokio::time::timeout(
+                Duration::from_secs_f64(self.config.runtime.frame_deadline),
+                task,
+            ) => {
+                if output.is_err() {
+                    cancellation.cancel();
+                }
+                output
+            }
+            _ = self.request_budget.cancellation.cancelled() => {
+                cancellation.cancel();
+                return Err(CoreError::Cancelled.into());
+            },
+        };
+        output
+            .map_err(|_| CoreError::Transport("source dBZ decode deadline exceeded".into()))?
+            .map_err(|_| CoreError::Transport("source dBZ worker failed".into()))?
+            .map_err(EngineError::Core)
+    }
+
+    /// Decode an explicitly declared local gray image without network access.
+    pub async fn decode_gray_file(
+        &self,
+        path: PathBuf,
+        frame_index: Option<u32>,
+    ) -> Result<crate::raster::RasterResult, EngineError> {
+        let operation = self.runtime_events.begin(OperationKind::DecodeScience);
+        let limits = self.resource_limits();
+        let result = async {
+            if self.is_cancelled() {
+                return Err(CoreError::Cancelled.into());
+            }
+            let permit = self.acquire_decode_worker().await?;
+            let task = tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                crate::dbz::decode_gray_file_with_limits(&path, frame_index, &limits)
+            });
+            tokio::select! {
+                output = tokio::time::timeout(
+                    Duration::from_secs_f64(self.config.runtime.frame_deadline),
+                    task,
+                ) => {
+                    let worker = output
+                        .map_err(|_| CoreError::Transport("local image decode deadline exceeded".into()))?
+                        .map_err(|_| CoreError::Transport("local image worker failed".into()))?;
+                    worker.map_err(EngineError::Core)
+                }
+                _ = self.request_budget.cancellation.cancelled() => Err(CoreError::Cancelled.into()),
+            }
+        }
+        .await;
+        finish_engine_operation(operation, &result, false);
+        result
+    }
+
+    /// Decode a typed gray-value array through the same bounded Rust path.
+    pub async fn decode_gray_values(
+        &self,
+        width: usize,
+        height: usize,
+        values: Vec<f64>,
+        alpha: Option<crate::raster::AlphaPlane>,
+        declared_encoding: String,
+    ) -> Result<crate::raster::RasterResult, EngineError> {
+        let operation = self.runtime_events.begin(OperationKind::DecodeScience);
+        let limits = self.resource_limits();
+        let result = async {
+            if self.is_cancelled() {
+                return Err(CoreError::Cancelled.into());
+            }
+            let permit = self.acquire_decode_worker().await?;
+            let task = tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                crate::dbz::decode_gray_values_with_limits(
+                    width,
+                    height,
+                    &values,
+                    alpha,
+                    &declared_encoding,
+                    &limits,
+                )
+            });
+            tokio::select! {
+                output = tokio::time::timeout(
+                    Duration::from_secs_f64(self.config.runtime.frame_deadline),
+                    task,
+                ) => {
+                    let worker = output
+                        .map_err(|_| CoreError::Transport("gray array decode deadline exceeded".into()))?
+                        .map_err(|_| CoreError::Transport("gray array worker failed".into()))?;
+                    worker.map_err(EngineError::Core)
+                }
+                _ = self.request_budget.cancellation.cancelled() => Err(CoreError::Cancelled.into()),
+            }
+        }
+        .await;
+        finish_engine_operation(operation, &result, false);
+        result
+    }
+
     /// Verify a committed raw manifest and stage its local artifacts without
     /// decoding them. The returned frame owns temporary copies and removes
     /// them when dropped.
@@ -248,6 +612,28 @@ impl Engine {
     ) -> Result<RadarField, EngineError> {
         let raw = self.load_raw_manifest(manifest_path).await?;
         self.decode_science(Arc::new(raw)).await
+    }
+
+    /// Replay retained raw artifacts in generic scientific, gray, or dBZ
+    /// mode without issuing a new network request. `None` follows the historic
+    /// scientific return path.
+    pub async fn replay_raw_manifest_mode(
+        &self,
+        manifest_path: PathBuf,
+        mode: Option<&str>,
+    ) -> Result<ReplayRawResult, EngineError> {
+        match mode {
+            None => self.replay_raw_manifest(manifest_path).await.map(ReplayRawResult::Science),
+            Some("gray") => {
+                let raw = self.load_raw_manifest(manifest_path).await?;
+                self.decode_gray(Arc::new(raw)).await.map(ReplayRawResult::Gray)
+            }
+            Some("dbz") => {
+                let raw = self.load_raw_manifest(manifest_path).await?;
+                self.decode_dbz(Arc::new(raw)).await.map(ReplayRawResult::Dbz)
+            }
+            Some(_) => Err(EngineError::InvalidQuery("mode must be gray or dbz")),
+        }
     }
 
     async fn decode_science_inner(&self, raw: Arc<RawFrame>) -> Result<RadarField, EngineError> {
@@ -374,6 +760,27 @@ impl Engine {
         crate::download::fetch_many_decoded(self, frames, concurrency, policy, dry_run).await
     }
 
+    /// Acquire a frame batch and decode each item using the explicit source
+    /// gray or dBZ decision path.
+    pub async fn fetch_many_mode(
+        &self,
+        frames: Vec<FrameRef>,
+        mode: &str,
+        policy: FetchErrorPolicy,
+        dry_run: bool,
+        concurrency: Option<usize>,
+    ) -> crate::download::ModeFetchBatchReport {
+        crate::download::fetch_many_mode(
+            self,
+            frames,
+            concurrency.unwrap_or(self.config.runtime.frame_concurrency),
+            policy,
+            dry_run,
+            mode,
+        )
+        .await
+    }
+
     /// Create a completion-ordered decoded stream with bounded prefetch.
     #[cfg(feature = "extension-module")]
     pub fn fetch_decoded_stream(
@@ -383,6 +790,23 @@ impl Engine {
         concurrency: usize,
     ) -> DecodedFetchStream {
         DecodedFetchStream::new(self.clone(), frames, concurrency, policy)
+    }
+
+    /// Create a completion-ordered gray or dBZ stream with bounded prefetch.
+    #[cfg(feature = "extension-module")]
+    pub fn fetch_mode_stream(
+        self: &Arc<Self>,
+        frames: Vec<FrameRef>,
+        mode: &str,
+        policy: FetchErrorPolicy,
+        concurrency: usize,
+    ) -> Result<crate::download::ModeFetchStream, EngineError> {
+        let mode = match mode {
+            "gray" => "gray",
+            "dbz" => "dbz",
+            _ => return Err(EngineError::InvalidQuery("mode must be gray or dbz")),
+        };
+        Ok(crate::download::ModeFetchStream::new(self.clone(), frames, concurrency, policy, mode))
     }
 
     /// Acquire, commit, and report raw-only outputs through the local v1
@@ -686,6 +1110,42 @@ impl Engine {
             format,
             output_template,
             processing,
+            include_raw,
+        )
+        .await;
+        finish_download_operation(operation, &report);
+        Ok(report)
+    }
+
+    /// Acquire, decode, and commit explicit dBZ results through the common
+    /// receipt-bound raster writer. Source raw artifacts can be retained in
+    /// the same manifest-last transaction.
+    pub async fn download_dbz_to(
+        &self,
+        frames: Vec<FrameRef>,
+        policy: FetchErrorPolicy,
+        dry_run: bool,
+        overwrite: bool,
+        output_root: PathBuf,
+        format: &str,
+        include_raw: bool,
+    ) -> Result<crate::download::DownloadBatchReport, EngineError> {
+        let kind = match format {
+            "png" => OperationKind::DownloadPng,
+            "netcdf" => OperationKind::DownloadNetcdf,
+            "geotiff" => OperationKind::DownloadGeotiff,
+            "zarr" => OperationKind::DownloadZarr,
+            _ => return Err(EngineError::InvalidConfiguration),
+        };
+        let operation = self.runtime_events.begin(kind);
+        let report = crate::download::download_dbz_to(
+            self,
+            frames,
+            policy,
+            dry_run,
+            overwrite,
+            output_root,
+            format,
             include_raw,
         )
         .await;

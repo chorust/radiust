@@ -5,6 +5,7 @@ pub mod object;
 pub mod remote_commit;
 
 pub use commit::{
-    LocalCommitRequest, LocalCommitResult, LocalCommitStatus, LocalStore, StagedArtifact,
+    LocalCommitRequest, LocalCommitResult, LocalCommitStatus, LocalRasterCommitRequest, LocalStore,
+    StagedArtifact,
 };
 pub use remote_commit::RemoteStore;

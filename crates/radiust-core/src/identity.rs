@@ -1,6 +1,10 @@
 //! Stable cross-language identity rules for frames, revisions, processing and outputs.
 
 use crate::model::{FrameRef, RadarField};
+use crate::raster::{
+    LOCAL_GRAY_IDENTITY_DOMAIN, LOCAL_NUMERIC_IDENTITY_DOMAIN, NumericFileIdentity, RasterInput,
+    RasterInputIdentity,
+};
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -87,6 +91,131 @@ pub enum IdentityError {
     InvalidTimestamp,
     #[error("identity value could not be serialized as canonical JSON")]
     InvalidJson,
+    #[error("raster input identity or read receipt is inconsistent")]
+    InvalidRasterInput,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct RasterCommitIdentity {
+    pub schema_version: u8,
+    pub input_kind: String,
+    pub logical_id: String,
+    pub revision: String,
+    pub processing_hash: String,
+    pub output_id: String,
+    pub raw_complete: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct RasterIdentityReceipt {
+    pub identity: RasterCommitIdentity,
+    pub input_receipt: Value,
+}
+
+pub fn local_gray_identity(
+    identity: &RasterInputIdentity,
+) -> Result<(String, String), IdentityError> {
+    identity.validate().map_err(|_| IdentityError::InvalidRasterInput)?;
+    let logical_id = digest(&json!({
+        "domain": LOCAL_GRAY_IDENTITY_DOMAIN,
+        "content_sha256": identity.content_sha256,
+        "encoding_declared": identity.encoding_declared,
+        "valid_time": identity.valid_time.as_deref().map(normalize_time).transpose()?,
+        "geometry": identity.geometry,
+    }))?;
+    Ok((logical_id, identity.content_sha256.clone()))
+}
+
+pub fn local_numeric_identity(
+    identity: &NumericFileIdentity,
+) -> Result<(String, String), IdentityError> {
+    identity.validate().map_err(|_| IdentityError::InvalidRasterInput)?;
+    let logical_id = digest(&json!({
+        "domain": LOCAL_NUMERIC_IDENTITY_DOMAIN,
+        "format": identity.format,
+        "content_digest": identity.content_digest,
+        "variable": identity.variable,
+        "selection": identity.selection,
+    }))?;
+    Ok((logical_id, identity.content_digest.clone()))
+}
+
+pub fn raster_commit_identity(
+    input: &RasterInput,
+    processing: &ProcessingSpec,
+) -> Result<RasterIdentityReceipt, IdentityError> {
+    let processing_hash = processing_hash(processing)?;
+    let (input_kind, logical_id, revision, output_id, input_receipt) = match input {
+        RasterInput::Source { frame, resolved_revision, acquisition_receipt } => {
+            if acquisition_receipt.frame.logical_id != frame.logical_id {
+                return Err(IdentityError::InvalidRasterInput);
+            }
+            (
+                "source".to_owned(),
+                logical_id(frame)?,
+                resolved_revision.clone(),
+                output_id(frame, resolved_revision, processing)?,
+                serde_json::to_value(acquisition_receipt)
+                    .map_err(|_| IdentityError::InvalidJson)?,
+            )
+        }
+        RasterInput::Local { identity, read_receipt } => {
+            read_receipt.validate().map_err(|_| IdentityError::InvalidRasterInput)?;
+            if read_receipt.content_sha256 != identity.content_sha256 {
+                return Err(IdentityError::InvalidRasterInput);
+            }
+            let (logical_id, revision) = local_gray_identity(identity)?;
+            let output_id = digest(&json!({
+                "domain": LOCAL_GRAY_IDENTITY_DOMAIN,
+                "logical_id": logical_id,
+                "revision": revision,
+                "processing_hash": processing_hash,
+            }))?;
+            (
+                "local_gray".to_owned(),
+                logical_id,
+                revision,
+                output_id,
+                serde_json::to_value(read_receipt).map_err(|_| IdentityError::InvalidJson)?,
+            )
+        }
+        RasterInput::NumericFile { identity, read_receipt, .. } => {
+            read_receipt.validate().map_err(|_| IdentityError::InvalidRasterInput)?;
+            if read_receipt.content_digest != identity.content_digest
+                || read_receipt.format != identity.format
+                || read_receipt.variable != identity.variable
+                || read_receipt.selection != identity.selection
+            {
+                return Err(IdentityError::InvalidRasterInput);
+            }
+            let (logical_id, revision) = local_numeric_identity(identity)?;
+            let output_id = digest(&json!({
+                "domain": LOCAL_NUMERIC_IDENTITY_DOMAIN,
+                "logical_id": logical_id,
+                "revision": revision,
+                "processing_hash": processing_hash,
+            }))?;
+            (
+                "local_numeric".to_owned(),
+                logical_id,
+                revision,
+                output_id,
+                serde_json::to_value(read_receipt).map_err(|_| IdentityError::InvalidJson)?,
+            )
+        }
+    };
+    Ok(RasterIdentityReceipt {
+        identity: RasterCommitIdentity {
+            schema_version: IDENTITY_SCHEMA,
+            input_kind,
+            logical_id,
+            revision,
+            processing_hash,
+            output_id,
+            raw_complete: false,
+        },
+        input_receipt,
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -418,6 +547,34 @@ mod tests {
     fn canonical_json_rejects_timestamp_without_timezone() {
         assert_eq!(normalize_time("2025-01-01T00:00:00"), Err(IdentityError::InvalidTimestamp));
         assert_eq!(canonical_json(&json!({"b": 2, "a": 1})).unwrap(), r#"{"a":1,"b":2}"#);
+    }
+
+    #[test]
+    fn local_gray_and_numeric_inputs_have_separate_content_domains() {
+        let sha = "a".repeat(64);
+        let gray = RasterInputIdentity {
+            kind: "local_gray".into(),
+            content_sha256: sha.clone(),
+            encoding_declared: "gray-dbz-v1".into(),
+            valid_time: None,
+            geometry: None,
+        };
+        let numeric = NumericFileIdentity {
+            kind: "local_numeric".into(),
+            format: "netcdf".into(),
+            content_digest: sha,
+            variable: "reflectivity".into(),
+            selection: json!({}),
+            valid_time: None,
+            geometry: None,
+        };
+        let gray_id = local_gray_identity(&gray).unwrap();
+        let numeric_id = local_numeric_identity(&numeric).unwrap();
+        assert_ne!(gray_id.0, numeric_id.0);
+        assert_eq!(gray_id.1, numeric_id.1);
+
+        let other_variable = NumericFileIdentity { variable: "rain_rate".into(), ..numeric };
+        assert_ne!(numeric_id.0, local_numeric_identity(&other_variable).unwrap().0);
     }
 
     #[test]

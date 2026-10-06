@@ -1,10 +1,28 @@
 use crate::digest::{Receipt, digest_reader};
 use crate::errors::{CoreError, CoreResult};
+use crate::limits::{RasterBufferLease, RasterMemoryBudget};
 use sha2::Digest;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
+
+/// Hold a peak-memory reservation for raster buffers while their allocations
+/// coexist. Dropping this guard releases the shared operation budget.
+pub struct RasterTempLease {
+    _memory: RasterBufferLease,
+}
+
+impl RasterTempLease {
+    pub fn reserve(
+        budget: &RasterMemoryBudget,
+        height: u64,
+        width: u64,
+        bytes_per_pixel: &[u64],
+    ) -> CoreResult<Self> {
+        Ok(Self { _memory: budget.reserve_shape(height, width, bytes_per_pixel)? })
+    }
+}
 
 pub struct TempOwner {
     file: Option<NamedTempFile>,

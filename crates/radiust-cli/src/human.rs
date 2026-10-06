@@ -138,6 +138,18 @@ fn render_with(value: &Value, hint: Option<&str>, verbose: bool, p: &Presentatio
         }
         sections.push(parts.join("  |  "));
     }
+    if command == "cat"
+        && let Some(mode) = value.get("mode_info").filter(|mode| mode.is_object())
+    {
+        let requested = field(mode, "requested");
+        let actual = field(mode, "actual");
+        let units = field(mode, "units");
+        sections.push(if units == "-" {
+            format!("Mode: requested {requested}; actual {actual}")
+        } else {
+            format!("Mode: requested {requested}; actual {actual}; units {units}")
+        });
+    }
     if let Some(items) = value["items"].as_array() {
         if matches!(command, "discover" | "download") {
             let counts = value["counts"]

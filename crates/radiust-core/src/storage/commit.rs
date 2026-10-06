@@ -2,10 +2,12 @@
 
 use crate::errors::{CoreError, CoreResult};
 use crate::identity::{
-    ProcessingSpec, logical_id, output_id, processing_hash, processing_identity,
+    ProcessingSpec, RasterIdentityReceipt, logical_id, output_id, processing_hash,
+    processing_identity, raster_commit_identity,
 };
 use crate::limits::Limits;
 use crate::model::FrameRef;
+use crate::raster::RasterInput;
 use crate::storage::local::RootLock;
 use crate::storage::manifest::{
     Manifest, ManifestArtifact, ManifestFields, hash_file, is_complete, is_safe_relative_path,
@@ -57,6 +59,28 @@ pub struct LocalCommitRequest {
     pub overwrite: bool,
 }
 
+/// Commit a source, local gray, or local numeric raster using its verified
+/// input receipt. This path has no synthetic FrameRef.
+#[derive(Clone, Debug)]
+pub struct LocalRasterCommitRequest {
+    pub input: RasterInput,
+    pub identity_receipt: RasterIdentityReceipt,
+    pub explicit_ref: Option<FrameRef>,
+    pub processing_spec: ProcessingSpec,
+    pub output_name: String,
+    pub artifacts: Vec<StagedArtifact>,
+    pub raw_complete: bool,
+    pub overwrite: bool,
+}
+
+#[derive(Clone, Debug)]
+struct CommitOptions {
+    output_name: String,
+    artifacts: Vec<StagedArtifact>,
+    raw_complete: bool,
+    overwrite: bool,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LocalCommitStatus {
     Written,
@@ -104,11 +128,26 @@ impl LocalStore {
         self.commit_inner(request, Some(cancellation), |_| Ok(()))
     }
 
+    pub fn commit_raster(
+        &self,
+        request: LocalRasterCommitRequest,
+    ) -> CoreResult<LocalCommitResult> {
+        self.commit_raster_inner(request, None, |_| Ok(()))
+    }
+
+    pub fn commit_raster_cancellable(
+        &self,
+        request: LocalRasterCommitRequest,
+        cancellation: &CancellationToken,
+    ) -> CoreResult<LocalCommitResult> {
+        self.commit_raster_inner(request, Some(cancellation), |_| Ok(()))
+    }
+
     fn commit_inner<F>(
         &self,
         request: LocalCommitRequest,
         cancellation: Option<&CancellationToken>,
-        mut hook: F,
+        hook: F,
     ) -> CoreResult<LocalCommitResult>
     where
         F: FnMut(CommitPhase) -> CoreResult<()>,
@@ -131,6 +170,114 @@ impl LocalStore {
         let processing_hash = processing_hash(&request.processing_spec)
             .map_err(|error| CoreError::Storage(error.to_string()))?;
 
+        self.commit_prepared(
+            logical,
+            request.revision,
+            output,
+            processing_spec,
+            processing_hash,
+            CommitOptions {
+                output_name: request.output_name,
+                artifacts: request.artifacts,
+                raw_complete: request.raw_complete,
+                overwrite: request.overwrite,
+            },
+            cancellation,
+            hook,
+        )
+    }
+
+    fn commit_raster_inner<F>(
+        &self,
+        request: LocalRasterCommitRequest,
+        cancellation: Option<&CancellationToken>,
+        hook: F,
+    ) -> CoreResult<LocalCommitResult>
+    where
+        F: FnMut(CommitPhase) -> CoreResult<()>,
+    {
+        let _process_guard = self.process_gate.lock();
+        let _lock = RootLock::acquire(&self.root)?;
+        validate_commit_options(
+            &request.output_name,
+            &request.identity_receipt.identity.revision,
+            &request.artifacts,
+        )?;
+        if request.identity_receipt.identity.raw_complete {
+            return Err(CoreError::Storage(
+                "raster input receipt does not attest complete raw artifacts".into(),
+            ));
+        }
+        if request.raw_complete {
+            validate_attached_raw_artifacts(
+                &request.input,
+                &request.output_name,
+                &request.artifacts,
+            )?;
+        }
+        if let Some(explicit_ref) = &request.explicit_ref {
+            let RasterInput::Source { frame, .. } = &request.input else {
+                return Err(CoreError::Storage(
+                    "explicit FrameRef conflicts with a local raster input".into(),
+                ));
+            };
+            let expected_id =
+                logical_id(frame).map_err(|error| CoreError::Storage(error.to_string()))?;
+            let supplied_id =
+                logical_id(explicit_ref).map_err(|error| CoreError::Storage(error.to_string()))?;
+            if expected_id != supplied_id {
+                return Err(CoreError::Storage(
+                    "explicit FrameRef conflicts with the raster input identity".into(),
+                ));
+            }
+        }
+        let expected = raster_commit_identity(&request.input, &request.processing_spec)
+            .map_err(|error| CoreError::Storage(error.to_string()))?;
+        if expected != request.identity_receipt {
+            return Err(CoreError::Storage(
+                "raster identity receipt does not match its input".into(),
+            ));
+        }
+        let identity = request.identity_receipt.identity;
+        let processing_spec = processing_identity(&request.processing_spec);
+        let processing_hash = processing_hash(&request.processing_spec)
+            .map_err(|error| CoreError::Storage(error.to_string()))?;
+        if identity.processing_hash != processing_hash {
+            return Err(CoreError::Storage(
+                "raster processing hash does not match its specification".into(),
+            ));
+        }
+        self.commit_prepared(
+            identity.logical_id,
+            identity.revision,
+            identity.output_id,
+            processing_spec,
+            processing_hash,
+            CommitOptions {
+                output_name: request.output_name,
+                artifacts: request.artifacts,
+                raw_complete: request.raw_complete,
+                overwrite: request.overwrite,
+            },
+            cancellation,
+            hook,
+        )
+    }
+
+    fn commit_prepared<F>(
+        &self,
+        logical: String,
+        revision: String,
+        output: String,
+        processing_spec: serde_json::Value,
+        processing_hash: String,
+        request: CommitOptions,
+        cancellation: Option<&CancellationToken>,
+        mut hook: F,
+    ) -> CoreResult<LocalCommitResult>
+    where
+        F: FnMut(CommitPhase) -> CoreResult<()>,
+    {
         let manifest_relative = format!("{}.manifest.json", request.output_name);
         if !is_safe_relative_path(&manifest_relative) {
             return Err(CoreError::Storage("manifest path is invalid".into()));
@@ -216,7 +363,7 @@ impl LocalStore {
         validate_manifest_paths(&artifacts)?;
         let manifest = new_manifest(ManifestFields {
             logical_id: logical,
-            revision: request.revision.clone(),
+            revision,
             output_id: output.clone(),
             processing_spec,
             processing_hash,
@@ -391,20 +538,123 @@ where
     Ok(())
 }
 
-fn validate_request(request: &LocalCommitRequest) -> CoreResult<()> {
-    if !is_safe_relative_path(&request.output_name) {
-        return Err(CoreError::Storage("output name must be a safe relative path".into()));
+fn validate_attached_raw_artifacts(
+    input: &RasterInput,
+    output_name: &str,
+    artifacts: &[StagedArtifact],
+) -> CoreResult<()> {
+    let RasterInput::Source { frame, acquisition_receipt, .. } = input else {
+        return Err(CoreError::Storage(
+            "complete raw artifacts can only be attached to a source raster".into(),
+        ));
+    };
+    if acquisition_receipt.frame.logical_id != frame.logical_id
+        || acquisition_receipt.artifacts.is_empty()
+    {
+        return Err(CoreError::Storage("source raw receipt is invalid".into()));
     }
+    let group = Path::new(output_name)
+        .parent()
+        .and_then(Path::to_str)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.replace('\\', "/"));
+    let relative = |name: &str| match &group {
+        Some(group) => format!("{group}/{name}"),
+        None => name.to_owned(),
+    };
+    let mut expected_entries = Vec::with_capacity(acquisition_receipt.artifacts.len());
+    for receipt in &acquisition_receipt.artifacts {
+        if !is_safe_relative_path(&receipt.name) {
+            return Err(CoreError::Storage("source raw receipt contains an unsafe name".into()));
+        }
+        let expected_uri = relative(&format!("raw/{}", receipt.name));
+        let staged =
+            artifacts.iter().find(|artifact| artifact.relative_uri == expected_uri).ok_or_else(
+                || CoreError::Storage("source raw artifact is missing from the commit".into()),
+            )?;
+        if staged.role != "data" || staged.media_type != receipt.media_type {
+            return Err(CoreError::Storage(
+                "source raw artifact metadata does not match its receipt".into(),
+            ));
+        }
+        let (size, digest) = hash_file(&staged.source, receipt.size_bytes)?;
+        if size != receipt.size_bytes || digest != receipt.sha256 {
+            return Err(CoreError::Storage(
+                "source raw artifact bytes do not match their receipt".into(),
+            ));
+        }
+        expected_entries.push(json!({
+            "name": receipt.name,
+            "role": "data",
+            "media_type": receipt.media_type,
+            "size_bytes": receipt.size_bytes,
+            "sha256": receipt.sha256,
+            "source_revision": null,
+        }));
+    }
+    let raw_count = artifacts
+        .iter()
+        .filter(|artifact| artifact.relative_uri.starts_with(&relative("raw/")))
+        .count();
+    if raw_count != acquisition_receipt.artifacts.len() {
+        return Err(CoreError::Storage("commit contains unreceipted raw artifacts".into()));
+    }
+    expected_entries.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
+    let expected_manifest = json!({
+        "schema_version": 1,
+        "ref": crate::identity::safe_ref(frame)
+            .map_err(|error| CoreError::Storage(error.to_string()))?,
+        "artifacts": expected_entries,
+        "metadata": {},
+        "raw_complete": true,
+    });
+    let manifest_uri = relative("raw-manifest.json");
+    let manifest_artifact = artifacts
+        .iter()
+        .find(|artifact| artifact.relative_uri == manifest_uri)
+        .ok_or_else(|| CoreError::Storage("complete source raw manifest is missing".into()))?;
+    if manifest_artifact.role != "metadata" || manifest_artifact.media_type != "application/json" {
+        return Err(CoreError::Storage("source raw manifest metadata is invalid".into()));
+    }
+    let (manifest_size, _) = hash_file(&manifest_artifact.source, 1024 * 1024)?;
+    if manifest_size == 0 {
+        return Err(CoreError::Storage("source raw manifest is empty".into()));
+    }
+    let manifest_bytes = fs::read(&manifest_artifact.source)
+        .map_err(|_| CoreError::Storage("source raw manifest could not be read".into()))?;
+    let actual_manifest: serde_json::Value = serde_json::from_slice(&manifest_bytes)
+        .map_err(|_| CoreError::Storage("source raw manifest is invalid JSON".into()))?;
+    if actual_manifest != expected_manifest {
+        return Err(CoreError::Storage("source raw manifest does not match its receipt".into()));
+    }
+    Ok(())
+}
+
+fn validate_request(request: &LocalCommitRequest) -> CoreResult<()> {
     if !is_sha256(&request.revision) {
         return Err(CoreError::Storage("revision must be a lowercase SHA-256 digest".into()));
     }
-    if request.artifacts.is_empty() {
+    validate_commit_options(&request.output_name, &request.revision, &request.artifacts)
+}
+
+fn validate_commit_options(
+    output_name: &str,
+    revision: &str,
+    artifacts: &[StagedArtifact],
+) -> CoreResult<()> {
+    if !is_safe_relative_path(output_name) {
+        return Err(CoreError::Storage("output name must be a safe relative path".into()));
+    }
+    if !is_sha256(revision) {
+        return Err(CoreError::Storage("revision must be a lowercase SHA-256 digest".into()));
+    }
+    if artifacts.is_empty() {
         return Err(CoreError::Storage("commit requires at least one artifact".into()));
     }
     let mut names = BTreeSet::new();
     let mut paths = BTreeSet::new();
     let mut includes_output = false;
-    for artifact in &request.artifacts {
+    for artifact in artifacts {
         if !is_safe_relative_path(&artifact.name)
             || !is_safe_relative_path(&artifact.relative_uri)
             || artifact.role.trim().is_empty()
@@ -416,10 +666,10 @@ fn validate_request(request: &LocalCommitRequest) -> CoreResult<()> {
                 "commit contains an invalid or duplicate artifact".into(),
             ));
         }
-        if artifact.relative_uri == request.output_name
+        if artifact.relative_uri == output_name
             || artifact
                 .relative_uri
-                .strip_prefix(&request.output_name)
+                .strip_prefix(output_name)
                 .is_some_and(|suffix| suffix.starts_with('/') && suffix.len() > 1)
         {
             includes_output = true;
@@ -437,7 +687,7 @@ fn validate_request(request: &LocalCommitRequest) -> CoreResult<()> {
             ));
         }
     }
-    reject_path_overlaps(request.artifacts.iter().map(|artifact| artifact.relative_uri.as_str()))?;
+    reject_path_overlaps(artifacts.iter().map(|artifact| artifact.relative_uri.as_str()))?;
     if !includes_output {
         return Err(CoreError::Storage("artifact set must include output_name".into()));
     }
@@ -783,6 +1033,58 @@ mod tests {
         LocalStore::new(root, Limits::default()).unwrap()
     }
 
+    fn raster_request(
+        source: &Path,
+        content: &[u8],
+        revision: &str,
+        overwrite: bool,
+    ) -> LocalRasterCommitRequest {
+        use crate::identity::raster_commit_identity;
+        use crate::raster::{NumericFileIdentity, NumericReadReceipt, RasterInput};
+
+        fs::write(source, content).unwrap();
+        let input = RasterInput::NumericFile {
+            identity: NumericFileIdentity {
+                kind: "local_numeric".into(),
+                format: "netcdf".into(),
+                content_digest: revision.into(),
+                variable: "reflectivity".into(),
+                selection: json!({"time_index":0}),
+                valid_time: None,
+                geometry: None,
+            },
+            read_receipt: NumericReadReceipt {
+                content_digest: revision.into(),
+                format: "netcdf".into(),
+                size_bytes: 1,
+                variable: "reflectivity".into(),
+                components: vec![],
+                selection: json!({"time_index":0}),
+                units: Some("dBZ".into()),
+                validated_schema: Some("pixel-dbz-v1".into()),
+            },
+            upstream_provenance: None,
+        };
+        let processing_spec = ProcessingSpec::default();
+        let identity_receipt = raster_commit_identity(&input, &processing_spec).unwrap();
+        LocalRasterCommitRequest {
+            input,
+            identity_receipt,
+            explicit_ref: None,
+            processing_spec,
+            output_name: "numeric.nc".into(),
+            artifacts: vec![StagedArtifact {
+                name: "numeric.nc".into(),
+                relative_uri: "numeric.nc".into(),
+                role: "data".into(),
+                media_type: "application/x-netcdf".into(),
+                source: source.to_path_buf(),
+            }],
+            raw_complete: false,
+            overwrite,
+        }
+    }
+
     #[test]
     fn writes_manifest_last_and_skips_only_verified_identical_output() {
         let root = tempfile::tempdir().unwrap();
@@ -911,6 +1213,40 @@ mod tests {
         assert_eq!(fs::read(root.path().join("frame.bin")).unwrap(), b"first");
         assert!(is_complete(root.path(), &first.manifest));
         assert_eq!(fs::read_dir(root.path()).unwrap().count(), 3); // artifact, manifest, persistent lock
+    }
+
+    #[test]
+    fn raster_publish_interruption_rolls_back_artifact_and_keeps_manifest_last() {
+        let root = tempfile::tempdir().unwrap();
+        let inputs = tempfile::tempdir().unwrap();
+        let source = inputs.path().join("source.nc");
+        let store = store(root.path());
+        let first = store
+            .commit_raster(raster_request(&source, b"numeric-v1", &"a".repeat(64), false))
+            .unwrap();
+        let manifest_path = root.path().join("numeric.nc.manifest.json");
+        let original_manifest = fs::read(&manifest_path).unwrap();
+
+        let failed = store.commit_raster_inner(
+            raster_request(&source, b"numeric-v2", &"b".repeat(64), true),
+            None,
+            |phase| {
+                if phase == CommitPhase::ArtifactInstalled {
+                    Err(CoreError::Cancelled)
+                } else {
+                    Ok(())
+                }
+            },
+        );
+        assert!(matches!(failed, Err(CoreError::Cancelled)));
+        assert_eq!(fs::read(root.path().join("numeric.nc")).unwrap(), b"numeric-v1");
+        assert_eq!(fs::read(&manifest_path).unwrap(), original_manifest);
+        assert!(is_complete(root.path(), &first.manifest));
+        assert!(
+            !fs::read_dir(root.path()).unwrap().filter_map(Result::ok).any(|entry| {
+                entry.file_name().to_string_lossy().starts_with(".radiust-stage-")
+            })
+        );
     }
 
     #[test]
