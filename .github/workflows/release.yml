@@ -64,6 +64,8 @@ jobs:
         with:
           python-version: "3.13"
       - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
       - name: Validate release scripts and version/conflict handling
         run: |
           python -m pip install 'pytest>=8,<9' 'PyYAML>=6,<7' 'ruff>=0.8,<1' 'delocate>=0.13,<1'
@@ -90,6 +92,8 @@ jobs:
         with:
           python-version: "3.13"
       - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
       - uses: actions/download-artifact@v4
         with:
           name: release-source
@@ -133,6 +137,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
       - uses: actions/download-artifact@v4
         with:
           name: release-source
@@ -188,6 +194,8 @@ jobs:
         with:
           python-version: "3.13"
       - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
       - uses: actions/download-artifact@v4
         with:
           name: release-source
@@ -257,6 +265,8 @@ jobs:
         with:
           python-version: "3.12"
       - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
       - name: Install source build tools on Linux
         if: runner.os == 'Linux'
         run: |

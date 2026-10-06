@@ -16,6 +16,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
       - name: Use runner temporary storage for the virtual environment
         run: echo "UV_PROJECT_ENVIRONMENT=${RUNNER_TEMP}/radiust-venv" >> "$GITHUB_ENV"
       - name: Audit source migration inventory
