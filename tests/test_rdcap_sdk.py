@@ -490,10 +490,9 @@ def test_same_raw_frame_matches_cli_sync_and_async_decoded_outputs(tmp_path: Pat
         sync_quality = np.frombuffer(sync_field.quality_le_bytes(), dtype="<u2").reshape(
             sync_field.shape
         ).copy()
-        assert client.write(sync_field, ref=ref, output=sync_root, format="png").counts["written"] == 1
         sync_results = {
             format_name: client.write(sync_field, ref=ref, output=sync_root, format=format_name)
-            for format_name in formats[1:]
+            for format_name in formats
         }
         assert all(result.counts["written"] == 1 for result in sync_results.values())
 
@@ -525,8 +524,8 @@ def test_same_raw_frame_matches_cli_sync_and_async_decoded_outputs(tmp_path: Pat
         assert f"frame_logical_id={safe['logical_id']}" in metadata["provenance"]
     cli_items = cli_report["items"]
     for format_name in formats:
-        sync_path = next(sync_root.rglob("*.png" if format_name == "png" else {"netcdf": "*.nc", "geotiff": "*.tif", "zarr": "*.zarr"}[format_name]))
-        async_path = next(async_root.rglob("*.png" if format_name == "png" else {"netcdf": "*.nc", "geotiff": "*.tif", "zarr": "*.zarr"}[format_name]))
+        sync_path = Path(sync_results[format_name].items[0].output_uri)
+        async_path = Path(async_results[format_name].items[0].output_uri)
         cli_path = Path(next(
             item["output_uri"]
             for item in cli_items

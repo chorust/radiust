@@ -52,15 +52,39 @@ async fn cancelled_engine_does_not_start_gray_decode_worker() {
     assert!(matches!(error, EngineError::Core(CoreError::Cancelled)));
 }
 
-#[tokio::test]
-async fn decode_deadline_is_shared_with_the_engine_operation() {
-    let mut config = CoreConfig::default();
-    config.runtime.frame_deadline = 0.000_000_001;
-    let engine = engine_with(config);
-    let error = engine
-        .decode_gray_values(64, 64, vec![0.0; 64 * 64], None, "gray-dbz-v1".into())
-        .await
-        .unwrap_err();
+#[test]
+fn gray_decode_deadline_expires_while_cpu_worker_is_queued() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .max_blocking_threads(1)
+        .start_paused(true)
+        .build()
+        .unwrap();
+    let result = runtime.block_on(async {
+        let (release, wait_for_release) = std::sync::mpsc::channel::<()>();
+        let (started, wait_for_start) = tokio::sync::oneshot::channel();
+        let blocker = tokio::task::spawn_blocking(move || {
+            let _ = started.send(());
+            // Dropping the sender also releases this worker if the test panics.
+            let _ = wait_for_release.recv();
+        });
+        wait_for_start.await.unwrap();
+
+        let mut config = CoreConfig::default();
+        config.runtime.frame_deadline = 0.1;
+        let engine = engine_with(config);
+        let decode =
+            engine.decode_gray_values(64, 64, vec![0.0; 64 * 64], None, "gray-dbz-v1".into());
+        tokio::pin!(decode);
+        // Start the operation and its timer while the blocking pool is occupied.
+        assert!(futures_util::poll!(&mut decode).is_pending());
+        tokio::time::advance(std::time::Duration::from_secs(1)).await;
+        let result = decode.await;
+        drop(release);
+        blocker.await.unwrap();
+        result
+    });
+    let error = result.unwrap_err();
     assert!(matches!(
         error,
         EngineError::Core(CoreError::Transport(message)) if message.contains("deadline")

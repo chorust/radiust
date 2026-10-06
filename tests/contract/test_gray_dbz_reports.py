@@ -89,9 +89,12 @@ def test_local_mode_conflict_is_machine_readable_and_preserves_stderr_contract()
     assert result.stderr == ""
 
 
-def test_legacy_cli_alias_warns_only_on_human_stderr():
+def test_legacy_cli_alias_warns_only_on_human_stderr(tmp_path, monkeypatch):
+    config = tmp_path / "config.yaml"
+    config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
+    monkeypatch.setenv("RADIUST_RUNTIME__ALLOW_NETWORK", "false")
     human = subprocess.run(
-        [*_binary(), "cat", "fr", "--legacy-display"],
+        [*_binary(), "--conf", str(config), "cat", "fr", "--legacy-display"],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -102,9 +105,11 @@ def test_legacy_cli_alias_warns_only_on_human_stderr():
     assert "deprecated; use --gray" in human.stderr
     assert "requires SOURCE" not in human.stderr
 
-    machine = _run("cat", "fr", "--legacy-display")
-    assert machine.returncode == 5, machine.stderr
+    machine = _run("--conf", str(config), "cat", "fr", "--legacy-display")
+    assert machine.returncode == 2, machine.stdout
     assert machine.stderr == ""
     machine_report = json.loads(machine.stdout)
+    assert machine_report["error"]["stage"] == "validate"
+    assert machine_report["error"]["message"] == "public network access is disabled"
     assert machine_report["mode_info"]["requested"] == "gray"
     assert machine_report["mode_info"]["actual"] is None
