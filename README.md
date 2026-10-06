@@ -1,5 +1,9 @@
 # Radiust
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/chorust/radiust/main/assets/branding/radiust-mark.png" width="200" alt="Radiust 项目标识">
+</p>
+
 [简体中文](README.md) · [English](README.en.md)
 
 **让普通人能够方便地获取、理解和使用公共气象雷达观测。**

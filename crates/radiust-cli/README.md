@@ -1,5 +1,9 @@
 # radiust-cli
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/chorust/radiust/main/assets/branding/radiust-mark.png" width="180" alt="Radiust project mark">
+</p>
+
 Native command-line interface for the [Radiust radar toolkit](https://github.com/chorust/radiust).
 
 ```sh

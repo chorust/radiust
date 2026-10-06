@@ -1,5 +1,9 @@
 # Radiust
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/chorust/radiust/main/assets/branding/radiust-mark.png" width="200" alt="Radiust project mark">
+</p>
+
 [English](README.en.md) · [简体中文](README.md)
 
 **Helping everyone access, understand, and use public weather radar observations.**
