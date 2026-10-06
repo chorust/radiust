@@ -1,6 +1,6 @@
 [package]
 name = "radiust-core"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 rust-version.workspace = true
 description = "Rust core for the radiust radar data toolkit"
@@ -10,6 +10,8 @@ homepage = "https://github.com/chorust/radiust"
 readme = "README.md"
 keywords = ["radar", "weather", "meteorology"]
 categories = ["science", "network-programming"]
+
+include = ["src/**", "resources/**", "README.md", "LICENSE"]
 
 [lib]
 name = "radiust_core"

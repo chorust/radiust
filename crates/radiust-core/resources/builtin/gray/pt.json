@@ -1,0 +1,26 @@
+{
+  "source": "pt",
+  "product": "composite",
+  "path_id": "pt/composite",
+  "rule_version": "old-8d251601-pt-ptst2-replay-v1",
+  "encoding_version": "旧项目-gray-dbz-v1",
+  "legacy_reference": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/pt_ipma_scraper.py#git-blob=87eb3f9d2108e0e2fdf0724826caa8e6349b4554",
+  "ordered_steps": [
+    {
+      "op": "legacy_luminance_alpha",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/scrapers/pt_ipma_scraper.py#git-blob=87eb3f9d2108e0e2fdf0724826caa8e6349b4554"
+    }
+  ],
+  "input_constraints": {
+    "formats": [
+      "PNG"
+    ],
+    "max_pixels": 100000000,
+    "decoded_size": [
+      1500,
+      1526
+    ]
+  },
+  "validation_status": "passed",
+  "config_hash": "b20f74df36764d4891bc7c54dd3bac564d2aae017e6725533ccaae10f252a60d"
+}

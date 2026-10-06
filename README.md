@@ -4,7 +4,7 @@
 
 **让普通人能够方便地获取、理解和使用公共气象雷达观测。**
 
-*Public radar, directly to you.*（候选品牌标语）
+*Public radar, directly to you.*
 
 Radiust 希望让用户通过自己设备上的开放工具连接雷达来源，优先采用官方来源，也支持可靠、可追溯的第三方产品。数据默认在本地获取、缓存和处理，核心观测功能无需 Radiust 账号或 Radiust 数据中转服务。
 
@@ -12,128 +12,198 @@ Radiust 希望让用户通过自己设备上的开放工具连接雷达来源，
 
 [项目理念](PHILOSOPHY.md) · [发展路线与 Desktop 验收目标](ROADMAP.md) · [数据来源政策](DATA_SOURCES.md) · [品牌使用规则](TRADEMARKS.md)
 
-当前版本是 **0.1.0 alpha**。已经可审阅和离线运行的是一个完整的 fixture-backed MVP 闭环：目录查询、时间查询、获取、解码、NetCDF/PNG 输出、raw-manifest、批量、缓存、配置和文字预览。仓库中的 `my` 样本来自历史 PNG 输出，仍缺少可核验的上游 GIF、响应元数据和原生几何，因此不能把它当成已经完成的科学来源迁移。各来源的真实获取能力和科学解码能力分别记录在 `migration/`，不能仅根据目录中的 `needs_configuration` 推断获取接口尚未实现。
+当前版本为 **0.1.1 alpha**。
 
-当前模块边界、端到端数据流及本地/远端提交流程见 [架构文档](docs/architecture.md)。
+[Features](#features) · [Install](#install) · [Usage](#usage) · [项目与许可](#项目与许可) · [Dev](#dev)
 
-## 离线试用
+## Features
 
-在仓库根目录安装开发依赖：
+- 多来源雷达获取：目录登记 25 个来源，可查询来源、产品、站点和最新时次；实际可用性及访问要求见[来源清单](DATA_SOURCES.md)。
+- 终端预览：查看来源原图、规则生成的灰度编码或已支持产品的 dBZ 数值。
+- 数值反射率：台湾 CWA `tw/grid` 和 RainViewer 有[线上获取与数值读回记录](DATA_SOURCES.md#历史获取与科学验证记录)；RDCAP 单站产品已实现数值解码，三国在线能力仍未验收。
+- 数据导出：保存原始资料、PNG、NetCDF、GeoTIFF 或 Zarr，保留来源、时间和处理记录；科学格式取决于产品与几何支持。
+- 本地资料读写：读取数值文件，将明确声明的灰度编码图转为 dBZ；[灰度转换](docs/gray-dbz.md)不等于物理色标已验证。
+- 批量与缓存：批量查询和获取，复用缓存，跳过已有完整输出，支持取消操作。
+- Python SDK：提供同步、异步和批量接口，与 CLI 共用 Rust Engine。
 
-```bash
-uv sync --group dev
-```
+## Install
 
-运行一个不访问公网的闭环：
+### Python 包：CLI 与 SDK
 
-```bash
-radiust list sources --json
-radiust discover my --at 2025-12-29T06:50:01Z --json
-radiust download my --at 2025-12-29T06:50:01Z --output ./data --json
-```
-
-第二次使用相同参数会根据完成清单报告 `skipped`。保存原始资料时使用：
+使用 CPython **3.10–3.13**。`0.1.1` 的预编译 wheel 覆盖 macOS Apple Silicon（macOS 11+）和 Linux x86_64（glibc ≥ 2.28），无需安装 Rust 或 CMake：
 
 ```bash
-radiust download my --at 2025-12-29T06:50:01Z --output ./data --raw --json
-radiust download my --at 2025-12-29T06:50:01Z --output ./data --raw-only --json
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "radiust==0.1.1"
+python -m radiust --version
+radiust --help
 ```
 
-预览生成的文件时，管道环境要明确选择文字模式：
+Python 包同时提供 `radiust` 命令和 SDK。需要 NumPy／xarray 转换时，安装 `"radiust[science]==0.1.1"`；GeoTIFF、Zarr 及其他可选依赖见[安装说明](docs/installation.md#python-包)。同时安装独立 CLI 时，可用 `python -m radiust` 明确调用虚拟环境中的版本。
+
+### 原生 CLI 与 Rust 库：crates.io
+
+原生 CLI 无需 Python。Cargo 安装会从源码编译，需要 Rust **1.92+**、CMake、C/C++ 编译器及构建工具：
 
 ```bash
-radiust cat --file ./data/path/to/frame.nc --renderer text
-radiust cat --file tests/fixtures/sources/th_royalrain/raw/takhli.png --renderer text
-radiust cat --file tests/fixtures/sources/th/raw/kkn240Loop.gif --raw --renderer text
-radiust cat --file tests/fixtures/gray-dbz/local/225-codes.png --gray --renderer text
-radiust cat --file tests/fixtures/gray-dbz/local/225-codes.png --dbz --renderer text
-radiust discover all --json
+cargo install --locked radiust-cli
+radiust --version
 ```
 
-`--raw` shows source pixels, `--gray` declares a gray-code display, and `--dbz` strictly decodes a declared local gray image. The local rule accepts visible integer codes 0–224 and computes `dBZ = gray × 5/16`; transparent pixels are missing, opaque black is valid zero, and time/geolocation remain unknown. No mode is inferred from appearance. The old source-only `--legacy-display` flag remains as a compatibility alias for `--gray`.
+Cargo 包名是 `radiust-cli`，可执行命令名是 `radiust`；`~/.cargo/bin` 需要在 PATH 中。Rust 项目可通过 `cargo add radiust-core` 使用同版本核心库。macOS 用户可用 `xcode-select --install` 准备编译工具，再用 `brew install cmake` 安装 CMake；完整前置依赖见[源码构建说明](docs/installation.md#从源码构建或使用-cargo-安装)。
 
-本地多帧 GIF/WebP 必须显式选帧；来源流程先保留原始 artifact，再查看规则生成的 gray，只有通过来源证据的路径才能请求 dBZ：
+### macOS Apple Silicon：旧版独立预编译 CLI
+
+
+下载预编译程序即可使用，无需安装 Python 或 Rust。当前提供 `v0.1.0` 预览包，支持 macOS 11 及更新版本。下载、校验并安装到用户目录：
 
 ```bash
-radiust cat --file ./frames.gif --raw --frame-index 0
-radiust cat --file ./frames.gif --dbz --frame-index 0
-radiust cat nz --product rain --latest --raw
-radiust cat nz --product rain --latest --gray
-radiust cat nz --product rain --latest --dbz
+mkdir -p "$HOME/.local/bin"
+workdir="$(mktemp -d)"
+cd "$workdir"
+curl -fL -O https://github.com/chorust/radiust/releases/download/v0.1.0/radiust-v0.1.0-macos-arm64.tar.gz
+curl -fL -O https://github.com/chorust/radiust/releases/download/v0.1.0/radiust-v0.1.0-macos-arm64.sha256
+shasum -a 256 -c radiust-v0.1.0-macos-arm64.sha256
+tar -xzf radiust-v0.1.0-macos-arm64.tar.gz
+install -m 755 radiust "$HOME/.local/bin/radiust"
+export PATH="$HOME/.local/bin:$PATH"
+radiust --help
 ```
 
-数值文件可用 `radiust cat --file ./reflectivity.nc --dbz --variable reflectivity` 检查；Python SDK 可用 `read_dbz()` 读取，再通过 `write()` 保存新数值成果，无需为本地文件伪造 `FrameRef`。来源 `download --dbz --raw` 将同次获取的原始 artifact 附在解码成果中；`--raw-only` 与 `--dbz` 冲突。省略模式仍走原 generic/native 行为，其他科学变量保留真实单位。JSON 报告沿用 Envelope v1 并增加 `mode_schema_version: 1` 与 `mode_info`。
+校验通过后再解压安装。若新终端找不到 `radiust`，将上述 `export PATH` 行加入 `~/.zshrc`。此预览包未经过 Apple 公证，首次运行可能出现 Gatekeeper 提示；处理方式及适用范围见[完整安装说明](docs/installation.md#macos-apple-silicon-预编译版本预览)。
 
-Source gray evidence, dBZ conversion limits, numeric formats, and validation status are documented in [docs/gray-dbz.md](docs/gray-dbz.md); CLI and SDK examples are in [docs/cli.md](docs/cli.md) and [docs/python-sdk.md](docs/python-sdk.md).
-`discover all` 在默认禁止联网的配置下仍会返回完整目录状态，通常以退出码 5 表示所有目标均未成功获取实时资料；该结果不表示已完成实时来源验收。
+这个 `v0.1.0` 旧预览包不包含本次 `0.1.1` 的全部变化；当前版本可通过上方 PyPI 或 Cargo 命令安装。
 
-实际输出目录和 manifest 的命名规则见 [docs/cli.md](docs/cli.md) 与 [docs/output-maintenance.md](docs/output-maintenance.md)。
+### 从源码安装
 
-## 数据源支持情况
+准备上述源码构建工具后，在仓库根目录运行：
 
-当前原生目录登记 **25 个来源**，涉及亚洲、欧洲、大洋洲和北美的多个国家／地区。实际可用性和支持能力因来源、产品与访问条件而异；完整清单、获取状态和授权条件见[数据来源政策](DATA_SOURCES.md)。
+```bash
+git clone https://github.com/chorust/radiust.git
+cd radiust
+cargo install --locked --path crates/radiust-cli
+```
 
-| 能力 | 已有验证的例子 | 使用边界 |
-| --- | --- | --- |
-| 数值反射率 | 台湾 CWA `tw/grid`、RainViewer | 支持有证据的 dBZ 解码，不代表所有来源均可定量解释 |
-| 降雨强度类别 | 新加坡 `sg`、葡萄牙 `pt` | 提供有序类别，不提供精确逐像素 mm/h |
-| 原图／原始资料 | 其他来源按各自状态开放 | 可用 `--raw-only` 保存原始文件；未经验证的颜色不能直接解释为反射率或雨强 |
+Python 源码安装使用 `python -m pip install "."`，可选科学依赖使用 `python -m pip install ".[science]"`。后续版本由 [GitHub tag 发布流程](docs/releases.md)构建、验证并上传；各平台的实际发布状态见[安装说明](docs/installation.md)。
 
-`rdcap` 的台湾、日本、菲律宾在线能力仍标为未验证；`uk` 已退役，两条巴西来源属于历史迁移记录，未注册到原生目录。详情及[历史验证快照](DATA_SOURCES.md#历史获取与科学验证记录)集中记录在来源文档中。
+## Usage
 
-适配器存在或下载成功不等于科学解码已验收，也不等于取得商用或再分发授权。逐源技术证据见[迁移记录](migration/sources/)与[验证材料](validation-results/)。
+### Config
 
-## Python SDK
+在运行命令的目录创建 `config.yaml`，设置联网、缓存和默认输出：
+
+```yaml
+runtime:
+  allow_network: true
+  request_timeout: 30  # 单次请求超时，单位：秒
+
+cache:
+  enabled: true
+  dir: ~/.cache/radiust
+
+storage:
+  output: ./data
+
+output:
+  format: netcdf
+  grid: native
+```
+
+CLI 和 SDK 会自动读取当前目录的 `config.yaml`。通用配置可放在 `~/.config/radiust/config.yaml`；当前目录配置覆盖其中的同名字段，`RADIUST_` 环境变量再覆盖文件配置。也可显式指定文件并查看生效配置：
+
+```bash
+radiust --conf ./config.yaml config show
+radiust --conf ./config.yaml discover rainviewer --latest
+```
+
+`allow_network: true` 允许连接上游；只想临时开启时，可在当前终端运行 `export RADIUST_RUNTIME__ALLOW_NETWORK=true`。省略 `--output` 和 `--format` 时，下载使用配置中的默认值。更多选项见[完整示例](config/example.yaml)和[配置说明](docs/installation.md#配置)。
+
+### 1. 查询来源与最新时次
+
+配置好联网权限后，查看来源目录并查询最新资料：
+
+```bash
+radiust list sources
+radiust discover rainviewer --latest --max-age 3600
+```
+
+`--max-age 3600` 筛选最近一小时的资料。报告中的时间为 UTC；`latest` 表示来源最新提供的帧，仍可能过期。凭据、浏览器或其他来源配置要求见[数据来源文档](DATA_SOURCES.md)。
+
+### 2. 在终端查看最新雷达
+
+```bash
+# 查看 RainViewer 原始瓦片预览
+radiust cat rainviewer --latest --raw
+
+# 查看台湾 CWA 数值网格的反射率
+radiust cat tw --product grid --latest --dbz
+```
+
+交互终端默认自动选择预览方式；重定向、脚本或只需元数据时加 `--renderer text`。`--raw`、`--gray` 和 `--dbz` 是不同模式，不根据图像外观自动推断。
+
+### 3. 保存图像或数值资料
+
+```bash
+# PNG 图像及元数据
+radiust download rainviewer --latest --format png --output ./data
+
+# 数值反射率，同时保留同次获取的原始资料
+radiust download tw --product grid --latest --format netcdf --raw --output ./data
+
+# 只保存来源原始资料，不请求科学解码
+radiust download tw-http --latest --station CV1_3600 --raw-only --output ./raw
+```
+
+下载报告会列出实际输出路径。同一帧已有完整输出时，再次下载会报告 `skipped`。数值产品也可用 `--format geotiff` 或 `--format zarr`；不同来源的科学与几何限制仍适用。自动化处理加 `--json` 获取结构化报告。
+
+查看已有数值文件：
+
+```bash
+radiust cat --file ./reflectivity.nc --dbz --variable reflectivity --renderer text
+```
+
+本地灰度编码、多帧选取、批量发现、时间范围、缓存与配置的完整用法见[CLI 文档](docs/cli.md)；输出文件和清单规则见[输出维护说明](docs/output-maintenance.md)。
+
+### Python SDK
+
+下面的示例连接 RainViewer，查询最新帧，读取数值场并下载 NetCDF：
 
 ```python
-from datetime import datetime, timezone
+from datetime import timedelta
 
 import radiust
 
-query = radiust.Query(
-    "my",
-    at=datetime(2025, 12, 29, 6, 50, 1, tzinfo=timezone.utc),
-)
+query = radiust.Query("rainviewer", latest=True, max_age=timedelta(hours=1))
 
-with radiust.Client() as client:
+with radiust.Client(config={"runtime": {"allow_network": True}}) as client:
     refs = client.discover(query)
-    field = client.fetch(query)       # 不写正式 output
-    report = client.download(query, output="./data", raw=True)
+    field = client.fetch(query)  # 获取并解码到内存
+    report = client.download(
+        query, output="./data", format="netcdf", raw=True,
+    )
 ```
 
-顶层 `fetch`、`afetch`、`fetch_many`、`iter_fetch`、`download` 和对应异步入口也可用。`fetch` 返回已经独立加载的 `RadarField`/`RadarDataset`；`download` 才进入编码和正式提交阶段。公共对象和错误类型见 [docs/python-sdk.md](docs/python-sdk.md)。
+`fetch()` 返回 Rust 持有的 `RadarField`／`RadarDataset`；`download()` 写入正式输出。安装 `science` 可选依赖后，用 `radiust.to_xarray(field)` 转为 xarray。异步入口、批量、取消、本地 `read_dbz()` 和 `write()` 见[SDK 文档](docs/python-sdk.md)。
 
-## 安装和可选能力
+## 项目与许可
 
-### macOS Apple Silicon 原生 CLI（预览版）
+Radiust 优先接入官方来源，也支持可靠、可追溯的第三方产品。当前先做好观测；Desktop 查看与播放、多源选择与回退、预测和跨来源拼图属于后续路线。
 
-macOS arm64 用户可下载独立 Rust CLI `radiust` v0.1.0（支持 macOS 11 及更新版本），无需安装 Python 或 Rust。当前为预览版，适用范围和校验步骤见[完整安装说明](docs/installation.md#macos-apple-silicon-预编译版本预览)及 [GitHub Release](https://github.com/chorust/radiust/releases/tag/v0.1.0)。该 CLI 与下方的 Python 包是两种独立安装方式。
+[项目理念](PHILOSOPHY.md) · [发展路线与 Desktop 验收目标](ROADMAP.md) · [架构](docs/architecture.md) · [规格路线](.specify/memory/roadmap.md)
 
-### Python 包
+软件采用标准 [Apache-2.0](LICENSE)，允许商业使用。上游数据的访问、署名、商用与再分发条件按来源另行记录，未确认项保持未确认；软件许可不替代数据授权。名称与标识的使用见[品牌规则](TRADEMARKS.md)。
 
-基础安装包含 Rust 扩展；YAML 配置由 Rust 解析，因此运行时不依赖 PyYAML。科学互操作等能力按需安装：
+## Dev
 
-```bash
-pip install radiust
-pip install "radiust[geotiff]"
-pip install "radiust[zarr]"
-pip install "radiust[playwright]"
-pip install "radiust[recovery,scraping]"
-```
-
-`radiust[storage]` 当前是有意保留的空 extra；标准 wheel 已随 Rust OpenDAL 编入 OSS/S3 远端提交能力。使用 `--output s3://...` 或 `oss://...` 时，配置 `storage.endpoint/region/access_key/secret_key/anonymous`，远端采用不可变 generation 和 manifest-last。AWS S3、S3-compatible 与 Aliyun OSS 的真实 provider 矩阵仍需单独验证，不能用 loopback 测试替代。完整的 CPython/Rust wheel 说明见 [docs/installation.md](docs/installation.md)。
-
-## 开放使用与许可
-
-软件采用标准 [Apache-2.0](LICENSE)，欢迎商业使用。项目持续为公众提供开放、可独立使用的工具；软件许可不替代上游雷达数据授权，也不构成对下游产品的背书。数据访问、署名、商用和再分发条件逐源记录，未确认项保留为未确认，见[数据来源政策](DATA_SOURCES.md)。名称与未来视觉标识的使用见[品牌规则](TRADEMARKS.md)。
-
-## 开发和验证
+在仓库根目录安装开发依赖并运行检查：
 
 ```bash
+uv sync --group dev
 .venv/bin/ruff check python tests
 cargo fmt --all -- --check
 cargo test --workspace
 .venv/bin/pytest -q
 ```
 
-默认测试禁止公网。live/provider/真实终端矩阵需要单独的凭据、环境和验收记录，不会因为 fixture 测试通过而自动标记完成。迁移状态和待补证据见 [docs/migration.md](docs/migration.md) 及 `migration/blockers/`。
+默认测试禁止公网。需要无网络样本试用时，见[离线 quickstart](specs/001-radiust-v1-migration/quickstart.md)。该文档包含历史迁移流程，当前安装方式以本文为准。live/provider、真实终端、远端存储与平台验收分别记录；离线测试通过不代表这些验收完成。迁移限制见[迁移说明](docs/migration.md)和 `migration/blockers/`。

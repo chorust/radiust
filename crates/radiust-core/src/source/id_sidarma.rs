@@ -20,8 +20,7 @@ const ARTIFACT_DOMAIN: &str = "bmkg.go.id";
 const LOCATOR_VERSION: &str = "id_sidarma-legacy-v1";
 const REQUEST_HEADERS: [(&str, &str); 2] =
     [("Accept", "application/json, text/plain, */*"), ("User-Agent", "SidarmaMobile/2")];
-const RADAR_RESOURCE: &str =
-    include_str!("../../../../python/radiust/resources/sources/id_sidarma.json");
+const RADAR_RESOURCE: &str = include_str!("../../resources/builtin/sources/id_sidarma.json");
 
 /// Discovers the latest SIDARMA CMAX frame in a bounded UTC archive window.
 pub struct IdSidarmaSourceAdapter;

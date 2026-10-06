@@ -1,8 +1,23 @@
 # Installation
 
+## 从包仓库直接安装
+
+截至 2026-10-06，`0.1.1` 已发布到 [PyPI](https://pypi.org/project/radiust/0.1.1/)、[radiust-core](https://crates.io/crates/radiust-core/0.1.1) 和 [radiust-cli](https://crates.io/crates/radiust-cli/0.1.1)，可直接安装当前 CLI、SDK 与核心库。首次发布使用本地凭据；后续版本使用 [GitHub tag 自动发布流程](releases.md)，仍需完成 GitHub secret／PyPI Trusted Publisher 配置。实际发布与公开仓库安装记录见 [`local-registry-publication.json`](../validation-results/local-registry-publication.json)。
+
+```bash
+cargo install --locked radiust-cli
+radiust --help
+
+python3 -m venv .venv
+.venv/bin/python -m pip install --only-binary=:all: "radiust==0.1.1"
+.venv/bin/python -m radiust --help
+```
+
+Cargo 包名是 `radiust-cli`，安装后的命令名是 `radiust`；Cargo 会从源码编译，需要 Rust 1.92+、CMake、C/C++ 编译器和构建工具。Rust 项目可通过 `cargo add radiust-core` 使用同版本核心库。Python 的预编译 wheel 无需 Rust 或 CMake；tag 发布矩阵覆盖 CPython 3.10–3.13、macOS arm64 与 Linux x86_64（glibc ≥ 2.28），其他环境可使用下方源码安装方式。科学转换可安装 `radiust[science]` 等 extra。
+
 ## 原生 Rust 命令行程序
 
-原生 `radiust` 二进制不需要 Python。macOS Apple Silicon 用户可以下载下方的预编译版本；从仓库源码构建或使用 Cargo 安装则需要 Rust 1.92 或更新版本。
+原生 `radiust` 二进制不需要 Python。macOS Apple Silicon 用户可以下载下方的预编译版本；从仓库源码构建或使用 Cargo 安装则需要 Rust 1.92 或更新版本、CMake，以及 C/C++ 编译器和构建工具。
 
 ### macOS Apple Silicon 预编译版本（预览）
 
@@ -27,6 +42,17 @@ radiust --help
 
 ### 从源码构建或使用 Cargo 安装
 
+原生 CLI 与 Python 包的源码安装都需要 Rust 1.92 或更新版本、系统可执行文件 `cmake`、C/C++ 编译器及构建工具。工作区启用了 NetCDF 的 `static` feature，`netcdf-src` 与 `hdf5-metno-src` 的构建脚本会调用 CMake 编译 NetCDF/HDF5；pip 和 Rust 不会自动安装这些系统工具。
+
+macOS 用户需要 Xcode Command Line Tools（提供编译器和 `make`）；安装 CMake 可使用 Homebrew：
+
+```bash
+xcode-select --install
+brew install cmake
+```
+
+等待 Command Line Tools 安装完成后再构建；已安装时可跳过。确认 `cmake` 和编译工具在 PATH 中，再运行下方命令。其他平台也需要准备相应的 C/C++ 编译器、构建工具和 CMake。
+
 ```bash
 cargo build --locked --release -p radiust-cli
 ./target/release/radiust --help
@@ -48,28 +74,28 @@ cargo install --locked --path crates/radiust-cli --root /tmp/radiust-native
 
 `radiust-cli` 通过本工作区的路径依赖使用 `radiust-core`。命令集合与当前支持边界见[原生 CLI 文档](cli.md#原生-rust-cli)。RainViewer composite 和 TW grid 的 PNG+sidecar、NetCDF4、GeoTIFF 和 Zarr writer/local commit 已接入，四种格式均有独立 fixture 读回。GeoTIFF 编码为纯 Rust，不加载 GDAL/PROJ；NetCDF/HDF5 使用 Rust crate 的静态构建，因此原生 CLI 和 Python 扩展不依赖 Homebrew NetCDF/HDF5 dylib。macOS wheel 仍执行 Mach-O 依赖审计与 delocate 检查。
 
-本轮原生迁移的正式目标平台是 macOS arm64；其他平台上的构建不构成发布验收。原生 CLI 目前仍是部分实现，不能据此宣称 US1–US5、24 个来源或四种输出格式全部完成。
+本轮原生迁移的正式目标平台是 macOS arm64；`0.1.1` 的 Linux x86_64 wheel 已在本机通过模拟执行的 manylinux 容器构建并独立安装，证明该包可以安装运行，不等于 Linux 的全部迁移或科学能力已经验收。原生 CLI 目前仍是部分实现，不能据此宣称 US1–US5、24 个来源或四种输出格式全部完成。
 
 ## Python 包
 
 Python SDK 的 `Client`、`AsyncClient`、便捷函数和 `radiust` console script 通过 PyO3 共用 Rust Engine 与原生 CLI。基础 wheel 不要求 NumPy/xarray；科学数组只在显式调用 `to_xarray()` 时转成 Python 对象。
 
-核心包要求 CPython 3.10–3.13。安装 Rust 扩展和基础依赖：
+核心包要求 CPython 3.10–3.13。PyPI `0.1.1` 提供 macOS arm64（macOS 11+）和 Linux x86_64（glibc ≥ 2.28）共八个 wheel；这些环境可使用上方直接安装命令。当前没有发布 sdist，其他架构或 Python 版本不能据此视为支持。以下命令从源码安装，需要先准备 Rust 1.92 或更新版本、CMake、C/C++ 编译器和构建工具；macOS 安装步骤见[源码构建前置依赖](#从源码构建或使用-cargo-安装)。命令须在仓库根目录执行：
 
 ```bash
 python -m venv .venv
-.venv/bin/python -m pip install radiust
+.venv/bin/python -m pip install "."
 ```
 
 科学读回与其他 Python 集成按需安装：
 
 ```bash
-.venv/bin/python -m pip install "radiust[science]"  # NumPy/xarray 科学转换
-.venv/bin/python -m pip install "radiust[geotiff]"   # rasterio
-.venv/bin/python -m pip install "radiust[zarr]"      # zarr v2 + numcodecs
-.venv/bin/python -m pip install "radiust[playwright]"
-.venv/bin/python -m pip install "radiust[recovery,scraping]"
-.venv/bin/python -m pip install "radiust[all]"
+.venv/bin/python -m pip install ".[science]"  # NumPy/xarray 科学转换
+.venv/bin/python -m pip install ".[geotiff]"   # rasterio
+.venv/bin/python -m pip install ".[zarr]"      # zarr v2 + numcodecs
+.venv/bin/python -m pip install ".[playwright]"
+.venv/bin/python -m pip install ".[recovery,scraping]"
+.venv/bin/python -m pip install ".[all]"
 ```
 
 `storage` extra 当前为空；标准 Rust core 编译了 OpenDAL provider。Python `Client.download()` 和原生 CLI 接受 `s3://bucket/prefix`、`oss://bucket/prefix`，并要求显式开启 `runtime.allow_network`、通过 `storage` 配置 endpoint/region/凭据。远端 generation/pointer 提交和读回协议已有内存故障合同；真实 AWS S3/阿里云 OSS provider 尚未验收。
@@ -118,7 +144,7 @@ mkdir -p /tmp/radiust-wheel/repaired
 .venv/bin/delocate-wheel --wheel-dir /tmp/radiust-wheel/repaired /tmp/radiust-wheel/*.whl
 ```
 
-应在源码树外的干净虚拟环境分别安装基础 wheel 与所需 extra，验证 `radiust`、`radiust._core`、console CLI 和科学读回。实际构建与验收记录见 [`packaging-matrix.json`](../validation-results/packaging-matrix.json)；不同 macOS 系统库构建出来的 wheel 最低系统版本可能不同，应以修复后 wheel 标签为准。
+应在源码树外的干净虚拟环境分别安装基础 wheel 与所需 extra，验证 `radiust`、`radiust._core`、console CLI 和科学读回。本次发布与安装记录见 [`local-registry-publication.json`](../validation-results/local-registry-publication.json)，此前构建与验收记录见 [`packaging-matrix.json`](../validation-results/packaging-matrix.json)；不同 macOS 系统库构建出来的 wheel 最低系统版本可能不同，应以修复后 wheel 标签为准。
 
 ## 配置
 

@@ -4,7 +4,7 @@ use crate::model::DiscoveryTarget;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-const BUILTIN_CATALOG: &str = include_str!("../../../../python/radiust/resources/catalog.json");
+const BUILTIN_CATALOG: &str = include_str!("../../resources/builtin/catalog.json");
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CatalogProduct {

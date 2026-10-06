@@ -1,0 +1,146 @@
+{
+  "source": "bmkg",
+  "product": "composite",
+  "path_id": "bmkg/composite",
+  "rule_version": "old-8d251601-bmkg-idcomp-v1",
+  "encoding_version": "旧项目-gray-dbz-v1",
+  "legacy_reference": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/tiles/radar.py#git-blob=ffe85795e99103ba26e1c021065c1e84e62b5f2b;8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075;8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ID/IDCOMP.yaml#sha256=c7e2fcf19f6191eec0c91d64e8272e74886033b26835938bf079e04ecaabb32a",
+  "ordered_steps": [
+    {
+      "op": "legacy_crop",
+      "bounds": [
+        0,
+        0,
+        4608,
+        2048
+      ],
+      "pad_rgb": [
+        0,
+        0,
+        0
+      ],
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ID/IDCOMP.yaml#sha256=c7e2fcf19f6191eec0c91d64e8272e74886033b26835938bf079e04ecaabb32a"
+    },
+    {
+      "op": "legacy_palette",
+      "colors": [
+        [
+          0,
+          249,
+          251
+        ],
+        [
+          0,
+          140,
+          242
+        ],
+        [
+          0,
+          29,
+          253
+        ],
+        [
+          0,
+          249,
+          0
+        ],
+        [
+          2,
+          190,
+          0
+        ],
+        [
+          4,
+          133,
+          0
+        ],
+        [
+          250,
+          246,
+          7
+        ],
+        [
+          250,
+          188,
+          9
+        ],
+        [
+          238,
+          116,
+          10
+        ],
+        [
+          252,
+          0,
+          15
+        ],
+        [
+          194,
+          0,
+          8
+        ],
+        [
+          137,
+          0,
+          4
+        ],
+        [
+          241,
+          28,
+          255
+        ],
+        [
+          136,
+          28,
+          253
+        ]
+      ],
+      "zero_colors": [
+        [
+          255,
+          255,
+          255
+        ]
+      ],
+      "value_threshold": 30,
+      "zero_threshold": 10,
+      "cookbook": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70
+      ],
+      "invalid_fraction_limit": 1.0,
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/ID/IDCOMP.yaml#sha256=c7e2fcf19f6191eec0c91d64e8272e74886033b26835938bf079e04ecaabb32a"
+    },
+    {
+      "op": "gap_repair",
+      "method": "zero_invalid",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/parser/__init__.py#git-blob=d5e8535ee6ac59f311a0ff91c591aabc1b54a075"
+    },
+    {
+      "op": "gray_encode",
+      "method": "legacy_cookbook",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:core/tiles/radar.py#git-blob=ffe85795e99103ba26e1c021065c1e84e62b5f2b"
+    }
+  ],
+  "input_constraints": {
+    "formats": [
+      "PNG"
+    ],
+    "max_pixels": 100000000
+  },
+  "validation_status": "blocked",
+  "config_hash": "c9cf833c6d228a62bcab4286905eef7b4e983bb6a0e312ea1f86569d798e95a4"
+}

@@ -1,0 +1,181 @@
+{
+  "source": "my",
+  "product": "composite",
+  "path_id": "my/composite/peninsular",
+  "rule_version": "old-8d251601-mycomp71-v1",
+  "encoding_version": "旧项目-gray-dbz-v1",
+  "legacy_reference": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/MY/MYCOMP71.yaml#sha256=3671c2330eda5a1f15a9cfac0c0b9b5e389a759b987000daebd5f3abecfa928e",
+  "ordered_steps": [
+    {
+      "op": "crop",
+      "bounds": [
+        0,
+        0,
+        568,
+        640
+      ],
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/MY/MYCOMP71.yaml#sha256=3671c2330eda5a1f15a9cfac0c0b9b5e389a759b987000daebd5f3abecfa928e"
+    },
+    {
+      "op": "legacy_palette",
+      "colors": [
+        [
+          0,
+          113,
+          226
+        ],
+        [
+          5,
+          155,
+          255
+        ],
+        [
+          52,
+          206,
+          236
+        ],
+        [
+          0,
+          135,
+          0
+        ],
+        [
+          0,
+          172,
+          0
+        ],
+        [
+          0,
+          200,
+          0
+        ],
+        [
+          0,
+          240,
+          0
+        ],
+        [
+          255,
+          255,
+          0
+        ],
+        [
+          255,
+          209,
+          0
+        ],
+        [
+          247,
+          165,
+          0
+        ],
+        [
+          247,
+          119,
+          0
+        ],
+        [
+          255,
+          38,
+          0
+        ],
+        [
+          220,
+          0,
+          0
+        ],
+        [
+          180,
+          0,
+          0
+        ],
+        [
+          255,
+          115,
+          255
+        ],
+        [
+          255,
+          55,
+          255
+        ],
+        [
+          210,
+          10,
+          210
+        ]
+      ],
+      "zero_colors": [
+        [
+          88,
+          93,
+          167
+        ],
+        [
+          164,
+          118,
+          86
+        ],
+        [
+          201,
+          141,
+          78
+        ],
+        [
+          100,
+          105,
+          184
+        ]
+      ],
+      "value_threshold": 2,
+      "zero_threshold": 30,
+      "cookbook": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70,
+        75,
+        80,
+        85
+      ],
+      "invalid_fraction_limit": 0.3,
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/MY/MYCOMP71.yaml#sha256=3671c2330eda5a1f15a9cfac0c0b9b5e389a759b987000daebd5f3abecfa928e"
+    },
+    {
+      "op": "gap_repair",
+      "method": "opencv_inpaint",
+      "radius": 7,
+      "inpaint_method": "NS",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/MY/MYCOMP71.yaml#sha256=3671c2330eda5a1f15a9cfac0c0b9b5e389a759b987000daebd5f3abecfa928e"
+    },
+    {
+      "op": "gray_encode",
+      "method": "legacy_cookbook",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/MY/MYCOMP71.yaml#sha256=3671c2330eda5a1f15a9cfac0c0b9b5e389a759b987000daebd5f3abecfa928e"
+    }
+  ],
+  "input_constraints": {
+    "formats": [
+      "PNG",
+      "GIF"
+    ],
+    "max_pixels": 100000000,
+    "decoded_size": [
+      826,
+      640
+    ]
+  },
+  "validation_status": "passed",
+  "config_hash": "052921f980f0feac7b30356555fc706d5b3882626d0e59e6b2fcbd0c740cf83a"
+}

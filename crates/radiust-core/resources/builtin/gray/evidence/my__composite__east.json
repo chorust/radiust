@@ -1,0 +1,31 @@
+{
+  "path_id": "my/composite/east",
+  "status": "passed",
+  "rule_version": "old-8d251601-my-east-base-v1",
+  "config_hash": "c14b0420fba343d34723aeffa452e603045d0ead55c9a38f1d34a1a52aef1af7",
+  "input_hashes": [
+    "c2e7cb2293de39292c913c61c1405057f30a600eaed2b8fd33d62e04c6efaa9a"
+  ],
+  "output_hash": "4aebf01dfad273429ba4f568f396e11c14bc80919c1912dc8ccd33b79ac68c36",
+  "baseline_identity": "/Users/blizhan/data/code/旧项目/旧项目-旧项目/output/my/MY-SRC-MYCOMP72_20251229065201_merca_r_map.png",
+  "baseline_hash": "76c994921452c1f996017dc63c9171b58681406d128afe55c62f406bb4bb17af",
+  "crop": [
+    0,
+    0,
+    568,
+    640
+  ],
+  "shape": [
+    640,
+    568
+  ],
+  "pixel_diff_count": 0,
+  "alpha_comparison": "identical",
+  "background_comparison": "identical",
+  "missing_comparison": "identical",
+  "intentional_differences": [],
+  "review_conclusion": "exact pixel agreement",
+  "blocked_reasons": [],
+  "sample_provenance": "用户确认的本地 raw/旧 gray 配对仅用于本次迁移验证。MY 东部当前规则选择 MY/base.yaml：三个归档候选均为 1113×650 raw 与 568×640 gray，均由该配置精确重放；当前引擎对本条配对亦为零像素差异。三组来源路径、SHA-256 与重放结果见 tests/fixtures/legacy-display/my/east/archive-candidates.json。不推定更广的再分发权，也不以旧项目别名生成当前 station ID。",
+  "scientific_status_unchanged": true
+}

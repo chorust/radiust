@@ -1,9 +1,10 @@
 [package]
 name = "radiust-python"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+publish = false
 description = "PyO3 package combining the reusable Rust core and native CLI"
 
 [lib]
@@ -15,5 +16,5 @@ extension-module = ["radiust-core/extension-module"]
 
 [dependencies]
 pyo3.workspace = true
-radiust-cli = { path = "../radiust-cli" }
-radiust-core = { path = "../radiust-core" }
+radiust-cli = { path = "../radiust-cli", version = "=0.1.1" }
+radiust-core = { path = "../radiust-core", version = "=0.1.1" }

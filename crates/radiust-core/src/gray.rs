@@ -55,90 +55,77 @@ const FINGERPRINT_FIELDS: &[&str] = &[
 // Compile-time resources keep both native binaries and wheels independent of
 // Python's importlib.resources and the installed package layout.
 const EMBEDDED_RESOURCES: &[(&str, &str)] = &[
-    ("index.json", include_str!("../../../python/radiust/resources/gray/index.json")),
-    ("au.json", include_str!("../../../python/radiust/resources/gray/au.json")),
-    ("bmkg.json", include_str!("../../../python/radiust/resources/gray/bmkg.json")),
-    ("ca.json", include_str!("../../../python/radiust/resources/gray/ca.json")),
-    ("es.json", include_str!("../../../python/radiust/resources/gray/es.json")),
-    ("fr.json", include_str!("../../../python/radiust/resources/gray/fr.json")),
-    ("id.json", include_str!("../../../python/radiust/resources/gray/id.json")),
-    ("kr.json", include_str!("../../../python/radiust/resources/gray/kr.json")),
-    ("my-east.json", include_str!("../../../python/radiust/resources/gray/my-east.json")),
-    ("my.json", include_str!("../../../python/radiust/resources/gray/my.json")),
-    ("nz.json", include_str!("../../../python/radiust/resources/gray/nz.json")),
-    ("ph.json", include_str!("../../../python/radiust/resources/gray/ph.json")),
-    ("pt.json", include_str!("../../../python/radiust/resources/gray/pt.json")),
-    ("rainviewer.json", include_str!("../../../python/radiust/resources/gray/rainviewer.json")),
-    ("sg.json", include_str!("../../../python/radiust/resources/gray/sg.json")),
-    ("th.json", include_str!("../../../python/radiust/resources/gray/th.json")),
-    ("th_royalrain.json", include_str!("../../../python/radiust/resources/gray/th_royalrain.json")),
-    ("tw.json", include_str!("../../../python/radiust/resources/gray/tw.json")),
-    ("vn.json", include_str!("../../../python/radiust/resources/gray/vn.json")),
-    ("windy.json", include_str!("../../../python/radiust/resources/gray/windy.json")),
+    ("index.json", include_str!("../resources/builtin/gray/index.json")),
+    ("au.json", include_str!("../resources/builtin/gray/au.json")),
+    ("bmkg.json", include_str!("../resources/builtin/gray/bmkg.json")),
+    ("ca.json", include_str!("../resources/builtin/gray/ca.json")),
+    ("es.json", include_str!("../resources/builtin/gray/es.json")),
+    ("fr.json", include_str!("../resources/builtin/gray/fr.json")),
+    ("id.json", include_str!("../resources/builtin/gray/id.json")),
+    ("kr.json", include_str!("../resources/builtin/gray/kr.json")),
+    ("my-east.json", include_str!("../resources/builtin/gray/my-east.json")),
+    ("my.json", include_str!("../resources/builtin/gray/my.json")),
+    ("nz.json", include_str!("../resources/builtin/gray/nz.json")),
+    ("ph.json", include_str!("../resources/builtin/gray/ph.json")),
+    ("pt.json", include_str!("../resources/builtin/gray/pt.json")),
+    ("rainviewer.json", include_str!("../resources/builtin/gray/rainviewer.json")),
+    ("sg.json", include_str!("../resources/builtin/gray/sg.json")),
+    ("th.json", include_str!("../resources/builtin/gray/th.json")),
+    ("th_royalrain.json", include_str!("../resources/builtin/gray/th_royalrain.json")),
+    ("tw.json", include_str!("../resources/builtin/gray/tw.json")),
+    ("vn.json", include_str!("../resources/builtin/gray/vn.json")),
+    ("windy.json", include_str!("../resources/builtin/gray/windy.json")),
     (
         "evidence/au__composite.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/au__composite.json"),
+        include_str!("../resources/builtin/gray/evidence/au__composite.json"),
     ),
-    (
-        "evidence/ca__rain.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/ca__rain.json"),
-    ),
+    ("evidence/ca__rain.json", include_str!("../resources/builtin/gray/evidence/ca__rain.json")),
     (
         "evidence/es__composite.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/es__composite.json"),
+        include_str!("../resources/builtin/gray/evidence/es__composite.json"),
     ),
     (
         "evidence/fr__composite.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/fr__composite.json"),
+        include_str!("../resources/builtin/gray/evidence/fr__composite.json"),
     ),
     (
         "evidence/id__composite.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/id__composite.json"),
+        include_str!("../resources/builtin/gray/evidence/id__composite.json"),
     ),
     (
         "evidence/kr__composite.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/kr__composite.json"),
+        include_str!("../resources/builtin/gray/evidence/kr__composite.json"),
     ),
     (
         "evidence/my__composite__east.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/my__composite__east.json"),
+        include_str!("../resources/builtin/gray/evidence/my__composite__east.json"),
     ),
     (
         "evidence/my__composite__peninsular.json",
-        include_str!(
-            "../../../python/radiust/resources/gray/evidence/my__composite__peninsular.json"
-        ),
+        include_str!("../resources/builtin/gray/evidence/my__composite__peninsular.json"),
     ),
-    (
-        "evidence/nz__rain.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/nz__rain.json"),
-    ),
+    ("evidence/nz__rain.json", include_str!("../resources/builtin/gray/evidence/nz__rain.json")),
     (
         "evidence/pt__composite.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/pt__composite.json"),
+        include_str!("../resources/builtin/gray/evidence/pt__composite.json"),
     ),
     (
         "evidence/sg__composite.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/sg__composite.json"),
+        include_str!("../resources/builtin/gray/evidence/sg__composite.json"),
     ),
     (
         "evidence/th__composite__kkn240Loop.json",
-        include_str!(
-            "../../../python/radiust/resources/gray/evidence/th__composite__kkn240Loop.json"
-        ),
+        include_str!("../resources/builtin/gray/evidence/th__composite__kkn240Loop.json"),
     ),
     (
         "evidence/th_royalrain__cappi.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/th_royalrain__cappi.json"),
+        include_str!("../resources/builtin/gray/evidence/th_royalrain__cappi.json"),
     ),
     (
         "evidence/tw__observation.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/tw__observation.json"),
+        include_str!("../resources/builtin/gray/evidence/tw__observation.json"),
     ),
-    (
-        "evidence/vn__cmax.json",
-        include_str!("../../../python/radiust/resources/gray/evidence/vn__cmax.json"),
-    ),
+    ("evidence/vn__cmax.json", include_str!("../resources/builtin/gray/evidence/vn__cmax.json")),
 ];
 
 /// A display preview and the catalog decision that produced it.

@@ -4,7 +4,7 @@
 
 **Helping everyone access, understand, and use public weather radar observations.**
 
-*Public radar, directly to you.* (Proposed tagline)
+*Public radar, directly to you.*
 
 Radiust aims to connect people to radar sources through open tools running on their own devices. It prioritizes official sources while also supporting reliable, traceable third-party products. Data is acquired, cached, and processed locally by default; core observation features require neither a Radiust account nor a data relay operated by Radiust.
 
@@ -12,130 +12,200 @@ The project currently provides a CLI, a Python SDK, and the reusable Rust `radiu
 
 [Project philosophy](PHILOSOPHY.md) · [Roadmap and Desktop acceptance goals](ROADMAP.md) · [Data source policy](DATA_SOURCES.md) · [Brand usage rules](TRADEMARKS.md)
 
-The linked project documents and technical guides are currently in Chinese.
+The current version is **0.1.1 alpha**.
 
-The current version is **0.1.0 alpha**. A complete, reviewable, fixture-backed MVP workflow can run offline: catalog and time queries, acquisition, decoding, NetCDF/PNG output, raw manifests, batch operations, caching, configuration, and text previews. The repository's `my` sample comes from historical PNG output; verifiable upstream GIF data, response metadata, and native geometry are still missing. It therefore does not establish a completed scientific source migration. Actual acquisition and scientific decoding capabilities are recorded separately in `migration/`; a catalog status of `needs_configuration` alone does not mean that acquisition has not been implemented.
+[Features](#features) · [Install](#install) · [Usage](#usage) · [Project and licensing](#project-and-licensing) · [Dev](#dev)
 
-See the [architecture guide](docs/architecture.md) for current module boundaries, end-to-end data flow, and local/remote output commit workflows.
+## Features
 
-## Offline quickstart
+- Radar acquisition from multiple sources: 25 catalog entries, with source, product, station, and latest-frame queries; availability and access requirements are listed in [Data sources](DATA_SOURCES.md).
+- Terminal previews: view original source images, rule-generated gray codes, or dBZ values from supported products.
+- Numeric reflectivity: Taiwan CWA `tw/grid` and RainViewer have [online acquisition and numeric readback records](DATA_SOURCES.md#历史获取与科学验证记录); RDCAP single-station decoding is implemented, while online capabilities remain unaccepted for all three countries.
+- Data export: save raw artifacts, PNG, NetCDF, GeoTIFF, or Zarr with source, time, and processing records; scientific formats depend on product and geometry support.
+- Local data read/write: read numeric files and convert explicitly declared gray-code images to dBZ; [gray conversion](docs/gray-dbz.md) does not establish a validated physical palette.
+- Batches and caching: query and acquire in batches, reuse cached data, skip complete existing output, and cancel operations.
+- Python SDK: synchronous, asynchronous, and batch interfaces share the Rust Engine with the CLI.
 
-Install development dependencies from the repository root:
+## Install
 
-```bash
-uv sync --group dev
-```
+### Python package: CLI and SDK
 
-Run a workflow without accessing the public network:
-
-```bash
-radiust list sources --json
-radiust discover my --at 2025-12-29T06:50:01Z --json
-radiust download my --at 2025-12-29T06:50:01Z --output ./data --json
-```
-
-A second run with the same arguments reports `skipped` based on the completion manifest. To preserve raw data:
+Use CPython **3.10–3.13**. Prebuilt `0.1.1` wheels cover macOS Apple Silicon (macOS 11+) and Linux x86_64 (glibc ≥ 2.28); no Rust or CMake installation is required:
 
 ```bash
-radiust download my --at 2025-12-29T06:50:01Z --output ./data --raw --json
-radiust download my --at 2025-12-29T06:50:01Z --output ./data --raw-only --json
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install "radiust==0.1.1"
+python -m radiust --version
+radiust --help
 ```
 
-When previewing files in a pipeline, select text mode explicitly:
+The Python package provides both the `radiust` command and the SDK. Install `"radiust[science]==0.1.1"` for NumPy/xarray conversion; see the [installation guide](docs/installation.md#python-包) for GeoTIFF, Zarr, and other optional dependencies. If you also install the standalone CLI, use `python -m radiust` to select the version in your virtual environment.
+
+### Native CLI and Rust library: crates.io
+
+The native CLI needs no Python. Cargo compiles it from source, requiring Rust **1.92+**, CMake, a C/C++ compiler, and build tools:
 
 ```bash
-radiust cat --file ./data/path/to/frame.nc --renderer text
-radiust cat --file tests/fixtures/sources/th_royalrain/raw/takhli.png --renderer text
-radiust cat --file tests/fixtures/sources/th/raw/kkn240Loop.gif --raw --renderer text
-radiust cat --file tests/fixtures/gray-dbz/local/225-codes.png --gray --renderer text
-radiust cat --file tests/fixtures/gray-dbz/local/225-codes.png --dbz --renderer text
-radiust discover all --json
+cargo install --locked radiust-cli
+radiust --version
 ```
 
-`--raw` shows source pixels, `--gray` declares a gray-code display, and `--dbz` strictly decodes a declared local gray image. The local rule accepts visible integer codes 0–224 and computes `dBZ = gray × 5/16`; transparent pixels are missing, opaque black is valid zero, and time/geolocation remain unknown. No mode is inferred from appearance. The old source-only `--legacy-display` flag remains as a compatibility alias for `--gray`.
+The Cargo package is `radiust-cli`; its executable is `radiust`. Cargo's `~/.cargo/bin` directory must be on PATH. Rust projects can use the matching core library with `cargo add radiust-core`. On macOS, use `xcode-select --install` for compiler tools and `brew install cmake` for CMake; see the [source build guide](docs/installation.md#从源码构建或使用-cargo-安装) for complete prerequisites.
 
-Local multi-frame GIF/WebP files require an explicit frame selection. Source workflows first preserve the original artifact, then preview the rule-generated gray image. Only paths with accepted source evidence can request dBZ:
+### macOS Apple Silicon: older standalone CLI preview
+
+
+Download the prebuilt program without installing Python or Rust. The current `v0.1.0` preview targets macOS 11 and later. Download, verify, and install into your user directory:
 
 ```bash
-radiust cat --file ./frames.gif --raw --frame-index 0
-radiust cat --file ./frames.gif --dbz --frame-index 0
-radiust cat nz --product rain --latest --raw
-radiust cat nz --product rain --latest --gray
-radiust cat nz --product rain --latest --dbz
+mkdir -p "$HOME/.local/bin"
+workdir="$(mktemp -d)"
+cd "$workdir"
+curl -fL -O https://github.com/chorust/radiust/releases/download/v0.1.0/radiust-v0.1.0-macos-arm64.tar.gz
+curl -fL -O https://github.com/chorust/radiust/releases/download/v0.1.0/radiust-v0.1.0-macos-arm64.sha256
+shasum -a 256 -c radiust-v0.1.0-macos-arm64.sha256
+tar -xzf radiust-v0.1.0-macos-arm64.tar.gz
+install -m 755 radiust "$HOME/.local/bin/radiust"
+export PATH="$HOME/.local/bin:$PATH"
+radiust --help
 ```
 
-Inspect numeric files with `radiust cat --file ./reflectivity.nc --dbz --variable reflectivity`. The Python SDK can read them with `read_dbz()` and save new numeric output with `write()`, without inventing a `FrameRef` for a local file. For sources, `download --dbz --raw` attaches the original artifacts from the same acquisition to the decoded output; `--raw-only` conflicts with `--dbz`. Omitting a mode retains the existing generic/native behavior, and other scientific variables keep their actual units. JSON reports retain Envelope v1 and add `mode_schema_version: 1` and `mode_info`.
+Only extract and install after verification succeeds. If a new terminal cannot find `radiust`, add the `export PATH` line to `~/.zshrc`. This preview is not notarized by Apple and may trigger Gatekeeper on first launch; see the [installation guide](docs/installation.md#macos-apple-silicon-预编译版本预览) for details and scope.
 
-Source gray evidence, dBZ conversion limits, numeric formats, and validation status are documented in [docs/gray-dbz.md](docs/gray-dbz.md); CLI and SDK examples are in [docs/cli.md](docs/cli.md) and [docs/python-sdk.md](docs/python-sdk.md).
-With network access disabled by default, `discover all` still returns the full catalog status. It typically exits with code 5 when no target successfully acquires live data. This does not establish live source acceptance.
+This older `v0.1.0` preview does not include all changes in `0.1.1`. Install the current version through PyPI or Cargo using the commands above.
 
-See the [CLI guide](docs/cli.md) and [output maintenance guide](docs/output-maintenance.md) for output directory and manifest naming rules.
+### Install from source
 
-## Data source support
+Prepare the source build tools above, then run from the repository root:
 
-The native catalog registers **25 sources** across countries and regions in Asia, Europe, Oceania, and North America. Availability and capabilities vary by source, product, and access conditions. See the [data source policy](DATA_SOURCES.md) for the full inventory, acquisition status, and authorization conditions.
+```bash
+git clone https://github.com/chorust/radiust.git
+cd radiust
+cargo install --locked --path crates/radiust-cli
+```
 
-| Capability | Examples backed by validation | Limits |
-| --- | --- | --- |
-| Numeric reflectivity | Taiwan CWA `tw/grid`, RainViewer | Verified dBZ decoding; this does not establish quantitative support for every source |
-| Rainfall-intensity categories | Singapore `sg`, Portugal `pt` | Ordinal categories, without precise per-pixel mm/h values |
-| Original images / raw data | Other sources, subject to their individual status | Use `--raw-only` to preserve original files; unverified colors must not be interpreted directly as reflectivity or rainfall rates |
+For the Python package, use `python -m pip install "."`; use `python -m pip install ".[science]"` for optional scientific dependencies. Future versions use the [GitHub tag publishing workflow](docs/releases.md) to build, verify, and upload packages. See the [installation guide](docs/installation.md) for actual publication status by platform.
 
-Online capabilities for `rdcap` in Taiwan, Japan, and the Philippines remain unverified. `uk` is retired, and the two Brazilian sources are historical migration records outside the native catalog. Details and the [historical validation snapshot](DATA_SOURCES.md#历史获取与科学验证记录) are maintained in the source document.
+## Usage
 
-An adapter or a successful download does not establish accepted scientific decoding or permission for commercial use or redistribution. See [migration records](migration/sources/) and [validation evidence](validation-results/) for source-specific technical evidence.
+### Config
 
-## Python SDK
+Create `config.yaml` in the directory where you run commands to configure networking, caching, and default output:
+
+```yaml
+runtime:
+  allow_network: true
+  request_timeout: 30  # Per-request timeout in seconds
+
+cache:
+  enabled: true
+  dir: ~/.cache/radiust
+
+storage:
+  output: ./data
+
+output:
+  format: netcdf
+  grid: native
+```
+
+The CLI and SDK automatically read `config.yaml` from the current directory. Shared settings can go in `~/.config/radiust/config.yaml`; the current directory's file overrides matching fields, followed by `RADIUST_` environment variables. To select a file explicitly and inspect effective settings:
+
+```bash
+radiust --conf ./config.yaml config show
+radiust --conf ./config.yaml discover rainviewer --latest
+```
+
+`allow_network: true` permits upstream requests. For temporary access, run `export RADIUST_RUNTIME__ALLOW_NETWORK=true` in the current terminal. Downloads use configured output and format defaults when `--output` and `--format` are omitted. See the [full example](config/example.yaml) and [configuration guide](docs/installation.md#配置) for more options.
+
+### 1. Inspect sources and latest frames
+
+After enabling networking in your configuration, inspect the catalog and query the latest data:
+
+```bash
+radiust list sources
+radiust discover rainviewer --latest --max-age 3600
+```
+
+`--max-age 3600` selects data from the last hour. Reports use UTC. `latest` means the newest frame the source provides, which can still be stale. Credentials, browser dependencies, and source configuration requirements are listed in [Data sources](DATA_SOURCES.md).
+
+### 2. View the latest radar in your terminal
+
+```bash
+# Preview RainViewer's original tiles
+radiust cat rainviewer --latest --raw
+
+# Preview reflectivity from Taiwan CWA's numeric grid
+radiust cat tw --product grid --latest --dbz
+```
+
+Interactive terminals select a preview renderer automatically. For redirected output, scripts, or metadata summaries, add `--renderer text`. `--raw`, `--gray`, and `--dbz` are separate modes; none is inferred from image appearance.
+
+### 3. Save images or numeric data
+
+```bash
+# PNG image and metadata
+radiust download rainviewer --latest --format png --output ./data
+
+# Numeric reflectivity with raw artifacts from the same acquisition
+radiust download tw --product grid --latest --format netcdf --raw --output ./data
+
+# Save only the original source data without scientific decoding
+radiust download tw-http --latest --station CV1_3600 --raw-only --output ./raw
+```
+
+Download reports list actual output paths. A repeated download of a frame with complete output reports `skipped`. Numeric products also accept `--format geotiff` or `--format zarr`, subject to each source's scientific and geometry limits. Add `--json` for structured reports in automation.
+
+Inspect an existing numeric file:
+
+```bash
+radiust cat --file ./reflectivity.nc --dbz --variable reflectivity --renderer text
+```
+
+See the [CLI guide](docs/cli.md) for local gray codes, frame selection, batch discovery, time ranges, cache, and configuration. File and manifest layout is documented in [Output maintenance](docs/output-maintenance.md).
+
+### Python SDK
+
+Connect to RainViewer, discover the latest frames, fetch a numeric field, and download NetCDF:
 
 ```python
-from datetime import datetime, timezone
+from datetime import timedelta
 
 import radiust
 
-query = radiust.Query(
-    "my",
-    at=datetime(2025, 12, 29, 6, 50, 1, tzinfo=timezone.utc),
-)
+query = radiust.Query("rainviewer", latest=True, max_age=timedelta(hours=1))
 
-with radiust.Client() as client:
+with radiust.Client(config={"runtime": {"allow_network": True}}) as client:
     refs = client.discover(query)
-    field = client.fetch(query)       # Does not commit formal output
-    report = client.download(query, output="./data", raw=True)
+    field = client.fetch(query)  # Acquire and decode into memory
+    report = client.download(
+        query, output="./data", format="netcdf", raw=True,
+    )
 ```
 
-Top-level `fetch`, `afetch`, `fetch_many`, `iter_fetch`, `download`, and their corresponding asynchronous entry points are also available. `fetch` returns an independently loaded `RadarField`/`RadarDataset`; `download` performs encoding and formal output commits. See the [Python SDK guide](docs/python-sdk.md) for public objects and error types.
+`fetch()` returns a Rust-owned `RadarField`/`RadarDataset`; `download()` commits output. With the `science` extra installed, call `radiust.to_xarray(field)` for xarray conversion. See the [SDK guide](docs/python-sdk.md) for async entry points, batches, cancellation, local `read_dbz()`, and `write()`.
 
-## Installation and optional capabilities
+## Project and licensing
 
-### Native CLI for macOS Apple Silicon (preview)
+Radiust prioritizes official sources and supports reliable, traceable third-party products. The current focus is observations. Desktop viewing and playback, source selection and fallback, forecasting, and cross-source mosaics are planned work.
 
-macOS arm64 users can download the standalone Rust CLI `radiust` v0.1.0, targeting macOS 11 and later, without installing Python or Rust. This is a preview release; see the [full installation instructions](docs/installation.md#macos-apple-silicon-预编译版本预览) and [GitHub release](https://github.com/chorust/radiust/releases/tag/v0.1.0) for its scope and verification steps. The standalone CLI and the Python package below are separate installation options.
+[Philosophy](PHILOSOPHY.md) · [Roadmap and Desktop acceptance goals](ROADMAP.md) · [Architecture](docs/architecture.md) · [Spec roadmap](.specify/memory/roadmap.md)
 
-### Python package
+The software uses the standard [Apache-2.0 license](LICENSE), allowing commercial use. Upstream access, attribution, commercial use, and redistribution conditions are recorded separately by source. Unconfirmed terms remain unconfirmed; the software license does not replace data permissions. See [Brand rules](TRADEMARKS.md) for name and identity usage.
 
-The base installation includes the Rust extension. Rust parses YAML configuration, so PyYAML is not a runtime dependency. Install scientific interoperability and other optional capabilities as needed:
+Linked project documents and most technical guides are currently in Chinese.
 
-```bash
-pip install radiust
-pip install "radiust[geotiff]"
-pip install "radiust[zarr]"
-pip install "radiust[playwright]"
-pip install "radiust[recovery,scraping]"
-```
+## Dev
 
-`radiust[storage]` is intentionally retained as an empty extra. Standard wheels already include OSS/S3 remote commit support through Rust OpenDAL. For `--output s3://...` or `oss://...`, configure `storage.endpoint/region/access_key/secret_key/anonymous`. Remote output uses immutable generations and publishes the manifest last. Real-provider validation for AWS S3, S3-compatible services, and Aliyun OSS is still required; loopback tests cannot replace it. See the [installation guide](docs/installation.md) for full CPython/Rust wheel details.
-
-## Open use and licensing
-
-The software uses the standard [Apache-2.0 license](LICENSE) and welcomes commercial use. The project aims to keep an open, independently usable tool available to the public. The software license does not replace upstream radar data permissions or endorse downstream products. Access, attribution, commercial use, and redistribution conditions are recorded per source; unconfirmed conditions remain explicitly unconfirmed. See the [data source policy](DATA_SOURCES.md) and [brand usage rules](TRADEMARKS.md) for the project name and future visual identity.
-
-## Development and validation
+Install development dependencies and run checks from the repository root:
 
 ```bash
+uv sync --group dev
 .venv/bin/ruff check python tests
 cargo fmt --all -- --check
 cargo test --workspace
 .venv/bin/pytest -q
 ```
 
-Tests disable public network access by default. Live-source, provider, and real-terminal validation require separate credentials, environments, and acceptance records; passing fixture tests does not automatically complete those checks. See the [migration guide](docs/migration.md) and `migration/blockers/` for migration status and outstanding evidence.
+Default tests do not access the public network. For a sample workflow without networking, see the [offline quickstart](specs/001-radiust-v1-migration/quickstart.md). That guide includes historical migration steps; use this README for current installation. Live/provider, real-terminal, remote-storage, and platform acceptance are recorded separately; offline tests do not establish those results. See [Migration](docs/migration.md) and `migration/blockers/` for remaining limits.

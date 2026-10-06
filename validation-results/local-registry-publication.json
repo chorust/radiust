@@ -1,0 +1,258 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-06T10:32:27.182827+00:00",
+  "status": "published_and_public_install_verified",
+  "version": "0.1.1",
+  "publication_method": "local Cargo and PyPI credentials; no GitHub tag workflow executed",
+  "source_commit": "464cbace0e556ea5e722d19a3709833d6cea518a",
+  "checkout_dirty": true,
+  "registries": {
+    "pypi": "https://pypi.org/project/radiust/0.1.1/",
+    "radiust-core": "https://crates.io/crates/radiust-core/0.1.1",
+    "radiust-cli": "https://crates.io/crates/radiust-cli/0.1.1"
+  },
+  "crates": {
+    "radiust-core-0.1.1.crate": "267391cf42567da6a0e36d3180cae767c6c392120ab731165dae741f53e53d49",
+    "radiust-cli-0.1.1.crate": "41deda7a5baeb0a7635558ffe69f98d7cba04e7db8dbb118078e627076c86889"
+  },
+  "independent_crate_install": {
+    "version": "0.1.1",
+    "commit": "464cbace0e556ea5e722d19a3709833d6cea518a",
+    "checkout_dirty": true,
+    "crates": {
+      "radiust-core-0.1.1.crate": "267391cf42567da6a0e36d3180cae767c6c392120ab731165dae741f53e53d49",
+      "radiust-cli-0.1.1.crate": "41deda7a5baeb0a7635558ffe69f98d7cba04e7db8dbb118078e627076c86889"
+    },
+    "core_consumer": "passed",
+    "cli_install": "passed",
+    "provider_network": false,
+    "profile": "release"
+  },
+  "public_cargo_cli_install": {
+    "command": "cargo install --locked --version 0.1.1 --root <isolated install root> radiust-cli",
+    "platform": "macOS arm64",
+    "version": "radiust 0.1.1",
+    "catalogue": "passed",
+    "provider_network": false
+  },
+  "wheels": [
+    {
+      "filename": "radiust-0.1.1-cp310-cp310-macosx_11_0_arm64.whl",
+      "sha256": "b0c64e39d3540c515ed18d832abe4faf7c451acbaec405cf31a44245a3594d7e",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp310",
+      "platform": "macOS arm64",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "macho_dependency_audit": "passed"
+    },
+    {
+      "filename": "radiust-0.1.1-cp310-cp310-manylinux_2_28_x86_64.whl",
+      "sha256": "19ccf210107dff6b72e88ebe65b7eaa8f23729d75ab85d999ae2a0fddff32163",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp310",
+      "platform": "Linux x86_64 manylinux_2_28",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "portability_audit": "maturin --compatibility manylinux_2_28 completed successfully"
+    },
+    {
+      "filename": "radiust-0.1.1-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "e1a79ba27ea6918fdad980d5b6f44b456b7f52eec730024279738dcf01d3ccba",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp311",
+      "platform": "macOS arm64",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "macho_dependency_audit": "passed"
+    },
+    {
+      "filename": "radiust-0.1.1-cp311-cp311-manylinux_2_28_x86_64.whl",
+      "sha256": "edbaca0cbc223c405925eaad835d272b66efc0510f9d51ba6946d231f868967f",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp311",
+      "platform": "Linux x86_64 manylinux_2_28",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "portability_audit": "maturin --compatibility manylinux_2_28 completed successfully"
+    },
+    {
+      "filename": "radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+      "sha256": "6241020ab68a83e0a9fedd3c6c5da4f51793797a2f4b9e1f193a6408e5c4cc9f",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp312",
+      "platform": "macOS arm64",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "macho_dependency_audit": "passed"
+    },
+    {
+      "filename": "radiust-0.1.1-cp312-cp312-manylinux_2_28_x86_64.whl",
+      "sha256": "9775362901dc934167a318db376209450d9a94429597d61d3bfa2c47d9f3705c",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp312",
+      "platform": "Linux x86_64 manylinux_2_28",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "portability_audit": "maturin --compatibility manylinux_2_28 completed successfully"
+    },
+    {
+      "filename": "radiust-0.1.1-cp313-cp313-macosx_11_0_arm64.whl",
+      "sha256": "dc0f810358c867fc7d65145e9e9435ba1beadd99f6e7bd2a41dce0004a6f7da1",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp313",
+      "platform": "macOS arm64",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "macho_dependency_audit": "passed"
+    },
+    {
+      "filename": "radiust-0.1.1-cp313-cp313-manylinux_2_28_x86_64.whl",
+      "sha256": "ccb3fc5dfafaf41bfefffa1926a9f005ef53020dcd9acb5dc557d1e234b6e130",
+      "published": true,
+      "public_digest_matches_verified_artifact": true,
+      "python": "cp313",
+      "platform": "Linux x86_64 manylinux_2_28",
+      "local_clean_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "public_pypi_install": {
+        "version": "0.1.1",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "validation_only_fixtures_in_wheel": false,
+      "portability_audit": "maturin --compatibility manylinux_2_28 completed successfully"
+    }
+  ],
+  "environment": {
+    "macos_host": "26.6.2",
+    "host_architecture": "arm64",
+    "rust": "1.92.0",
+    "linux_runtime": "Linux x86_64 manylinux_2_28 container emulated on macOS arm64",
+    "linux_image": "quay.io/pypa/manylinux_2_28_x86_64@sha256:39df0042d5cc900b085aa25a0659368b42a0006c54c474299b785b44c1b4ff82"
+  },
+  "checks": {
+    "final_python_packaging_and_workflow_tests": {
+      "passed": 32,
+      "failed": 0
+    },
+    "final_release_scripts_and_workflow_tests": {
+      "passed": 15,
+      "failed": 0
+    },
+    "public_pypi_retry_identical_artifacts": "all eight skipped",
+    "twine_check_strict": "all eight passed",
+    "embedded_resource_sync": 38,
+    "ruff": "passed",
+    "cargo_fmt": "passed",
+    "actionlint": "passed",
+    "git_diff_check": "passed",
+    "previous_rust_workspace_test_evidence": "tag-release-pipeline.json: 701 passed"
+  },
+  "resolved_issues": [
+    "Removed validation-only METMalaysia imagery with unconfirmed redistribution authorization before any PyPI upload; original local fixtures retained.",
+    "Initial CPython 3.10 macOS audit used the wrong interpreter and failed; rerun with matching interpreter and all rebuilt macOS wheels passed.",
+    "A version JSON query returned a cached pre-publication 404 after upload; fresh query verified all eight hashes, and the PyPI retry lookup now bypasses that cache."
+  ],
+  "pending_configuration": [
+    "GitHub Actions Cargo publishing secret supplied by administrator",
+    "PyPI GitHub Trusted Publisher supplied by administrator"
+  ],
+  "unverified": [
+    "GitHub-hosted tag workflow execution",
+    "Public cargo install on a native Linux host",
+    "Execution on an actual macOS 11 host",
+    "Platforms outside the published wheel matrix",
+    "Meteorological provider and scientific acceptance beyond previously recorded evidence"
+  ],
+  "provider_network": false
+}

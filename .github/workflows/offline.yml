@@ -30,8 +30,10 @@ jobs:
             apt-get install -y tesseract-ocr
           fi
       - run: uv sync --no-dev --group ci --locked
+      - name: Check packaged core resources against canonical metadata
+        run: python scripts/release/prepare.py --check-resources
       - run: cargo fmt --all -- --check
-      - run: uv run --no-sync ruff check python tests scripts/validation
+      - run: uv run --no-sync ruff check python tests scripts/validation scripts/release
       - run: cargo test --workspace --locked
       - run: uv run --no-sync pytest -q
 

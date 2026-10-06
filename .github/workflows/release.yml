@@ -1,0 +1,289 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vMAJOR.MINOR.PATCH tag to verify or retry
+        required: true
+        type: string
+      dry_run:
+        description: Build and verify without publishing
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RUST_VERSION: "1.92.0"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify tag and prepare versions, dependencies, and resources
+        id: prepare
+        shell: bash
+        run: |
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+          python scripts/release/prepare.py --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/release-source"
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+          tar -czf release-source.tar.gz -C "$RUNNER_TEMP/release-source" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-source
+          path: release-source.tar.gz
+          if-no-files-found: error
+          overwrite: true
+
+  checks:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - name: Validate release scripts and version/conflict handling
+        run: |
+          python -m pip install 'pytest>=8,<9' 'PyYAML>=6,<7' 'ruff>=0.8,<1' 'delocate>=0.13,<1'
+          python -m ruff check scripts/release tests/packaging/test_release_pipeline.py
+          cargo fmt --all -- --check
+          python -m pytest -q tests/packaging/test_release_pipeline.py tests/contract/test_packaging_workflow.py
+
+  crates:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/release-target
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-source
+      - name: Extract prepared source outside the checkout
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-source"
+          tar -xzf release-source.tar.gz -C "$RUNNER_TEMP/release-source"
+      - name: Install Linux source build tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential pkg-config
+      - name: Install macOS CMake
+        if: runner.os == 'macOS'
+        run: command -v cmake || brew install cmake
+      - name: Package and independently install core and CLI
+        run: python scripts/release/verify_crates.py --source "$RUNNER_TEMP/release-source" --output release-crates
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-crates-${{ matrix.os }}
+          path: release-crates/
+          if-no-files-found: error
+          overwrite: true
+
+  wheels:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-source
+      - name: Extract prepared source
+        run: |
+          mkdir release-source
+          tar -xzf release-source.tar.gz -C release-source
+      - name: Build portable Linux wheel
+        if: runner.os == 'Linux'
+        uses: PyO3/maturin-action@v1
+        with:
+          maturin-version: v1.15.0
+          rust-toolchain: ${{ env.RUST_VERSION }}
+          manylinux: "2_28"
+          working-directory: release-source
+          args: --release --locked --interpreter python${{ matrix.python }} --out ../release-wheels
+      - name: Build and repair macOS wheel
+        if: runner.os == 'macOS'
+        run: |
+          # Keep ZIP timestamps stable when the same tagged commit is retried.
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          python -m pip install 'maturin==1.15.0' 'delocate>=0.13,<1'
+          cd release-source
+          python -m maturin build --release --locked --interpreter "$(command -v python)" --out ../raw-wheels
+          cd ..
+          delocate-wheel --require-archs arm64 --wheel-dir release-wheels raw-wheels/*.whl
+          python scripts/validation/check_macos_release.py release-wheels/*.whl --expected-architecture arm64 --expected-macos-version 11.0 --report release-wheels/macos-audit.json
+      - name: Install exact wheel in a clean environment outside the checkout
+        run: python scripts/release/verify_wheel.py release-wheels/*.whl --python "$(command -v python)" --version "$VERSION" --report release-wheels/install.json
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+      - name: Validate Python distribution metadata before any registry upload
+        run: |
+          python -m pip install 'twine>=6,<7'
+          python -m twine check --strict release-wheels/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-wheel-${{ matrix.os }}-${{ matrix.python }}
+          path: release-wheels/
+          if-no-files-found: error
+          overwrite: true
+
+  publish-crates:
+    needs: [prepare, checks, crates, wheels]
+    if: github.event_name == 'push' || !inputs.dry_run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-source
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-crates-ubuntu-24.04
+          path: release-crates
+      - name: Extract prepared source and install build tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-source"
+          tar -xzf release-source.tar.gz -C "$RUNNER_TEMP/release-source"
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential pkg-config
+      - name: Publish core, wait for index, then publish CLI
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          test -n "$CARGO_REGISTRY_TOKEN" || { echo 'Configure the CARGO_REGISTRY_TOKEN repository secret'; exit 1; }
+          python scripts/release/publish.py crates --source "$RUNNER_TEMP/release-source" --artifacts release-crates
+
+  publish-pypi:
+    needs: [prepare, publish-crates]
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-wheel-*
+          path: wheel-artifacts
+      - name: Collect only wheels for PyPI
+        run: |
+          mkdir dist
+          find wheel-artifacts -name '*.whl' -exec cp {} dist/ \;
+      - name: Check any artifacts from an earlier partial publication
+        id: pending
+        run: python scripts/release/publish.py pypi-check --dist dist --version "$VERSION"
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+      - name: Publish verified wheels using PyPI Trusted Publishing
+        if: steps.pending.outputs.pending == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  verify-published:
+    needs: [prepare, publish-crates, publish-pypi]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - name: Install source build tools on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential pkg-config
+      - name: Install CMake on macOS
+        if: runner.os == 'macOS'
+        run: command -v cmake || brew install cmake
+      - name: Verify direct crates.io installation
+        working-directory: ${{ runner.temp }}
+        run: |
+          cargo install --locked --version "$VERSION" --root "$RUNNER_TEMP/native" radiust-cli
+          test "$("$RUNNER_TEMP/native/bin/radiust" --version)" = "radiust $VERSION"
+          "$RUNNER_TEMP/native/bin/radiust" list sources --json
+      - name: Verify direct PyPI binary installation
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if python scripts/release/verify_wheel.py --from-index --python "$(command -v python)" --version "$VERSION" --report registry-install.json; then
+              break
+            fi
+            test "$attempt" -lt 6 || exit 1
+            sleep 10
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: registry-install-${{ matrix.os }}
+          path: registry-install.json
+          if-no-files-found: error
+          overwrite: true

@@ -1,0 +1,53 @@
+# Tag 自动发布
+
+`.github/workflows/release.yml` 在推送 `vMAJOR.MINOR.PATCH` tag 时执行。tag 必须包含这套发布代码；仅接受三段稳定版本号，不接受前导零、预发布或任意分支名。版本 `0.x` 仍可作为明确标注能力范围的预览版，不代表所有来源或迁移规格已经验收。
+
+## 首次配置
+
+仓库管理员需完成以下一次性配置：
+
+1. 在 GitHub 仓库的 Actions secrets 中设置 `CARGO_REGISTRY_TOKEN`（或确认同名组织 secret 已对本仓库开放），允许发布 `radiust-core` 和 `radiust-cli`；持有人须拥有对应 crate 的发布权限。首次发布 `radiust-cli` 时，token 还须允许创建该 crate。
+2. 在 [PyPI 的 radiust 项目 Publishing 设置](https://pypi.org/manage/project/radiust/settings/publishing/)添加 GitHub Trusted Publisher：owner `chorust`，repository `radiust`，workflow `release.yml`，environment `pypi`。
+3. 本仓库已建立名为 `pypi` 的 GitHub environment。工作流只在 Python 发布 job 申请 `id-token: write`，不需要保存 PyPI API token。若管理员为该 environment 设置了审批规则，发布将按该规则等待。
+
+配置方法分别见 [Cargo publishing](https://doc.rust-lang.org/cargo/reference/publishing.html) 和 [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/using-a-publisher/)。凭据只用于发布 job，不进入源码快照、打包报告或构建 job。
+
+## 发布步骤
+
+将代码和工作流合入需要发布的提交后，创建新的未使用版本 tag，例如：
+
+```bash
+git tag -a v0.1.2 -m "Radiust 0.1.2"
+git push origin v0.1.2
+```
+
+示例不是已经发布的版本声明。`0.1.1` 首次发布使用本地凭据；后续自动发布应使用新版本，不能用 CI 重建产物覆盖同版本。已有 GitHub `v0.1.0` 预览资产不应移动旧 tag 来替换其内容。
+
+自动流程依次执行：
+
+1. 校验 tag 对应的提交，生成仓库外的源码快照。根据 tag 同步三个 Rust crate、内部精确版本依赖、Python metadata／`__version__` 和两个锁文件。主分支和 tag 原始提交不被改写。
+2. 从 Python 的规范资源复制 core 编译所需的 JSON，并复制 Apache-2.0 LICENSE；Rust `include_str!` 只引用 crate 内部资源。记录源码提交、版本和资源 SHA-256。日常修改资源后运行 `python scripts/release/prepare.py --sync-resources`；离线 CI 会检查这些副本是否一致。
+3. 在 Linux x86_64 与 macOS arm64 上打包 core 和 CLI。把 `.crate` 解压到仓库外，构造隔离的目录 registry，验证新项目通过 registry 引用 core，以及 `cargo install --locked` 安装 CLI。验证时不使用工作区 path override，也不请求气象上游。
+4. 构建 CPython 3.10–3.13 的 Linux x86_64 manylinux_2_28（glibc ≥ 2.28）和 macOS arm64 wheel。macOS 执行 delocate 和 Mach-O 审计；每个 wheel 在仓库外的全新虚拟环境中安装，验证版本、SDK、CLI 和内置目录，并拒绝带入 `tests/fixtures/` 下仅用于验证的样本。尚未确认再分发授权的历史气象图片不进入源码发布快照或 wheel。基础 wheel 无需 Rust、NumPy 或 xarray。
+5. 发布脚本的版本／冲突处理测试、wheel metadata 检查和全部独立安装验证通过后，比较将要上传的 `.crate` 与已验证产物的 SHA-256，发布 core，等待 crates.io 索引可见，再发布 CLI。随后通过 Trusted Publishing 上传已验证的 wheel。
+6. 在两个平台再从公开 registry 安装指定版本：`cargo install --locked --version VERSION radiust-cli` 和 `pip install --only-binary=:all: radiust==VERSION`。
+
+每个 job 保存源码快照、`.crate`／wheel 或安装报告作为 Actions artifact。`release-info.json` 记录 tag、版本、源码提交和资源摘要。发布可移植 wheel 的范围不等于该平台已经完成所有来源、科学能力或真实存储 provider 验收；macOS 11 deployment target／二进制审计也不代表已经在真实 macOS 11 主机运行。
+
+本流程暂不上传 Python sdist，也不发布 `radiust-python` Rust crate（它是 wheel 的内部 PyO3 包）。Linux arm64、macOS Intel 和 Windows 不在当前 tag 发布矩阵中。已有 `wheels.yml` 的构建测试矩阵保持独立。
+
+## 预演和失败重试
+
+GitHub Actions 的 `release` 工作流支持手动运行：填写含有发布工作流的已有 tag，保持 `dry_run=true`，只构建和验证；取消 `dry_run` 可以重试发布。
+
+本地可先生成快照并在离线依赖已缓存的环境中检查：
+
+```bash
+python3 scripts/release/prepare.py --tag v0.1.2 --output /tmp/radiust-release-source
+python3 scripts/release/verify_crates.py --source /tmp/radiust-release-source \
+  --output /tmp/radiust-release-artifacts --offline
+```
+
+`verify_crates.py` 要求 Python 3.12 或更新版本；Rust/CMake/C/C++ 前置工具与[源码安装](installation.md#从源码构建或使用-cargo-安装)一致。`--offline` 需要 Cargo 的依赖和索引已缓存，不把本地 registry 验证当作真实公网发布验收。
+
+registry 发布无法跨两个服务原子提交。若 core／CLI 已上传而后续失败，重跑同一 tag：已存在且摘要相同的 crate／wheel 会跳过；已存在但内容不同、被 yank 的 crate 或 registry 访问错误会使流程失败，不能覆盖同版本。macOS wheel 构建和 delocate 修复使用 tag 所指提交的时间作为 `SOURCE_DATE_EPOCH`，固定 ZIP 条目时间戳，避免重试时间改变产物摘要。此设置不能修复此前已上传的、使用非固定时间戳生成的 wheel；仍有摘要冲突时须使用新版本 tag。内容变化须使用新版本 tag。

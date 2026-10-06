@@ -24,7 +24,7 @@ const REQUEST_HEADERS: [(&str, &str); 2] = [
     ("Referer", "https://kalteng.bmkg.go.id/"),
     ("User-Agent", "Mozilla/5.0 (compatible; radiust/1)"),
 ];
-const RADAR_RESOURCE: &str = include_str!("../../../../python/radiust/resources/sources/id.json");
+const RADAR_RESOURCE: &str = include_str!("../../resources/builtin/sources/id.json");
 
 /// Discovers BMKG regular-ID composite images. The adapter only exposes raw
 /// image artifacts; no scientific decoder or geometry is implied here.

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-10-06T10:02:25.148064+00:00",
+  "status": "local_checks_passed",
+  "candidate_version": "0.1.1",
+  "candidate_is_published": false,
+  "source_commit": "464cbace0e556ea5e722d19a3709833d6cea518a",
+  "checkout_dirty": true,
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "checks": {
+    "rust_workspace": {
+      "command": "cargo test --workspace --offline --locked",
+      "passed": 701,
+      "failed": 0
+    },
+    "python_packaging": {
+      "command": "RADIUST_WHEEL=<candidate wheel> PYTEST_RADIUST_WHEEL=<candidate wheel> .venv/bin/python -m pytest -q tests/packaging tests/contract/test_packaging_workflow.py",
+      "passed": 31,
+      "failed": 0
+    },
+    "release_script_tests": {
+      "passed": 14,
+      "includes_invalid_tag_and_registry_conflict_checks": true
+    },
+    "crate_install": {
+      "version": "0.1.1",
+      "commit": "464cbace0e556ea5e722d19a3709833d6cea518a",
+      "checkout_dirty": true,
+      "crates": {
+        "radiust-core-0.1.1.crate": "267391cf42567da6a0e36d3180cae767c6c392120ab731165dae741f53e53d49",
+        "radiust-cli-0.1.1.crate": "41deda7a5baeb0a7635558ffe69f98d7cba04e7db8dbb118078e627076c86889"
+      },
+      "core_consumer": "passed",
+      "cli_install": "passed",
+      "provider_network": false,
+      "profile": "release"
+    },
+    "cli_registry_install": {
+      "command": "cargo --config <isolated registry config> install --locked --offline --version 0.1.1 radiust-cli",
+      "profile": "release",
+      "version": "radiust 0.1.1",
+      "status": "passed"
+    },
+    "crate_repackaging": {
+      "status": "passed",
+      "checksum_matches_verified_archives": true
+    },
+    "wheel_install": {
+      "sdk": "passed",
+      "cli": "passed",
+      "version": "0.1.1"
+    },
+    "macos_wheel_audit": {
+      "status": "passed",
+      "sha256": "e8e0bdf3da10a81b995400061c3267fd58a90aa6e8f9686c0e143de8dc1c17b5",
+      "format_readback": "not_performed"
+    },
+    "twine_check_strict": "passed",
+    "resource_sync": {
+      "embedded_resources": 38,
+      "status": "passed"
+    },
+    "actionlint": "passed",
+    "ruff": "passed",
+    "cargo_fmt": "passed",
+    "git_diff_check": "passed"
+  },
+  "publication_configuration": {
+    "github_environment_pypi": "created",
+    "repository_actions_secrets": [],
+    "organization_actions_secrets": "not_verified: GitHub token lacks admin:org scope",
+    "pypi_trusted_publisher": "not_verified"
+  },
+  "unverified": [
+    "GitHub-hosted tag workflow execution",
+    "Linux build and install matrix",
+    "macOS CPython 3.10/3.11/3.13 release wheels",
+    "public registry publication and installation"
+  ],
+  "provider_network": false,
+  "rust_warnings": "Existing unused import, variable, and function warnings remain in the workspace test output.",
+  "historical_snapshot": true,
+  "publication_follow_up": "local-registry-publication.json",
+  "artifact_note": "Pre-publication local validation. The candidate wheel recorded here was superseded before upload to exclude migration-only imagery with unconfirmed redistribution permission; published wheel hashes are recorded in the follow-up report."
+}

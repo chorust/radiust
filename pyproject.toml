@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "radiust"
-version = "0.1.0"
+version = "0.1.1"
 description = "Independent radar data acquisition and processing toolkit"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -108,7 +108,6 @@ strip = true
 include = [
   { path = "python/radiust/resources/**/*.json", format = "wheel" },
   { path = "python/radiust/resources/**/*.yaml", format = "wheel" },
-  { path = "tests/fixtures/sources/my/**/*", format = "wheel" },
   { path = "python/radiust/resources/catalog.json", format = "wheel" },
   { path = "python/radiust/decoders/__init__.py", format = "wheel" },
   { path = "python/radiust/decoders/gray_dbz.py", format = "wheel" },

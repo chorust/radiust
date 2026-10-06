@@ -1,0 +1,158 @@
+{
+  "source": "au",
+  "product": "composite",
+  "path_id": "au/composite",
+  "rule_version": "old-8d251601-au01-v1",
+  "encoding_version": "旧项目-gray-dbz-v1",
+  "legacy_reference": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/AU/base.yaml#sha256=6b9efa85e0e15fb93390dd96f33305baf2102e378be7f6ebf89206bd0a15ca2c",
+  "ordered_steps": [
+    {
+      "op": "crop",
+      "bounds": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/AU/base.yaml#sha256=6b9efa85e0e15fb93390dd96f33305baf2102e378be7f6ebf89206bd0a15ca2c"
+    },
+    {
+      "op": "legacy_palette",
+      "colors": [
+        [
+          243,
+          244,
+          255
+        ],
+        [
+          170,
+          172,
+          255
+        ],
+        [
+          107,
+          112,
+          255
+        ],
+        [
+          0,
+          36,
+          255
+        ],
+        [
+          0,
+          210,
+          187
+        ],
+        [
+          0,
+          139,
+          133
+        ],
+        [
+          255,
+          253,
+          8
+        ],
+        [
+          255,
+          192,
+          10
+        ],
+        [
+          255,
+          90,
+          12
+        ],
+        [
+          255,
+          0,
+          13
+        ],
+        [
+          197,
+          0,
+          8
+        ],
+        [
+          111,
+          0,
+          3
+        ],
+        [
+          36,
+          0,
+          0
+        ]
+      ],
+      "zero_colors": [
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "value_threshold": 16,
+      "zero_threshold": 5,
+      "cookbook": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70,
+        75
+      ],
+      "invalid_fraction_limit": 0.3,
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/AU/base.yaml#sha256=6b9efa85e0e15fb93390dd96f33305baf2102e378be7f6ebf89206bd0a15ca2c"
+    },
+    {
+      "op": "disk_mask",
+      "method": "legacy_height_center_disk",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/AU/base.yaml#sha256=6b9efa85e0e15fb93390dd96f33305baf2102e378be7f6ebf89206bd0a15ca2c"
+    },
+    {
+      "op": "gap_repair",
+      "method": "opencv_inpaint",
+      "radius": 1,
+      "inpaint_method": "NS",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/AU/base.yaml#sha256=6b9efa85e0e15fb93390dd96f33305baf2102e378be7f6ebf89206bd0a15ca2c"
+    },
+    {
+      "op": "gray_encode",
+      "method": "legacy_cookbook",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/AU/base.yaml#sha256=6b9efa85e0e15fb93390dd96f33305baf2102e378be7f6ebf89206bd0a15ca2c"
+    },
+    {
+      "op": "resize",
+      "shape": [
+        461,
+        461
+      ],
+      "method": "pillow_bicubic",
+      "basis": "8d251601ca551fbd5c05451f1fb337fc4b75362c:conf/parse/AU/base.yaml#sha256=6b9efa85e0e15fb93390dd96f33305baf2102e378be7f6ebf89206bd0a15ca2c"
+    }
+  ],
+  "input_constraints": {
+    "formats": [
+      "PNG",
+      "GIF"
+    ],
+    "max_pixels": 100000000,
+    "decoded_size": [
+      512,
+      512
+    ]
+  },
+  "validation_status": "passed",
+  "config_hash": "6513e140e2f0749fdd16aaf29b45a4cdfc6482f7149c6ccec7df9237dec4b6fe"
+}
