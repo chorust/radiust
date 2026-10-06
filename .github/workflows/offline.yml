@@ -29,7 +29,8 @@ jobs:
             apt-get update
             apt-get install -y tesseract-ocr
           fi
-      - run: uv sync --no-dev --group ci --locked
+      - name: Install test dependencies including GeoTIFF and Zarr readers
+        run: uv sync --no-dev --group ci --extra geotiff --extra zarr --locked
       - name: Check packaged core resources against canonical metadata
         run: python scripts/release/prepare.py --check-resources
       - run: cargo fmt --all -- --check
