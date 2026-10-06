@@ -167,7 +167,7 @@ jobs:
           delocate-wheel --require-archs arm64 --wheel-dir release-wheels raw-wheels/*.whl
           python scripts/validation/check_macos_release.py release-wheels/*.whl --expected-architecture arm64 --expected-macos-version 11.0 --report release-wheels/macos-audit.json
       - name: Install exact wheel in a clean environment outside the checkout
-        run: python scripts/release/verify_wheel.py release-wheels/*.whl --python "$(command -v python)" --version "$VERSION" --report release-wheels/install.json
+        run: python scripts/release/verify_wheel.py release-wheels/*.whl --python "$(command -v python)" --version "$VERSION" --report install-report.json
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
       - name: Validate Python distribution metadata before any registry upload
@@ -177,7 +177,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: release-wheel-${{ matrix.os }}-${{ matrix.python }}
-          path: release-wheels/
+          path: |
+            release-wheels/
+            install-report.json
           if-no-files-found: error
           overwrite: true
 
