@@ -4,7 +4,9 @@
   <img src="https://raw.githubusercontent.com/chorust/radiust/main/assets/branding/radiust-mark.png" width="200" alt="Radiust project mark">
 </p>
 
-[English](README.en.md) · [简体中文](README.md)
+<p align="center">
+  <a href="README.md">简体中文</a> · <a href="README.en.md">English</a>
+</p>
 
 **Helping everyone access, understand, and use public weather radar observations.**
 
