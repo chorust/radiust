@@ -261,6 +261,10 @@ fn footer_images(payload: &[u8], station: &str) -> CoreResult<Vec<Vec<u8>>> {
 }
 
 async fn run_tesseract(png: &[u8]) -> CoreResult<String> {
+    run_tesseract_with_timeout(png, OCR_TIMEOUT).await
+}
+
+async fn run_tesseract_with_timeout(png: &[u8], timeout: Duration) -> CoreResult<String> {
     let mut child = Command::new("tesseract")
         .args([
             "stdin",
@@ -270,6 +274,7 @@ async fn run_tesseract(png: &[u8]) -> CoreResult<String> {
             "-c",
             "tessedit_char_whitelist=0123456789:- ",
         ])
+        .env("OMP_THREAD_LIMIT", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -292,7 +297,7 @@ async fn run_tesseract(png: &[u8]) -> CoreResult<String> {
         CoreError::Transport("Tesseract could not read the TMD footer image".into())
     })?;
     drop(stdin);
-    let output = tokio::time::timeout(OCR_TIMEOUT, child.wait_with_output())
+    let output = tokio::time::timeout(timeout, child.wait_with_output())
         .await
         .map_err(|_| CoreError::Transport("Tesseract timed out reading a TMD footer".into()))?
         .map_err(|_| CoreError::Transport("Tesseract failed reading a TMD footer".into()))?;
@@ -544,7 +549,10 @@ mod tests {
         let crops = footer_images(GIF, "kkn240Loop").unwrap();
         let mut times = Vec::with_capacity(crops.len());
         for (index, crop) in crops.into_iter().enumerate() {
-            let text = run_tesseract(&crop).await.unwrap();
+            // The packaged CI runner can be heavily loaded; the production
+            // request timeout remains 5 seconds, while this integration test
+            // gives each local OCR process a wider but still finite budget.
+            let text = run_tesseract_with_timeout(&crop, Duration::from_secs(15)).await.unwrap();
             times.push(parse_footer_time(&text).unwrap_or_else(|| {
                 panic!("Tesseract returned an unrecognized TMD footer for frame {index}: {text:?}")
             }));

@@ -91,7 +91,7 @@ def test_real_chromium_cdp_handshake_and_private_profile_cleanup() -> None:
             env=env,
             capture_output=True,
             text=True,
-            timeout=240,
+            timeout=360,
             check=False,
         )
         for label, log_path in browser_logs:

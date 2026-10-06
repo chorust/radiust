@@ -568,8 +568,9 @@ impl ChromiumSession {
         let request_timeout = Duration::from_secs(context.limits.request_timeout_secs.max(1));
         let frame_deadline =
             Instant::now() + Duration::from_secs(context.limits.frame_deadline_secs.max(1));
-        let startup_deadline =
-            (Instant::now() + request_timeout.min(Duration::from_secs(30))).min(frame_deadline);
+        // Honor the configured request timeout, while the frame deadline still
+        // bounds startup if the caller selects a longer request timeout.
+        let startup_deadline = (Instant::now() + request_timeout).min(frame_deadline);
         let endpoint =
             wait_for_debugger(&mut process, &context.request_budget, startup_deadline).await?;
         let socket = connect_debugger(&endpoint, startup_deadline, &context.request_budget).await?;
@@ -1640,7 +1641,11 @@ mod tests {
         let executable = std::env::var_os("RADIUST_CHROMIUM_EXECUTABLE")
             .map(PathBuf::from)
             .expect("set RADIUST_CHROMIUM_EXECUTABLE to the Chromium executable");
-        let limits = Limits::default();
+        let mut limits = Limits::default();
+        // Cold Chromium startup on hosted runners can take longer than the
+        // default 30-second request timeout. Keep the live smoke test bounded,
+        // but give the browser its explicit CI budget.
+        limits.request_timeout_secs = 90;
         let budget = Arc::new(RequestBudget::new(&limits));
         let context = SourceContext {
             query: crate::model::Query::default(),
@@ -1657,7 +1662,7 @@ mod tests {
         };
         let temporary = tempfile::tempdir().unwrap();
         let session = tokio::time::timeout(
-            Duration::from_secs(45),
+            Duration::from_secs(100),
             ChromiumSession::launch(
                 &context,
                 temporary.path(),
