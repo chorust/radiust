@@ -1,4 +1,4 @@
-# Radiust
+<h1 align="center">Radiust</h1>
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/chorust/radiust/main/assets/branding/radiust-mark.png" width="200" alt="Radiust project mark">
@@ -16,7 +16,10 @@ Radiust aims to connect people to radar sources through open tools running on th
 
 The project currently provides a CLI, a Python SDK, and the reusable Rust `radiust-core` library. The Python console command and SDK share the Rust Engine. **The Desktop application for the general public has not yet been implemented.** Viewing observations, playing time sequences, choosing default sources, switching sources manually, and falling back when a source fails are planned Desktop features. The current focus is observations, with data interfaces intended to support future forecasting models. Cross-source radar mosaics are also deferred.
 
-[Project philosophy](PHILOSOPHY.md) · [Roadmap and Desktop acceptance goals](ROADMAP.md) · [Data source policy](DATA_SOURCES.md) · [Brand usage rules](TRADEMARKS.md)
+<p align="center">
+  <a href="PHILOSOPHY.md">Project philosophy</a> · <a href="ROADMAP.md">Roadmap</a><br>
+  <a href="DATA_SOURCES.md">Data source policy</a> · <a href="TRADEMARKS.md">Brand usage rules</a>
+</p>
 
 The current version is **0.1.2 alpha**.
 
@@ -34,7 +37,18 @@ The current version is **0.1.2 alpha**.
 
 ## Install
 
-### Python package: CLI and SDK
+### Rust CLI
+
+The native CLI needs no Python. Cargo compiles it from source, requiring Rust **1.92+**, CMake, a C/C++ compiler, and build tools:
+
+```bash
+cargo install --locked --version 0.1.2 radiust-cli
+radiust --version
+```
+
+The Cargo package is `radiust-cli`; its executable is `radiust`. Cargo's `~/.cargo/bin` directory must be on PATH. Rust projects can use the matching core library with `cargo add radiust-core@0.1.2`. On macOS, use `xcode-select --install` for compiler tools and `brew install cmake` for CMake; see the [source build guide](docs/installation.md#从源码构建或使用-cargo-安装) and [release record](docs/releases.md) for complete prerequisites and v0.1.2 verification details.
+
+### Python SDK
 
 Use CPython **3.10–3.13**. Prebuilt `0.1.2` wheels cover macOS Apple Silicon (macOS 11+) and Linux x86_64 (glibc ≥ 2.28); no Rust or CMake installation is required:
 
@@ -48,19 +62,7 @@ radiust --help
 
 The Python package provides both the `radiust` command and the SDK. Install `"radiust[science]==0.1.2"` for NumPy/xarray conversion; see the [installation guide](docs/installation.md#python-包) for GeoTIFF, Zarr, and other optional dependencies. If you also install the standalone CLI, use `python -m radiust` to select the version in your virtual environment.
 
-### Native CLI and Rust library: crates.io
-
-The native CLI needs no Python. Cargo compiles it from source, requiring Rust **1.92+**, CMake, a C/C++ compiler, and build tools:
-
-```bash
-cargo install --locked --version 0.1.2 radiust-cli
-radiust --version
-```
-
-The Cargo package is `radiust-cli`; its executable is `radiust`. Cargo's `~/.cargo/bin` directory must be on PATH. Rust projects can use the matching core library with `cargo add radiust-core@0.1.2`. On macOS, use `xcode-select --install` for compiler tools and `brew install cmake` for CMake; see the [source build guide](docs/installation.md#从源码构建或使用-cargo-安装) and [release record](docs/releases.md) for complete prerequisites and v0.1.2 verification details.
-
-### macOS Apple Silicon: older standalone CLI preview
-
+### Standalone prebuilt CLI
 
 Download the prebuilt program without installing Python or Rust. The current `v0.1.0` preview targets macOS 11 and later. Download, verify, and install into your user directory:
 
@@ -125,53 +127,62 @@ radiust --conf ./config.yaml discover rainviewer --latest
 
 `allow_network: true` permits upstream requests. For temporary access, run `export RADIUST_RUNTIME__ALLOW_NETWORK=true` in the current terminal. Downloads use configured output and format defaults when `--output` and `--format` are omitted. See the [full example](config/example.yaml) and [configuration guide](docs/installation.md#配置) for more options.
 
-### 1. Inspect sources and latest frames
+### Query
 
-After enabling networking in your configuration, inspect the catalog and query the latest data:
+- **`list`: inspect the source catalog**
 
-```bash
-radiust list sources
-radiust discover rainviewer --latest --max-age 3600
-```
+  Inspect the source catalog:
 
-`--max-age 3600` selects data from the last hour. Reports use UTC. `latest` means the newest frame the source provides, which can still be stale. Credentials, browser dependencies, and source configuration requirements are listed in [Data sources](DATA_SOURCES.md).
+  ```bash
+  radiust list sources
+  ```
 
-### 2. View the latest radar in your terminal
+- **`discover`: query the latest frames**
 
-```bash
-# Preview RainViewer's original tiles
-radiust cat rainviewer --latest --raw
+  After enabling networking in your configuration, query the latest data:
 
-# Preview reflectivity from Taiwan CWA's numeric grid
-radiust cat tw --product grid --latest --dbz
-```
+  ```bash
+  radiust discover rainviewer --latest --max-age 3600
+  ```
 
-Interactive terminals select a preview renderer automatically. For redirected output, scripts, or metadata summaries, add `--renderer text`. `--raw`, `--gray`, and `--dbz` are separate modes; none is inferred from image appearance.
+  `--max-age 3600` selects data from the last hour. Reports use UTC. `latest` means the newest frame the source provides, which can still be stale. Credentials, browser dependencies, and source configuration requirements are listed in [Data sources](DATA_SOURCES.md).
 
-### 3. Save images or numeric data
+- **`cat`: terminal previews and local data**
 
-```bash
-# PNG image and metadata
-radiust download rainviewer --latest --format png --output ./data
+  ```bash
+  # Preview RainViewer's original tiles
+  radiust cat rainviewer --latest --raw
 
-# Numeric reflectivity with raw artifacts from the same acquisition
-radiust download tw --product grid --latest --format netcdf --raw --output ./data
+  # Preview reflectivity from Taiwan CWA's numeric grid
+  radiust cat tw --product grid --latest --dbz
+  ```
 
-# Save only the original source data without scientific decoding
-radiust download tw-http --latest --station CV1_3600 --raw-only --output ./raw
-```
+  Interactive terminals select a preview renderer automatically. For redirected output, scripts, or metadata summaries, add `--renderer text`. `--raw`, `--gray`, and `--dbz` are separate modes; none is inferred from image appearance.
 
-Download reports list actual output paths. A repeated download of a frame with complete output reports `skipped`. Numeric products also accept `--format geotiff` or `--format zarr`, subject to each source's scientific and geometry limits. Add `--json` for structured reports in automation.
+  Inspect an existing numeric file:
 
-Inspect an existing numeric file:
+  ```bash
+  radiust cat --file ./reflectivity.nc --dbz --variable reflectivity --renderer text
+  ```
 
-```bash
-radiust cat --file ./reflectivity.nc --dbz --variable reflectivity --renderer text
-```
+- **`download`: save images or numeric data**
+
+  ```bash
+  # PNG image and metadata
+  radiust download rainviewer --latest --format png --output ./data
+
+  # Numeric reflectivity with raw artifacts from the same acquisition
+  radiust download tw --product grid --latest --format netcdf --raw --output ./data
+
+  # Save only the original source data without scientific decoding
+  radiust download tw-http --latest --station CV1_3600 --raw-only --output ./raw
+  ```
+
+  Download reports list actual output paths. A repeated download of a frame with complete output reports `skipped`. Numeric products also accept `--format geotiff` or `--format zarr`, subject to each source's scientific and geometry limits. Add `--json` for structured reports in automation.
 
 See the [CLI guide](docs/cli.md) for local gray codes, frame selection, batch discovery, time ranges, cache, and configuration. File and manifest layout is documented in [Output maintenance](docs/output-maintenance.md).
 
-### Python SDK
+### SDK
 
 Connect to RainViewer, discover the latest frames, fetch a numeric field, and download NetCDF:
 
