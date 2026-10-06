@@ -2,6 +2,12 @@
 
 `.github/workflows/release.yml` 在推送 `vMAJOR.MINOR.PATCH` tag 时执行。tag 必须包含这套发布代码；仅接受三段稳定版本号，不接受前导零、预发布或任意分支名。版本 `0.x` 仍可作为明确标注能力范围的预览版，不代表所有来源或迁移规格已经验收。
 
+## v0.1.2 发布结果（2026-10-06）
+
+[GitHub Actions run 37466179486](https://github.com/chorust/radiust/actions/runs/37466179486) 已通过源码准备、发布检查、Linux/macOS crate 打包与独立安装、八个 wheel 构建与隔离安装；`radiust-core` 和 `radiust-cli` 已由工作流发布到 crates.io。Python 发布 job 的 OIDC 交换返回 `invalid-publisher`，所以八个经 CI 验证的同一 wheel 改用本地 PyPI 凭据上传。公开 PyPI 摘要与 CI 产物一致，CPython 3.10–3.13 的 macOS arm64 和 Linux x86_64 环境均从公开索引安装并通过 SDK/CLI 检查。详细摘要见 [`tag-release-v0.1.2.json`](../validation-results/tag-release-v0.1.2.json)。
+
+失败 token 的 claims 是 owner `chorust`、repository `radiust`、workflow `.github/workflows/release.yml`、environment `pypi`。请在 PyPI 的 `radiust` 项目 Publishing 设置核对这四项；当前版本的 wheel 已发布，不能用同一版本重传来验证 OIDC。修正后，新版本 tag（下一版为 `v0.1.3`）会实际验证 Trusted Publishing。
+
 ## 首次配置
 
 仓库管理员需完成以下一次性配置：
@@ -17,11 +23,11 @@
 将代码和工作流合入需要发布的提交后，创建新的未使用版本 tag，例如：
 
 ```bash
-git tag -a v0.1.2 -m "Radiust 0.1.2"
-git push origin v0.1.2
+git tag -a v0.1.3 -m "Radiust 0.1.3"
+git push origin v0.1.3
 ```
 
-示例不是已经发布的版本声明。`0.1.1` 首次发布使用本地凭据；后续自动发布应使用新版本，不能用 CI 重建产物覆盖同版本。已有 GitHub `v0.1.0` 预览资产不应移动旧 tag 来替换其内容。
+发布新版本时将 `git push` 命令中的 tag 与上方示例保持一致。`0.1.1` 首次发布使用本地凭据；`0.1.2` 的 crate 由 GitHub 发布、wheel 因 Trusted Publisher 不匹配而使用本地凭据发布。后续自动发布应使用新版本，不能用 CI 重建产物覆盖同版本。已有 GitHub `v0.1.0` 预览资产不应移动旧 tag 来替换其内容。
 
 自动流程依次执行：
 
@@ -43,7 +49,7 @@ GitHub Actions 的 `release` 工作流支持手动运行：填写含有发布工
 本地可先生成快照并在离线依赖已缓存的环境中检查：
 
 ```bash
-python3 scripts/release/prepare.py --tag v0.1.2 --output /tmp/radiust-release-source
+python3 scripts/release/prepare.py --tag v0.1.3 --output /tmp/radiust-release-source
 python3 scripts/release/verify_crates.py --source /tmp/radiust-release-source \
   --output /tmp/radiust-release-artifacts --offline
 ```

@@ -2,14 +2,14 @@
 
 ## 从包仓库直接安装
 
-截至 2026-10-06，`0.1.1` 已发布到 [PyPI](https://pypi.org/project/radiust/0.1.1/)、[radiust-core](https://crates.io/crates/radiust-core/0.1.1) 和 [radiust-cli](https://crates.io/crates/radiust-cli/0.1.1)，可直接安装当前 CLI、SDK 与核心库。首次发布使用本地凭据；后续版本使用 [GitHub tag 自动发布流程](releases.md)，仍需完成 GitHub secret／PyPI Trusted Publisher 配置。实际发布与公开仓库安装记录见 [`local-registry-publication.json`](../validation-results/local-registry-publication.json)。
+截至 2026-10-06，`0.1.2` 已发布到 [PyPI](https://pypi.org/project/radiust/0.1.2/)、[radiust-core](https://crates.io/crates/radiust-core/0.1.2) 和 [radiust-cli](https://crates.io/crates/radiust-cli/0.1.2)，可直接安装当前 CLI、SDK 与核心库。GitHub tag 工作流已构建并验证 crate 与八个 Python wheel，crate 由工作流发布；PyPI Trusted Publisher 配置未匹配，因此 wheel 使用本地 PyPI 凭据发布。八个 wheel 均已从公开 PyPI 在干净环境安装验证。下一次自动发布前须修正 Trusted Publisher，详见[发布流程与验证记录](releases.md)。
 
 ```bash
-cargo install --locked radiust-cli
+cargo install --locked --version 0.1.2 radiust-cli
 radiust --help
 
 python3 -m venv .venv
-.venv/bin/python -m pip install --only-binary=:all: "radiust==0.1.1"
+.venv/bin/python -m pip install --only-binary=:all: "radiust==0.1.2"
 .venv/bin/python -m radiust --help
 ```
 
@@ -74,13 +74,13 @@ cargo install --locked --path crates/radiust-cli --root /tmp/radiust-native
 
 `radiust-cli` 通过本工作区的路径依赖使用 `radiust-core`。命令集合与当前支持边界见[原生 CLI 文档](cli.md#原生-rust-cli)。RainViewer composite 和 TW grid 的 PNG+sidecar、NetCDF4、GeoTIFF 和 Zarr writer/local commit 已接入，四种格式均有独立 fixture 读回。GeoTIFF 编码为纯 Rust，不加载 GDAL/PROJ；NetCDF/HDF5 使用 Rust crate 的静态构建，因此原生 CLI 和 Python 扩展不依赖 Homebrew NetCDF/HDF5 dylib。macOS wheel 仍执行 Mach-O 依赖审计与 delocate 检查。
 
-本轮原生迁移的正式目标平台是 macOS arm64；`0.1.1` 的 Linux x86_64 wheel 已在本机通过模拟执行的 manylinux 容器构建并独立安装，证明该包可以安装运行，不等于 Linux 的全部迁移或科学能力已经验收。原生 CLI 目前仍是部分实现，不能据此宣称 US1–US5、24 个来源或四种输出格式全部完成。
+本轮原生迁移的正式目标平台是 macOS arm64；`0.1.2` 的 Linux x86_64 wheel 已在 manylinux_2_28 容器中构建，并在隔离容器内从公开 PyPI 安装验证，证明该包可以安装运行，不等于 Linux 的全部迁移或科学能力已经验收。原生 CLI 目前仍是部分实现，不能据此宣称 US1–US5、24 个来源或四种输出格式全部完成。
 
 ## Python 包
 
 Python SDK 的 `Client`、`AsyncClient`、便捷函数和 `radiust` console script 通过 PyO3 共用 Rust Engine 与原生 CLI。基础 wheel 不要求 NumPy/xarray；科学数组只在显式调用 `to_xarray()` 时转成 Python 对象。
 
-核心包要求 CPython 3.10–3.13。PyPI `0.1.1` 提供 macOS arm64（macOS 11+）和 Linux x86_64（glibc ≥ 2.28）共八个 wheel；这些环境可使用上方直接安装命令。当前没有发布 sdist，其他架构或 Python 版本不能据此视为支持。以下命令从源码安装，需要先准备 Rust 1.92 或更新版本、CMake、C/C++ 编译器和构建工具；macOS 安装步骤见[源码构建前置依赖](#从源码构建或使用-cargo-安装)。命令须在仓库根目录执行：
+核心包要求 CPython 3.10–3.13。PyPI `0.1.2` 提供 macOS arm64（macOS 11+）和 Linux x86_64（glibc ≥ 2.28）共八个 wheel；这些环境可使用上方直接安装命令。当前没有发布 sdist，其他架构或 Python 版本不能据此视为支持。以下命令从源码安装，需要先准备 Rust 1.92 或更新版本、CMake、C/C++ 编译器和构建工具；macOS 安装步骤见[源码构建前置依赖](#从源码构建或使用-cargo-安装)。命令须在仓库根目录执行：
 
 ```bash
 python -m venv .venv
