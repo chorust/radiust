@@ -106,6 +106,8 @@ For batches, `fetch_many()` keeps input order and returns each frame's status; `
 
 `rdcap/reflectivity` 提供台湾、日本和菲律宾的完整站点 ID（如 `TWN/RCHL`、`JPN/ISHI`、`PHL/SUBI`），内置离线目录快照有 48 个去重站点。快照中的逐国 discovery、raw acquisition、science、readback 能力仍标为 `unverified`；离线目录可用于查站，不能代表实时索引或在线服务可用。当前支持近期 `latest`、精确 `at` 和时间范围查询，不承诺历史归档。联网操作必须显式设置 `runtime.allow_network: true`。
 
+RDCAP 文件票据依赖申请索引时的匿名会话 cookie；Rust Engine 自动在内存中保持会话，覆盖索引刷新及 raw 文件获取。会话仅供 RDCAP 使用，不持久化、不公开，CLI/SDK 无需手动配置 cookie。 RDCAP 返回数值网格，预览使用 `radiust cat rdcap --station JPN/MAKI --decoded` 或 `--dbz`；`--gray` 是来源图像模式，不适用于此数值产品。
+
 若 RDCAP 的证书链无法验证，可选择仅对本站关闭证书校验（默认关闭此例外）：
 
 ```yaml

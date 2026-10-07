@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "run_at": "2026-10-07T08:07:32.260858+00:00",
+  "entrypoint": "installed Rust-backed CLI; cache disabled",
+  "station": "JPN/MAKI",
+  "insecure_tls": true,
+  "anonymous_cookie_session": "automatic and memory-only",
+  "scope": "MAKI raw acquisition and numeric preview only; no three-country qualification or independent output readback",
+  "results": [
+    {
+      "mode": "decoded",
+      "exit_code": 0,
+      "error": null,
+      "items": [
+        {
+          "source": "rdcap",
+          "product": "reflectivity",
+          "station": "JPN/MAKI",
+          "valid_time": "2026-10-07T07:58:11.000000Z",
+          "variable": "reflectivity",
+          "units": "dBZ",
+          "width": 900,
+          "height": 900,
+          "display_mode": "decoded",
+          "mode_info": {
+            "requested": "scientific",
+            "actual": "scientific",
+            "variable": "reflectivity",
+            "units": "dBZ",
+            "method": "native_numeric",
+            "encoding": null,
+            "range_policy": null,
+            "time_status": "known",
+            "geolocation": "known",
+            "limitations": []
+          }
+        }
+      ]
+    },
+    {
+      "mode": "dbz",
+      "exit_code": 0,
+      "error": null,
+      "items": [
+        {
+          "source": "rdcap",
+          "product": "reflectivity",
+          "station": "JPN/MAKI",
+          "valid_time": "2026-10-07T07:58:11.000000Z",
+          "variable": "reflectivity",
+          "units": "dBZ",
+          "width": 900,
+          "height": 900,
+          "display_mode": "dbz",
+          "mode_info": {
+            "requested": "dbz",
+            "actual": "dbz",
+            "variable": "reflectivity",
+            "units": "dBZ",
+            "method": "native_dbz",
+            "encoding": null,
+            "rule_version": null,
+            "range_policy": "native",
+            "clipped_pixel_count": null,
+            "valid_clipped_pixel_count": null,
+            "time_status": "source",
+            "geolocation": "verified",
+            "limitations": []
+          }
+        }
+      ]
+    },
+    {
+      "mode": "gray",
+      "exit_code": 5,
+      "error": {
+        "code": "decode",
+        "message": "selected frame has no image artifact for raw preview",
+        "stage": "decode",
+        "retryable": false
+      },
+      "items": []
+    }
+  ]
+}

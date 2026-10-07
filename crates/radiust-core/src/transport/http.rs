@@ -17,7 +17,7 @@ use url::Url;
 #[derive(Clone)]
 pub struct HttpTransport {
     client: Client,
-    rdcap_insecure_client: Option<Client>,
+    rdcap_client: Option<Client>,
     budget: Arc<RequestBudget>,
     allow_public: bool,
     max_bytes: u64,
@@ -70,21 +70,26 @@ impl HttpTransport {
             .map_err(|e| CoreError::Transport(e.to_string()))?;
         Ok(Self {
             client,
-            rdcap_insecure_client: None,
+            rdcap_client: None,
             budget,
             allow_public,
             max_bytes: limits.max_artifact_bytes,
         })
     }
 
-    /// Keep the same budget and network policy; the exception is restricted to
-    /// RDCAP's HTTPS host, including after manually followed redirects.
-    pub(crate) fn with_rdcap_insecure_tls(mut self, limits: &Limits) -> CoreResult<Self> {
-        self.rdcap_insecure_client = Some(
+    /// Maintain the anonymous index/file session only for RDCAP HTTPS requests.
+    /// The TLS exception is optional; budget and network policy remain shared.
+    pub(crate) fn with_rdcap_session(
+        mut self,
+        limits: &Limits,
+        insecure_tls: bool,
+    ) -> CoreResult<Self> {
+        self.rdcap_client = Some(
             Client::builder()
                 .timeout(Duration::from_secs(limits.request_timeout_secs))
                 .redirect(reqwest::redirect::Policy::none())
-                .danger_accept_invalid_certs(true)
+                .danger_accept_invalid_certs(insecure_tls)
+                .cookie_store(true)
                 .build()
                 .map_err(|_| {
                     CoreError::Transport("RDCAP TLS client could not be initialized".into())
@@ -95,7 +100,7 @@ impl HttpTransport {
 
     fn client_for(&self, url: &Url) -> &Client {
         if url.scheme() == "https" && url.host_str() == Some("rdcap.cwa.gov.tw") {
-            if let Some(client) = &self.rdcap_insecure_client {
+            if let Some(client) = &self.rdcap_client {
                 return client;
             }
         }
@@ -870,6 +875,12 @@ mod tls_tests {
     use tokio_rustls::{TlsAcceptor, rustls};
 
     async fn tls_endpoint() -> (std::net::SocketAddr, tokio::task::JoinHandle<()>) {
+        tls_endpoint_responses(vec![(None, String::new(), "[]".into())]).await
+    }
+
+    async fn tls_endpoint_responses(
+        responses: Vec<(Option<String>, String, String)>,
+    ) -> (std::net::SocketAddr, tokio::task::JoinHandle<()>) {
         let cert = CertificateDer::from_pem_slice(include_bytes!(
             "../../../../tests/fixtures/protocols/ftp/server-cert.pem"
         ))
@@ -889,29 +900,108 @@ mod tls_tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let server = tokio::spawn(async move {
-            let (socket, _) = listener.accept().await.unwrap();
-            if let Ok(mut socket) = acceptor.accept(socket).await {
-                let mut data = Vec::new();
-                let mut buffer = [0; 1024];
-                loop {
-                    let size = socket.read(&mut buffer).await.unwrap();
-                    if size == 0 {
-                        return;
+            for (expected_cookie, extra_headers, body) in responses {
+                let (socket, _) = listener.accept().await.unwrap();
+                if let Ok(mut socket) = acceptor.accept(socket).await {
+                    let mut data = Vec::new();
+                    let mut buffer = [0; 1024];
+                    loop {
+                        let size = socket.read(&mut buffer).await.unwrap();
+                        if size == 0 {
+                            return;
+                        }
+                        data.extend_from_slice(&buffer[..size]);
+                        if data.windows(4).any(|part| part == b"\r\n\r\n") {
+                            break;
+                        }
                     }
-                    data.extend_from_slice(&buffer[..size]);
-                    if data.windows(4).any(|part| part == b"\r\n\r\n") {
-                        break;
+                    let request = String::from_utf8(data).unwrap().to_ascii_lowercase();
+                    match expected_cookie {
+                        Some(cookie) => assert!(request.contains(&format!("cookie: {cookie}\r\n"))),
+                        None => assert!(!request.contains("\r\ncookie:")),
                     }
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n{}\r\n{}",
+                        body.len(),
+                        extra_headers,
+                        body
+                    );
+                    let _ = socket.write_all(response.as_bytes()).await;
+                    let _ = socket.shutdown().await;
                 }
-                let _ = socket
-                    .write_all(
-                        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n[]",
-                    )
-                    .await;
-                let _ = socket.shutdown().await;
             }
         });
         (address, server)
+    }
+
+    #[tokio::test]
+    async fn rdcap_session_keeps_rotated_cookies_for_index_and_raw_but_isolates_other_clients() {
+        let (address, server) = tls_endpoint_responses(vec![
+            (
+                None,
+                "Set-Cookie: rdcap_session=one; Path=/; Secure; HttpOnly\r\n".into(),
+                "[]".into(),
+            ),
+            (
+                Some("rdcap_session=one".into()),
+                "Set-Cookie: rdcap_session=two; Path=/; Secure; HttpOnly\r\n".into(),
+                "[]".into(),
+            ),
+            (Some("rdcap_session=two".into()), String::new(), "\"grid\"".into()),
+            (None, String::new(), "[]".into()),
+            (None, String::new(), "[]".into()),
+        ])
+        .await;
+        let limits = Limits::default();
+        let client = |cookies| {
+            Client::builder()
+                .no_proxy()
+                .resolve("rdcap.cwa.gov.tw", address)
+                .danger_accept_invalid_certs(true)
+                .cookie_store(cookies)
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .unwrap()
+        };
+        let mut transport = HttpTransport::new(limits.clone(), true)
+            .unwrap()
+            .with_rdcap_session(&limits, true)
+            .unwrap();
+        transport.rdcap_client = Some(client(true));
+        let base = format!("https://rdcap.cwa.gov.tw:{}", address.port());
+        transport
+            .post_form_bytes_with_headers(&format!("{base}/data_access/get_country_list"), &[], &[])
+            .await
+            .unwrap();
+        let cloned = transport.clone();
+        cloned
+            .post_form_bytes_with_headers(&format!("{base}/data_access/get_radar_data"), &[], &[])
+            .await
+            .unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("frame.json");
+        cloned
+            .get_to_path_same_origin_path_limited_with_policy(
+                &format!("{base}/file?ft=fixture"),
+                &[],
+                &destination,
+                1024,
+                HttpGetPolicy::SingleAttempt,
+                "/file",
+            )
+            .await
+            .unwrap();
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"\"grid\"");
+        let mut independent = HttpTransport::new(limits.clone(), true)
+            .unwrap()
+            .with_rdcap_session(&limits, true)
+            .unwrap();
+        independent.rdcap_client = Some(client(true));
+        independent.get_bytes(&format!("{base}/file?ft=independent")).await.unwrap();
+        let mut generic = HttpTransport::new(limits, true).unwrap();
+        generic.client = client(false);
+        generic.get_bytes(&format!("{base}/file?ft=generic")).await.unwrap();
+        server.await.unwrap();
     }
 
     #[tokio::test]
@@ -924,10 +1014,10 @@ mod tls_tests {
         ] {
             let (address, server) = tls_endpoint().await;
             let limits = Limits::default();
-            let mut transport = HttpTransport::new(limits.clone(), true).unwrap();
-            if enabled {
-                transport = transport.with_rdcap_insecure_tls(&limits).unwrap();
-            }
+            let mut transport = HttpTransport::new(limits.clone(), true)
+                .unwrap()
+                .with_rdcap_session(&limits, enabled)
+                .unwrap();
             let client = |insecure| {
                 Client::builder()
                     .no_proxy()
@@ -938,9 +1028,7 @@ mod tls_tests {
                     .unwrap()
             };
             transport.client = client(false);
-            if enabled {
-                transport.rdcap_insecure_client = Some(client(true));
-            }
+            transport.rdcap_client = Some(client(enabled));
             let url = format!("https://{host}:{}/data_access/get_country_list", address.port());
             let result = if post {
                 transport.post_form_bytes_with_headers(&url, &[], &[]).await
@@ -956,7 +1044,7 @@ mod tls_tests {
         let limits = Limits::default();
         let transport = HttpTransport::new(limits.clone(), false)
             .unwrap()
-            .with_rdcap_insecure_tls(&limits)
+            .with_rdcap_session(&limits, true)
             .unwrap();
         assert!(matches!(
             transport.get_bytes("https://rdcap.cwa.gov.tw/").await,

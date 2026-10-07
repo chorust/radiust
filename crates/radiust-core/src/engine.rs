@@ -47,7 +47,7 @@ pub struct Engine {
     decode_workers: Arc<Semaphore>,
     commit_workers: Arc<Semaphore>,
     http_transport: Arc<HttpTransport>,
-    rdcap_http_transport: Option<Arc<HttpTransport>>,
+    rdcap_http_transport: Arc<HttpTransport>,
     ftp_transport: Arc<FtpTransport>,
     runtime_events: RuntimeEvents,
     raw_cache: tokio::sync::OnceCell<Option<Arc<Mutex<crate::cache::Cache>>>>,
@@ -74,22 +74,18 @@ impl Engine {
             )
             .map_err(|_| EngineError::InvalidConfiguration)?,
         );
-        let rdcap_http_transport = if config.rdcap_insecure_tls() {
-            if config.runtime.allow_network {
-                eprintln!(
-                    "warning: RDCAP TLS certificate verification is disabled (sources.rdcap.insecure_tls=true)"
-                );
-            }
-            Some(Arc::new(
-                http_transport
-                    .as_ref()
-                    .clone()
-                    .with_rdcap_insecure_tls(&limits)
-                    .map_err(|_| EngineError::InvalidConfiguration)?,
-            ))
-        } else {
-            None
-        };
+        if config.rdcap_insecure_tls() && config.runtime.allow_network {
+            eprintln!(
+                "warning: RDCAP TLS certificate verification is disabled (sources.rdcap.insecure_tls=true)"
+            );
+        }
+        let rdcap_http_transport = Arc::new(
+            http_transport
+                .as_ref()
+                .clone()
+                .with_rdcap_session(&limits, config.rdcap_insecure_tls())
+                .map_err(|_| EngineError::InvalidConfiguration)?,
+        );
         let mut ftp_limits = limits.clone();
         ftp_limits.max_artifact_bytes =
             ftp_limits.max_artifact_bytes.min(ftp_limits.max_temp_bytes);
@@ -2022,7 +2018,7 @@ impl Engine {
             request_budget: self.request_budget.clone(),
             limits: limits_from_config(&self.config.runtime),
             http_transport: if source_id == "rdcap" {
-                self.rdcap_http_transport.as_ref().unwrap_or(&self.http_transport).clone()
+                self.rdcap_http_transport.clone()
             } else {
                 self.http_transport.clone()
             },
@@ -2964,7 +2960,7 @@ mod tests {
                 );
                 assert_eq!(
                     Arc::ptr_eq(&context.http_transport, &engine.http_transport),
-                    !(enabled && source == "rdcap")
+                    source != "rdcap"
                 );
                 assert!(Arc::ptr_eq(&context.request_budget, &engine.request_budget));
                 assert!(!context.allow_network);

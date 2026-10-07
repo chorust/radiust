@@ -59,7 +59,7 @@ Radiust 的软件采用 [Apache-2.0](LICENSE)。上游雷达观测、图像、�
 | `windy` | 第三方 Windy 产品；底层观测归属未确认 | `rdr.windy.com`，瓦片；可选本地 Chromium | 已有原始瓦片证据；时间假设与物理色标待验收 |
 | `wunderground` | 第三方 Weather Underground／Weather.com 产品；底层观测归属未确认 | `api0.weather.com/v3/TileServer/tile` | 需用户 API key；原生 raw 获取在证据齐备前受限 |
 
-RDCAP 默认验证 HTTPS 证书。遇到本站证书链验证失败时，可显式配置 `sources.rdcap.insecure_tls: true`；该例外仅用于 RDCAP adapter 对 `https://rdcap.cwa.gov.tw` 的目录、时间索引及文件请求，其他来源及其他主机仍正常校验。启用时输出提示；联网 opt-in、请求限额、超时、取消和票据重试规则保持不变。关闭校验会失去服务器身份验证，仅作为用户主动选择的访问方式，不代表标准 TLS 路径或三国科学能力已验收。 [2026-10-07 单站发现对照](validation-results/rdcap-tls-opt-in-20261007.json)记录了安装后的 Rust-backed CLI：默认校验时失败，显式启用例外后取得花莲最新帧引用；本次未验证 raw、science 或独立读回。
+RDCAP 在同一 Engine 生命周期内保留上游设置的匿名会话 cookie，供目录、索引刷新及文件票据读取复用；仅 RDCAP HTTPS 主机使用此内存会话，不持久化 cookie，也不写入公开报告。RDCAP 默认验证 HTTPS 证书。遇到本站证书链验证失败时，可显式配置 `sources.rdcap.insecure_tls: true`；该例外仅用于 RDCAP adapter 对 `https://rdcap.cwa.gov.tw` 的目录、时间索引及文件请求，其他来源及其他主机仍正常校验。启用时输出提示；联网 opt-in、请求限额、超时、取消和票据重试规则保持不变。关闭校验会失去服务器身份验证，仅作为用户主动选择的访问方式，不代表标准 TLS 路径或三国科学能力已验收。 [2026-10-07 单站发现对照](validation-results/rdcap-tls-opt-in-20261007.json)记录了安装后的 Rust-backed CLI：默认校验时失败，显式启用例外后取得花莲最新帧引用；本次未验证 raw、science 或独立读回。 后续[同日 MAKI 会话验证](validation-results/rdcap-session-live-20261007.json)在禁用缓存后成功获取原始响应并生成 `--decoded` / `--dbz` 数值预览；它仅覆盖该站，不代表三国科学能力或独立输出读回全部验收。
 
 端点的实际参数、主机白名单和访问行为以[原生 adapter](crates/radiust-core/src/source/)为准。RDCAP 的观测机构记录见[站点目录](python/radiust/resources/catalog.json)，研究与实施范围见 [004 spec](specs/004-rdcap-single-station/spec.md)。目录里的 `available` 或 `needs_configuration` 不替代逐国 live 验收、运行状态或权限判断。
 
