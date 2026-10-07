@@ -9,10 +9,10 @@
 | `O-A0058-002` | 较大范围／有地形回波图 | 尚未接入 |
 | `O-A0058-003` | 邻近区域／无地形回波图 | 尚未接入 |
 | `O-A0058-004` | 邻近区域／有地形回波图 | 尚未接入 |
-| `O-A0058-005` | 较大范围透明回波图 | `tw --product observation --raw-only`，保存 PNG 和配套 JSON |
+| `O-A0058-005` | 较大范围透明回波图 | `tw --product observation`；`--raw-only` 保存 PNG 和配套 JSON，`cat --gray` / `cat --dbz` 使用通过的历史灰度规则 |
 | `O-A0058-006` | 邻近区域透明回波图 | 尚未接入 |
 
-CWA 说明将 PNG 描述为「依據 xml 資料所製之圖檔」。已留存的 `O-A0058-005.json` 明确给出 `LongitudeRange=115.00-126.50`、`LatitudeRange=17.75-29.25`、`ImageDimension=3600x3600`、`ProductURL` 和 `DateTime`。适配器把这些值作为**提供者声明的图像范围及尺寸**保存于 `FrameRef.metadata`，并在下载时核对 JSON 产品身份、URL、有效时间、范围和实际图像尺寸。它们不足以独立验证像素中心/边界注册、地理基准面及 RGB→dBZ 映射；PNG 的科学解码仍阻塞。如果上游在 PNG 与 JSON 的两次请求之间更新图像且最终 JSON 时间不变，仅凭这些公开资料仍无法证明二者为同一版本。
+CWA 说明将 PNG 描述为「依據 xml 資料所製之圖檔」。已留存的 `O-A0058-005.json` 明确给出 `LongitudeRange=115.00-126.50`、`LatitudeRange=17.75-29.25`、`ImageDimension=3600x3600`、`ProductURL` 和 `DateTime`。适配器把这些值作为**提供者声明的图像范围及尺寸**保存于 `FrameRef.metadata`，并在下载时核对 JSON 产品身份、URL、有效时间、范围和实际图像尺寸。它们不足以独立验证像素中心/边界注册、地理基准面及 RGB→dBZ 映射；PNG 的独立物理色标与地理定位验证仍未完成。Spec 005 支持匹配通过规则后的 gray→dBZ 编码反算：`radiust cat tw --product observation --latest --dbz` 和 `download tw --product observation --latest --dbz` 使用该路径，结果为无可信地理定位的像素 dBZ。共享 Core 选择唯一图像 artifact，校验配套 JSON 的 receipt 并保留完整 acquisition receipt；PNG+JSON 路径已有离线回归，见[验证记录](../validation-results/gray-dbz-companions.json)。这不升级为独立物理标定或在线 dBZ 验收。`--decoded` 继续要求原生数值产品，TW 应选择 `--product grid`。如果上游在 PNG 与 JSON 的两次请求之间更新图像且最终 JSON 时间不变，仅凭这些公开资料仍无法证明二者为同一版本。
 
 `O-A0059-001` 是独立的 921×881 数值网格：已留存原始 JSON 声明 TWD67（EPSG:3821）、0.0125 度、由西南角先向东后向北排列，`-99` 与 `-999` 具有不同的缺测含义。它的网格不能套用到 3600×3600 PNG，PNG 的声明范围也不能替代数值网格的坐标系。
 

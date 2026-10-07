@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "feature": "005-gray-dbz-decoding",
+  "review_date": "2026-10-07",
+  "evidence_kind": "offline_adapter_shape_and_replay_regression",
+  "fixture_context_only": true,
+  "live_acquisition_tested": false,
+  "physical_calibration_claimed": false,
+  "geographic_truth_claimed": false,
+  "issue": {
+    "path": "tw/observation",
+    "cause": "The adapter retains PNG and JSON, but the shared source gray decoder required exactly one total artifact. The CLI display-only gray path filtered images separately, hiding the mismatch.",
+    "old_behavior_reproduced": true,
+    "reproduction_test": "source::tw::tests::observation_gray_and_dbz_accept_acquired_png_and_metadata",
+    "old_guard_result": "failed: acquired TW observation gray rule was not applied",
+    "fixed_result": "passed"
+  },
+  "fix": {
+    "image_selection": "Exactly one image artifact, independent of artifact order",
+    "companions": "Validate receipt shape, unique names, byte budgets, file size and SHA-256; preserve all acquisition receipts",
+    "ambiguous_images": "Zero or multiple images remain unavailable",
+    "scientific_status": "Historical encoded pixel dBZ only; independent physical calibration and geolocation remain unverified"
+  },
+  "related_path_audit": {
+    "passed_gray_paths_reviewed": 15,
+    "same_artifact_shape_mismatch": ["tw/observation"],
+    "other_passed_paths": "The other 14 current adapter paths retain one primary image artifact",
+    "blocked_gray_paths": 8,
+    "blocked_paths_remain_blocked": true,
+    "independent_native_decoders": ["rainviewer/composite", "tw/grid", "rdcap/reflectivity"],
+    "native_artifact_sets": "RainViewer tiles and RDCAP response/binding artifacts are handled by their independent native decoders",
+    "historical_evidence": "validation-results/gray-dbz-paths.json"
+  },
+  "checks": [
+    {
+      "command": "CARGO_NET_OFFLINE=true cargo test -p radiust-core --lib source::tw::tests",
+      "passed": 11,
+      "coverage": "Actual observation frame constructor with official retained PNG+JSON; Engine gray and dBZ; dimensions, formula, quality, full receipt; existing TW native contracts"
+    },
+    {
+      "command": "CARGO_NET_OFFLINE=true cargo test -p radiust-core --test gray_dbz_paths --test gray_dbz_limits --test gray_quality --test dbz_native",
+      "passed": 15,
+      "coverage": "All 15 passed gray paths, blocked decisions, companion ordering and integrity, ambiguous images, aggregate budget, quality and independent native dBZ"
+    },
+    {
+      "command": "CARGO_NET_OFFLINE=true cargo test -p radiust-cli --test gray_dbz_replay --test gray_dbz_modes --test gray_dbz_download",
+      "passed": 10,
+      "coverage": "CLI modes and download; TW PNG+JSON dBZ NetCDF replay and rejection after companion corruption"
+    },
+    {
+      "command": "CARGO_NET_OFFLINE=true cargo test -p radiust-core --test gray_dbz_batch --test replay_support --test gray_compat",
+      "passed": 14,
+      "coverage": "Batch, replay integrity and retained historical compatibility"
+    }
+  ],
+  "unique_tests_passed": 50,
+  "catalogs": {
+    "tw_observation": "gray_dbz_encoding records offline_verified separately from unverified physical calibration, unknown geolocation and not_tested live decode",
+    "resource_check": "python scripts/release/prepare.py --check-resources",
+    "embedded_resources_verified": 38
+  }
+}

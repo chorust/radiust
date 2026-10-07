@@ -445,7 +445,10 @@ fn decode_source_frame_inner(
             .unwrap_or_else(|| format!("gray path is {}", entry.status));
         return Ok(GrayDecision::Unavailable { reason, original_preview: None });
     }
-    if raw.artifacts.len() != 1 {
+    let mut images =
+        raw.artifacts.iter().filter(|artifact| artifact.receipt.media_type.starts_with("image/"));
+    let image = images.next();
+    if image.is_none() || images.next().is_some() {
         return Ok(GrayDecision::Unavailable {
             reason: "source gray rules require exactly one verified image artifact".into(),
             original_preview: None,
@@ -459,7 +462,10 @@ fn decode_source_frame_inner(
             original_preview: None,
         });
     }
-    let artifact = &raw.artifacts[0];
+    // A provider can retain metadata alongside its image (e.g. CWA PNG+JSON).
+    // Select the unique image while preserving and verifying the full receipt.
+    verify_source_companions(raw, limits, cancellation)?;
+    let artifact = image.expect("the unique image was checked above");
     let decoded = preview_artifact(artifact, limits)?;
     if cancellation.is_some_and(CancellationToken::is_cancelled) {
         return Err(CoreError::Cancelled);
@@ -581,6 +587,72 @@ fn decode_source_frame_inner(
     };
     frame.validate().map_err(|_| display_error("gray frame failed shape validation"))?;
     Ok(GrayDecision::Applied(frame))
+}
+
+fn verify_source_companions(
+    raw: &RawFrame,
+    limits: &Limits,
+    cancellation: Option<&CancellationToken>,
+) -> CoreResult<()> {
+    use std::io::Read;
+
+    let mut names = HashSet::new();
+    let mut total = 0_u64;
+    for artifact in &raw.artifacts {
+        let receipt = &artifact.receipt;
+        if receipt.name.trim().is_empty()
+            || receipt.media_type.trim().is_empty()
+            || !names.insert(&receipt.name)
+            || receipt.size_bytes == 0
+            || receipt.sha256.len() != 64
+            || !receipt.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || receipt.sha256.bytes().any(|byte| byte.is_ascii_uppercase())
+        {
+            return Err(display_error("source artifact receipt is invalid"));
+        }
+        total = total
+            .checked_add(receipt.size_bytes)
+            .ok_or_else(|| CoreError::ResourceLimit("source frame byte count overflow".into()))?;
+        limits.validate_bytes(receipt.size_bytes, total)?;
+    }
+    for artifact in &raw.artifacts {
+        // preview_artifact verifies the selected image itself.
+        if artifact.receipt.media_type.starts_with("image/") {
+            continue;
+        }
+        let mut file = std::fs::File::open(&artifact.path)
+            .map_err(|_| display_error("source companion artifact could not be read"))?;
+        if !file.metadata().is_ok_and(|metadata| {
+            metadata.is_file() && metadata.len() == artifact.receipt.size_bytes
+        }) {
+            return Err(display_error("source companion artifact does not match its receipt"));
+        }
+        let mut digest = Sha256::new();
+        let mut count = 0_u64;
+        let mut buffer = [0_u8; 64 * 1024];
+        loop {
+            if cancellation.is_some_and(CancellationToken::is_cancelled) {
+                return Err(CoreError::Cancelled);
+            }
+            let read = file
+                .read(&mut buffer)
+                .map_err(|_| display_error("source companion artifact could not be read"))?;
+            if read == 0 {
+                break;
+            }
+            count += read as u64;
+            if count > artifact.receipt.size_bytes {
+                return Err(display_error("source companion artifact does not match its receipt"));
+            }
+            digest.update(&buffer[..read]);
+        }
+        if count != artifact.receipt.size_bytes
+            || hex::encode(digest.finalize()) != artifact.receipt.sha256
+        {
+            return Err(display_error("source companion artifact does not match its receipt"));
+        }
+    }
+    Ok(())
 }
 
 fn preserved_quality(rgba: &[u8], pixels: usize) -> (Vec<u16>, Vec<u16>, Vec<u8>) {

@@ -94,7 +94,7 @@ RDCAP 在同一 Engine 生命周期内保留上游设置的匿名会话 cookie�
 | `sg` | 新加坡 NEA | 已实测并对照官方 API | **支持有序降雨强度类别**；不提供定量 mm/h |
 | `th` | 泰国 TMD | 已实测 | 原始 GIF；时次、色标与几何待验证 |
 | `th_royalrain` | 泰国 Royal Rainmaking | 曾实测；近期请求失败 | 原始资料；色标与原生几何待验证 |
-| `tw` | 台湾 CWA | 已实测 | **`grid` 支持原生 TWD67 数值 dBZ**；`observation` PNG 仅原始获取，色标与像素定位待验证 |
+| `tw` | 台湾 CWA | 已实测 | **`grid` 支持原生 TWD67 数值 dBZ**；`observation` 支持原图、gray 与 005 约定编码对应的像素 dBZ；PNG+JSON 解码已有离线回归，独立物理色标、像素定位和在线 dBZ 验收仍待验证 |
 | `tw-http` | 台湾 CWA HTTP 图片 | 已实测 | 原始图像；色标与原生几何待验证 |
 | `uk` | 英国 Met Office DataPoint | 上游已停运（保留例外） | 不支持在线获取 |
 | `vn` | 越南 Hymetnet CMAX | 已实测 | 原始资料；色标与原生几何待验证 |

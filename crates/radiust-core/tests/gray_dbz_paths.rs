@@ -91,6 +91,81 @@ fn rgb_codes(rgba: &[u8]) -> impl Iterator<Item = u8> + '_ {
     rgba.chunks_exact(4).map(|pixel| pixel[0])
 }
 
+fn raw_with_companion() -> RawFrame {
+    let entry = manifest()["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["path_id"] == "ca/rain")
+        .unwrap()
+        .clone();
+    let mut raw = raw_from_entry(&entry);
+    let bytes = b"{\"provider_metadata\":true}";
+    let mut file = tempfile::NamedTempFile::new().unwrap();
+    file.write_all(bytes).unwrap();
+    raw.artifacts.insert(
+        0,
+        RawArtifact {
+            receipt: ArtifactReceipt {
+                name: "metadata.json".into(),
+                media_type: "application/json".into(),
+                size_bytes: bytes.len() as u64,
+                sha256: hex::encode(Sha256::digest(bytes)),
+            },
+            path: file.into_temp_path(),
+        },
+    );
+    raw
+}
+
+#[test]
+fn source_gray_selects_the_unique_image_and_preserves_all_receipts() {
+    let raw = raw_with_companion();
+    let receipt = raw.public_receipt();
+    let GrayDecision::Applied(gray) = gray::decode_source_frame(&raw, &Limits::default()).unwrap()
+    else {
+        panic!("image following its companion was not selected");
+    };
+    let radiust_core::raster::RasterInput::Source { acquisition_receipt, .. } = &gray.input else {
+        panic!("source receipt was lost");
+    };
+    assert_eq!(acquisition_receipt, &receipt);
+}
+
+#[test]
+fn source_gray_rejects_missing_or_ambiguous_images() {
+    let mut raw = raw_with_companion();
+    raw.artifacts[0].receipt.media_type = "image/png".into();
+    assert!(matches!(
+        gray::decode_source_frame(&raw, &Limits::default()).unwrap(),
+        GrayDecision::Unavailable { .. }
+    ));
+    raw.artifacts[0].receipt.media_type = "application/json".into();
+    raw.artifacts[1].receipt.media_type = "application/json".into();
+    assert!(matches!(
+        gray::decode_source_frame(&raw, &Limits::default()).unwrap(),
+        GrayDecision::Unavailable { .. }
+    ));
+}
+
+#[test]
+fn source_gray_checks_companion_integrity_and_total_frame_budget() {
+    let raw = raw_with_companion();
+    let limits =
+        Limits { max_frame_bytes: raw.artifacts[1].receipt.size_bytes, ..Limits::default() };
+    assert!(matches!(
+        gray::decode_source_frame(&raw, &limits),
+        Err(radiust_core::errors::CoreError::ResourceLimit(_))
+    ));
+    // Corruption of the same length must fail the SHA check, not be silently ignored.
+    std::fs::write(
+        &raw.artifacts[0].path,
+        vec![b' '; raw.artifacts[0].receipt.size_bytes as usize],
+    )
+    .unwrap();
+    assert!(gray::decode_source_frame(&raw, &Limits::default()).is_err());
+}
+
 #[test]
 fn all_fifteen_passed_paths_match_gray_goldens_and_decode_with_rule_provenance() {
     let root = repo_root();

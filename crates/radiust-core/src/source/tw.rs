@@ -910,6 +910,62 @@ mod tests {
         }
     }
 
+    fn raw_observation() -> RawFrame {
+        let metadata = parse_observation_metadata(OBSERVATION_JSON).unwrap();
+        let mut artifacts = Vec::new();
+        // Preserve the acquisition contract: the PNG is accompanied by its JSON.
+        for (name, media_type, bytes) in [
+            ("O-A0058-005.png", "image/png", OBSERVATION_PNG),
+            ("O-A0058-005.json", "application/json", OBSERVATION_JSON),
+        ] {
+            let staging = tempfile::NamedTempFile::new().unwrap();
+            std::fs::write(staging.path(), bytes).unwrap();
+            artifacts.push(RawArtifact {
+                receipt: ArtifactReceipt {
+                    name: name.into(),
+                    media_type: media_type.into(),
+                    size_bytes: bytes.len() as u64,
+                    sha256: hex::encode(Sha256::digest(bytes)),
+                },
+                path: staging.into_temp_path(),
+            });
+        }
+        RawFrame { frame: observation_frame(&metadata).unwrap(), artifacts, private_locator: None }
+    }
+
+    #[tokio::test]
+    async fn observation_gray_and_dbz_accept_acquired_png_and_metadata() {
+        let raw = Arc::new(raw_observation());
+        let receipt = raw.public_receipt();
+        let engine = crate::engine::Engine::new(
+            crate::config::CoreConfig::default(),
+            crate::source::SourceRegistry::with_builtins(),
+        )
+        .unwrap();
+        let gray = engine.decode_gray(raw.clone()).await.unwrap();
+        let crate::raster::GrayDecision::Applied(gray) = gray else {
+            panic!("acquired TW observation gray rule was not applied");
+        };
+        let result = engine.decode_dbz(raw).await.unwrap();
+        assert_eq!(result.mode_info.actual.as_deref(), Some("dbz"));
+        assert_eq!(result.mode_info.units.as_deref(), Some("dBZ"));
+        assert_eq!(result.mode_info.geolocation.as_deref(), Some("unknown"));
+        let crate::raster::RasterInput::Source { acquisition_receipt, .. } = &result.input else {
+            panic!("TW observation lost its acquisition receipt");
+        };
+        assert_eq!(acquisition_receipt, &receipt);
+        let crate::raster::RasterResultData::Pixel(field) = &result.data else {
+            panic!("TW observation must retain pixel-space output");
+        };
+        assert_eq!((field.width, field.height), (3600, 3600));
+        assert_eq!(field.quality, gray.quality);
+        for (rgba, value) in gray.rgba.chunks_exact(4).zip(&field.values) {
+            if value.is_finite() {
+                assert_eq!(*value, f32::from(rgba[0].min(224)) * (5.0 / 16.0));
+            }
+        }
+    }
+
     #[test]
     fn official_observation_metadata_and_png_dimensions_are_bound_together() {
         let metadata = parse_observation_metadata(OBSERVATION_JSON).unwrap();

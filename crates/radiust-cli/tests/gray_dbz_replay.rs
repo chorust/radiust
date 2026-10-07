@@ -111,3 +111,96 @@ fn dbz_replay_uses_source_decoder_and_keeps_format_failures_partial() {
         }
     }
 }
+
+#[test]
+fn tw_observation_dbz_replay_retains_companions_and_rejects_corruption() {
+    let temp = tempfile::tempdir().unwrap();
+    let fixture: Value =
+        serde_json::from_slice(include_bytes!("../../../tests/fixtures/sources/tw/fixture.json"))
+            .unwrap();
+    let metadata = &fixture["frames"][0];
+    assert_eq!(metadata["product"], "observation");
+    let mut frame = radiust_core::model::FrameRef {
+        source: "tw".into(),
+        product: "observation".into(),
+        station: Some(metadata["station"].as_str().unwrap().into()),
+        valid_time: metadata["valid_time"].as_str().unwrap().into(),
+        base_time: None,
+        logical_id: String::new(),
+        revision: Some(metadata["revision"].as_str().unwrap().into()),
+        locator_version: metadata["locator_version"].as_str().unwrap().into(),
+        locator: json!({"url": metadata["uri"]}),
+    };
+    frame.logical_id = radiust_core::identity::logical_id(&frame).unwrap();
+    let raw = temp.path().join("raw");
+    std::fs::create_dir_all(&raw).unwrap();
+    let mut artifacts = Vec::new();
+    for (name, media_type, bytes) in [
+        (
+            "O-A0058-005.png",
+            "image/png",
+            include_bytes!("../../../tests/fixtures/sources/tw/raw/O-A0058-005.png").as_slice(),
+        ),
+        (
+            "O-A0058-005.json",
+            "application/json",
+            include_bytes!("../../../tests/fixtures/sources/tw/raw/O-A0058-005.json").as_slice(),
+        ),
+    ] {
+        std::fs::write(raw.join(name), bytes).unwrap();
+        artifacts.push(json!({
+            "name": name, "media_type": media_type, "role": "data",
+            "size_bytes": bytes.len(), "sha256": format!("{:x}", sha2::Sha256::digest(bytes)),
+        }));
+    }
+    let manifest = temp.path().join("raw-manifest.json");
+    std::fs::write(
+        &manifest,
+        serde_json::to_vec(&json!({
+            "schema_version": 1, "raw_complete": true,
+            "ref": radiust_core::identity::safe_ref(&frame).unwrap(),
+            "artifacts": artifacts, "metadata": {},
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let config = temp.path().join("radiust.yml");
+    std::fs::write(
+        &config,
+        format!(
+            "cache:\n  enabled: false\nruntime:\n  allow_network: false\n  temp_root: {}\n",
+            serde_json::to_string(temp.path().join("stage").to_str().unwrap()).unwrap()
+        ),
+    )
+    .unwrap();
+    let run = || {
+        Command::new(env!("CARGO_BIN_EXE_radiust"))
+            .arg("--conf")
+            .arg(&config)
+            .args(["--json", "replay"])
+            .arg(&manifest)
+            .arg("--output")
+            .arg(temp.path().join("output"))
+            .args(["--format", "netcdf", "--dbz"])
+            .output()
+            .unwrap()
+    };
+    let output = run();
+    assert!(
+        output.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["mode_info"]["actual"], "dbz");
+    assert_eq!(report["mode_info"]["method"], "verified_source_gray_dbz");
+    assert_eq!(report["counts"]["written"], 1);
+    // A retained companion cannot be silently ignored during offline replay.
+    std::fs::write(raw.join("O-A0058-005.json"), b"{}").unwrap();
+    let output = run();
+    assert!(!output.status.success());
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["error"]["code"], "integrity");
+    assert!(report["mode_info"]["actual"].is_null());
+}
