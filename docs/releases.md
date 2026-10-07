@@ -2,6 +2,12 @@
 
 `.github/workflows/release.yml` 在推送 `vMAJOR.MINOR.PATCH` tag 时执行。tag 必须包含这套发布代码；仅接受三段稳定版本号，不接受前导零、预发布或任意分支名。版本 `0.x` 仍可作为明确标注能力范围的预览版，不代表所有来源或迁移规格已经验收。
 
+## v0.1.6 RDCAP 站点 ID
+
+本版本将 RDCAP 对外站点 ID 统一为两字母国家前缀加上游站码，例如 `TWN/RCHL` → `TWRCHL`、`JPN/MAKI` → `JPMAKI`、`PHL/SUBI` → `PHSUBI`。CLI、SDK、目录、帧身份和输出路径使用新格式；上游请求及元数据中的三字母国家代码保持不变。旧的含斜杠 ID 不再接受，短站码仍只在目录中唯一时解析。该变化不代表新增在线来源能力。
+
+针对性检查通过：32 个 Rust RDCAP 单元测试、42 个 RDCAP contract/source-matrix 测试、12 个 CLI 测试和 43 个 Python 测试。站点目录和输出格式验证仅覆盖离线样本及 loopback 合同，不代表公开上游验收。一次较早验证的原始结果保留在 [`rdcap-station-ids-20261007.json`](../validation-results/rdcap-station-ids-20261007.json)，包括当时两项 `tw/observation` 回归失败；后续测试已按当前行为更新并通过。
+
 ## v0.1.5 RDCAP 修复
 
 本补丁新增 RDCAP 的显式 TLS 校验例外 `sources.rdcap.insecure_tls: true`（默认仍校验证书），并保留匿名会话 cookie，使申请索引与读取文件票据使用同一内存会话。配置例外仅适用于 RDCAP HTTPS 主机，其他来源与主机保持正常证书校验；不输出该配置的 warning，网络 opt-in、请求限额、超时、取消与票据重试规则保持不变。
@@ -31,8 +37,8 @@
 将代码和工作流合入需要发布的提交后，创建新的未使用版本 tag，例如：
 
 ```bash
-git tag -a v0.1.6 -m "Radiust 0.1.6"
-git push origin v0.1.6
+git tag -a v0.1.7 -m "Radiust 0.1.7"
+git push origin v0.1.7
 ```
 
 发布新版本时将 `git push` 命令中的 tag 与上方示例保持一致。`0.1.1` 首次发布使用本地凭据；`0.1.2` 的 crate 由 GitHub 发布、wheel 因 Trusted Publisher 不匹配而使用本地凭据发布。后续自动发布应使用新版本，不能用 CI 重建产物覆盖同版本。已有 GitHub `v0.1.0` 预览资产不应移动旧 tag 来替换其内容。
@@ -57,7 +63,7 @@ GitHub Actions 的 `release` 工作流支持手动运行：填写含有发布工
 本地可先生成快照并在离线依赖已缓存的环境中检查：
 
 ```bash
-python3 scripts/release/prepare.py --tag v0.1.6 --output /tmp/radiust-release-source
+python3 scripts/release/prepare.py --tag v0.1.7 --output /tmp/radiust-release-source
 python3 scripts/release/verify_crates.py --source /tmp/radiust-release-source \
   --output /tmp/radiust-release-artifacts --offline
 ```

@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-07",
+  "source": "rdcap",
+  "change": "public station IDs use TW/JP/PH prefixes without a slash",
+  "examples": {
+    "TWN/RCHL": "TWRCHL",
+    "JPN/MAKI": "JPMAKI",
+    "PHL/SUBI": "PHSUBI"
+  },
+  "scope": "offline fixtures and loopback contracts only; no public upstream validation",
+  "upstream_country_codes": [
+    "TWN",
+    "JPN",
+    "PHL"
+  ],
+  "historical_reports": "retain the station IDs used at the time of validation",
+  "checks": {
+    "rust_rdcap_unit_tests": {
+      "command": "cargo test --offline -p radiust-core --lib rdcap",
+      "passed": 32
+    },
+    "directory_name_merge": {
+      "command": "cargo test --offline -p radiust-core --lib directory_merge_separates_live_state_from_retained_snapshot_provenance",
+      "passed": 1
+    },
+    "rust_contracts": {
+      "command": "RADIUST_RDCAP_FORMATS_OUT=<fresh temporary directory> cargo test --offline -p radiust-core --test rdcap_contract --test source_matrix",
+      "rdcap_passed": 32,
+      "source_matrix_passed": 10
+    },
+    "cli": {
+      "command": "cargo test --offline -p radiust-cli --test rdcap --test native_e2e",
+      "passed": 12
+    },
+    "python": {
+      "command": ".venv/bin/python -m pytest -q tests/contract/test_rdcap_models.py tests/test_rdcap_sdk.py tests/integration/test_gray_dbz_sdk.py",
+      "passed": 29,
+      "failed": 2,
+      "failures": [
+        {
+          "test": "test_sync_and_async_dbz_download_keep_partial_results_in_input_order",
+          "detail": "expects tw/observation to fail; actual written count is 2 instead of 1"
+        },
+        {
+          "test": "test_blocked_tw_image_cannot_be_returned_as_dbz_or_raw_success",
+          "detail": "expects tw/observation DecodeError; current decoder succeeds"
+        }
+      ],
+      "rdcap_failures": 0
+    },
+    "independent_readback": {
+      "command": "RADIUST_RDCAP_FORMATS_OUT=<same fresh temporary directory> .venv/bin/python -m pytest -q tests/test_rdcap_formats.py",
+      "passed": 1,
+      "formats": [
+        "png",
+        "netcdf",
+        "geotiff",
+        "zarr"
+      ]
+    },
+    "catalogs": {
+      "status": "passed",
+      "rust_python_resources_identical": true,
+      "unique_stations": 48,
+      "JPMAKI_present": true,
+      "station_ids_contain_slashes": false
+    },
+    "format_and_lint": {
+      "status": "passed",
+      "checks": [
+        "cargo fmt --all -- --check",
+        "ruff check on changed Python files",
+        "git diff --check"
+      ]
+    }
+  },
+  "validation_harness_notes": [
+    "The installed Python native extension was rebuilt before testing the new IDs.",
+    "Combining SDK tests with RADIUST_RDCAP_FORMATS_OUT caused unknown environment configuration key errors; SDK tests and independent format readback were rerun separately.",
+    "Reusing an earlier formats output directory produced Skipped instead of Written; the full Rust contract suite was rerun successfully with a fresh directory."
+  ]
+}

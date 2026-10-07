@@ -290,7 +290,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/AKIT",
+        "station": "JPAKIT",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -306,7 +306,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/FUNC",
+        "station": "JPFUNC",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -322,7 +322,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/HAIG",
+        "station": "JPHAIG",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -338,7 +338,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/HAKO",
+        "station": "JPHAKO",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -354,7 +354,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/ISHI",
+        "station": "JPISHI",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -370,7 +370,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/ITOK",
+        "station": "JPITOK",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -386,7 +386,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/KASH",
+        "station": "JPKASH",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -402,7 +402,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/KURU",
+        "station": "JPKURU",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -418,7 +418,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/KUSH",
+        "station": "JPKUSH",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -434,7 +434,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/MAKI",
+        "station": "JPMAKI",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -450,7 +450,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/MISA",
+        "station": "JPMISA",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -466,7 +466,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/MURO",
+        "station": "JPMURO",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -482,7 +482,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/NAGO",
+        "station": "JPNAGO",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -498,7 +498,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/SAPP",
+        "station": "JPSAPP",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -514,7 +514,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/SEFU",
+        "station": "JPSEFU",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -530,7 +530,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/SEND",
+        "station": "JPSEND",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -546,7 +546,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/TAKA",
+        "station": "JPTAKA",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -562,7 +562,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/TANE",
+        "station": "JPTANE",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -578,7 +578,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/TOJI",
+        "station": "JPTOJI",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -594,7 +594,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "JPN/YAHI",
+        "station": "JPYAHI",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -610,7 +610,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/APAR",
+        "station": "PHAPAR",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -626,7 +626,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/BAGU",
+        "station": "PHBAGU",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -642,7 +642,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/BALE",
+        "station": "PHBALE",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -658,7 +658,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/BASC",
+        "station": "PHBASC",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -674,7 +674,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/BOHO",
+        "station": "PHBOHO",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -690,7 +690,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/DAET",
+        "station": "PHDAET",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -706,7 +706,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/GUIU",
+        "station": "PHGUIU",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -722,7 +722,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/HINA",
+        "station": "PHHINA",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -738,7 +738,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/ILOI",
+        "station": "PHILOI",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -754,7 +754,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/MACT",
+        "station": "PHMACT",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -770,7 +770,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/QUEZ",
+        "station": "PHQUEZ",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -786,7 +786,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/SUBI",
+        "station": "PHSUBI",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -802,7 +802,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/TAGA",
+        "station": "PHTAGA",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -818,7 +818,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/TAMP",
+        "station": "PHTAMP",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -834,7 +834,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "PHL/VIRA",
+        "station": "PHVIRA",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -850,7 +850,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCAA",
+        "station": "TWRCAA",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -866,7 +866,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCCG",
+        "station": "TWRCCG",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -882,7 +882,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCCK",
+        "station": "TWRCCK",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -898,7 +898,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCCU",
+        "station": "TWRCCU",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -914,7 +914,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCGI",
+        "station": "TWRCGI",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -930,7 +930,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCHL",
+        "station": "TWRCHL",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -946,7 +946,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCKT",
+        "station": "TWRCKT",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -962,7 +962,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCLY",
+        "station": "TWRCLY",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -978,7 +978,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCMD",
+        "station": "TWRCMD",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -994,7 +994,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCMK",
+        "station": "TWRCMK",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -1010,7 +1010,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCNT",
+        "station": "TWRCNT",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -1026,7 +1026,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCSL",
+        "station": "TWRCSL",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,
@@ -1042,7 +1042,7 @@
       {
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCWF",
+        "station": "TWRCWF",
         "status": "network_restricted",
         "valid_time": null,
         "frame": null,

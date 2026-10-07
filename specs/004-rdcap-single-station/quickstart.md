@@ -1,6 +1,6 @@
 # RDCAP 验证与使用指南
 
-本指南记录当前已实现的离线目录、SDK、解码、输出与验证器，以及仍未通过的在线验收门槛。离线重建样本和合同测试不代表三国实时服务已验收。2026-10-01 的标准 TLS SDK 实测中，TWN/RCHL、JPN/ISHI、PHL/SUBI 均在 discovery 阶段返回可重试的 `catalog_unavailable`；没有请求文件 ticket，也没有 raw 产物。T028、T053 保持未勾选，SC-003 为 `not_verified`。安全摘要见 [在线尝试记录](../../validation-results/rdcap-live-attempt-20261001.json)；离线验证摘要见 [离线记录](../../validation-results/rdcap-offline-20261001.json)。
+本指南记录当前已实现的离线目录、SDK、解码、输出与验证器，以及仍未通过的在线验收门槛。离线重建样本和合同测试不代表三国实时服务已验收。2026-10-01 的标准 TLS SDK 实测中，TWN/RCHL、JPN/ISHI、PHL/SUBI（当时使用的旧站点 ID） 均在 discovery 阶段返回可重试的 `catalog_unavailable`；没有请求文件 ticket，也没有 raw 产物。T028、T053 保持未勾选，SC-003 为 `not_verified`。安全摘要见 [在线尝试记录](../../validation-results/rdcap-live-attempt-20261001.json)；离线验证摘要见 [离线记录](../../validation-results/rdcap-offline-20261001.json)。
 
 ## 当前可运行的离线检查
 
@@ -35,7 +35,7 @@ python scripts/validation/probe_rdcap.py --country PHL --station SUBI --decode-f
 import radiust
 
 query = radiust.Query(
-    "rdcap", product="reflectivity", stations=("TWN/RCHL",), latest=True
+    "rdcap", product="reflectivity", stations=("TWRCHL",), latest=True
 )
 with radiust.Client(config={"runtime": {"allow_network": True}}) as client:
     report = client.discover_report(query)
@@ -80,7 +80,7 @@ target/debug/radiust replay ./data/frames/<logical-frame-id>/raw-manifest.json \
 
 RDCAP 默认 palette 为 `rdcap-reflectivity-v1`，含 15 个 5–75 dBZ 下界包含档，最后一档也包含所有 ≥75 dBZ 值；低于 5 dBZ 的有限 field 值仍有效，但显示透明。缺测与 annotation 也透明。科学 preview 和 PNG writer 共用规则，PNG sidecar 带 palette、规则、decoder 和 geometry 身份。PNG 只供显示，连续科学值应使用 NetCDF、GeoTIFF 或 Zarr。
 
-`output_template` 只作用于解码格式，支持 `{source}`、`{product}`、`{station}`、`{valid_time}`、`{base_time}`、`{date}`、`{hour}`、`{variant_id}`、`{ext}`。本地模板必须保持在输出根目录内并生成相对路径；RDCAP 的 `{station}` 将 `TWN/RCHL` 编码成单个路径分量 `TWN%2FRCHL`。绝对路径、越界路径会拒绝；raw-only 不支持 output template。非空 `encoder_options` 尚不支持。
+`output_template` 只作用于解码格式，支持 `{source}`、`{product}`、`{station}`、`{valid_time}`、`{base_time}`、`{date}`、`{hour}`、`{variant_id}`、`{ext}`。本地模板必须保持在输出根目录内并生成相对路径；RDCAP 的 `{station}` 直接使用无斜杠站点 ID（例如 `TWRCHL`）。绝对路径、越界路径会拒绝；raw-only 不支持 output template。非空 `encoder_options` 尚不支持。
 
 ## 在线验收入口与状态
 
@@ -92,13 +92,13 @@ runtime:
   allow_network: true
 YAML
 
-target/debug/radiust --conf /tmp/rdcap-live.yaml --json discover rdcap --station TWN/RCHL --latest
-target/debug/radiust --conf /tmp/rdcap-live.yaml --json discover rdcap --station JPN/ISHI --latest
-target/debug/radiust --conf /tmp/rdcap-live.yaml --json discover rdcap --station PHL/SUBI --latest
+target/debug/radiust --conf /tmp/rdcap-live.yaml --json discover rdcap --station TWRCHL --latest
+target/debug/radiust --conf /tmp/rdcap-live.yaml --json discover rdcap --station JPISHI --latest
+target/debug/radiust --conf /tmp/rdcap-live.yaml --json discover rdcap --station PHSUBI --latest
 
-target/debug/radiust --conf /tmp/rdcap-live.yaml --json download rdcap --station TWN/RCHL --latest --raw-only --output /tmp/rdcap-validation/live-raw/TWN
-target/debug/radiust --conf /tmp/rdcap-live.yaml --json download rdcap --station JPN/ISHI --latest --raw-only --output /tmp/rdcap-validation/live-raw/JPN
-target/debug/radiust --conf /tmp/rdcap-live.yaml --json download rdcap --station PHL/SUBI --latest --raw-only --output /tmp/rdcap-validation/live-raw/PHL
+target/debug/radiust --conf /tmp/rdcap-live.yaml --json download rdcap --station TWRCHL --latest --raw-only --output /tmp/rdcap-validation/live-raw/TWN
+target/debug/radiust --conf /tmp/rdcap-live.yaml --json download rdcap --station JPISHI --latest --raw-only --output /tmp/rdcap-validation/live-raw/JPN
+target/debug/radiust --conf /tmp/rdcap-live.yaml --json download rdcap --station PHSUBI --latest --raw-only --output /tmp/rdcap-validation/live-raw/PHL
 ```
 
 这些是现有 `radiust` 子命令和参数；它们是验收操作说明，不代表命令已经成功执行。记录实际日期、CLI build、country/station/valid time、raw 摘要、manifest 和请求尝试数。某个代表站没有数据时只换同一国家的站点；不要用另一个国家或离线 fixture 补齐。

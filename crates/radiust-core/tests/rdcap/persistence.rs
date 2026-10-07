@@ -31,7 +31,7 @@ fn rdcap_frame() -> FrameRef {
     let mut frame = FrameRef {
         source: "rdcap".into(),
         product: "reflectivity".into(),
-        station: Some("TWN/RCHL".into()),
+        station: Some("TWRCHL".into()),
         valid_time: "2026-10-01T06:05:08.000000Z".into(),
         base_time: None,
         logical_id: String::new(),
@@ -53,7 +53,7 @@ fn write_rdcap_manifest(root: &Path) -> PathBuf {
         schema_version: 1,
         source: "rdcap",
         product: "reflectivity",
-        station: "TWN/RCHL",
+        station: "TWRCHL",
         country: "TWN",
         station_code: "RCHL",
         key: KEY,

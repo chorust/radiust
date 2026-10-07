@@ -16,7 +16,7 @@ from radiust.identity import safe_ref
 class NativeFrame:
     source = "rdcap"
     product = "reflectivity"
-    station = "TWN/RCHL"
+    station = "TWRCHL"
     logical_id = "a" * 64
     revision = None
 
@@ -46,7 +46,7 @@ class NativeReport:
                     "source": "rdcap",
                     "sources": [],
                     "product": "reflectivity",
-                    "stations": ["TWN/RCHL"],
+                    "stations": ["TWRCHL"],
                     "selector": {"kind": "latest"},
                     "max_age_secs": None,
                 },
@@ -56,14 +56,14 @@ class NativeReport:
                         "target": {
                             "source": "rdcap",
                             "product": "reflectivity",
-                            "station": "TWN/RCHL",
+                            "station": "TWRCHL",
                         },
                         "status": "success",
                         "valid_time": "2026-10-01T06:05:08.000000Z",
                         "frame": {
                             "source": "rdcap",
                             "product": "reflectivity",
-                            "station": "TWN/RCHL",
+                            "station": "TWRCHL",
                             "valid_time": "2026-10-01T06:05:08.000000Z",
                             "base_time": None,
                         },
@@ -86,14 +86,14 @@ class MixedNativeReport(NativeReport):
         document["items"].extend(
             [
                 {
-                    "target": {"source": "rdcap", "product": "reflectivity", "station": "JPN/ISHI"},
+                    "target": {"source": "rdcap", "product": "reflectivity", "station": "JPISHI"},
                     "status": "no_data",
                     "valid_time": None,
                     "frame": None,
                     "error": None,
                 },
                 {
-                    "target": {"source": "rdcap", "product": "reflectivity", "station": "PHL/SUBI"},
+                    "target": {"source": "rdcap", "product": "reflectivity", "station": "PHSUBI"},
                     "status": "upstream_failed",
                     "valid_time": None,
                     "frame": None,
@@ -196,14 +196,14 @@ def test_discovery_report_keeps_frame_handle_private_and_serialization_safe(
 ) -> None:
     config = EffectiveConfig(values={}, origins={})
     with Client(config=config) as client:
-        report = client.discover_report(Query("rdcap", stations=("TWN/RCHL",), latest=True))
+        report = client.discover_report(Query("rdcap", stations=("TWRCHL",), latest=True))
         frame = report.frame(0)
         assert frame.source == "rdcap"
         assert report.counts["success"] == 1
         serialized = report.to_json()
         assert "private-ticket" not in serialized
         assert "locator" not in serialized
-        assert report.as_dict()["items"][0]["frame"]["station"] == "TWN/RCHL"
+        assert report.as_dict()["items"][0]["frame"]["station"] == "TWRCHL"
 
 
 @pytest.mark.asyncio
@@ -212,8 +212,8 @@ async def test_async_discovery_and_manifest_replay_use_the_same_native_engine(
 ) -> None:
     config = EffectiveConfig(values={}, origins={})
     async with AsyncClient(config=config) as client:
-        report = await client.discover_report(Query("rdcap", stations=("TWN/RCHL",), latest=True))
-        assert report.frame(0).station == "TWN/RCHL"
+        report = await client.discover_report(Query("rdcap", stations=("TWRCHL",), latest=True))
+        assert report.frame(0).station == "TWRCHL"
         assert await client.replay_raw_manifest("raw-manifest.json") is client._session.field
 
 
@@ -236,7 +236,7 @@ def test_fetch_many_collect_keeps_partial_discovery_report_and_successful_frame(
 
     assert len(result.items) == 1
     assert result.items[0].status == "success"
-    assert result.items[0].ref.station == "TWN/RCHL"
+    assert result.items[0].ref.station == "TWRCHL"
     assert result.discovery_report is not None
     assert result.discovery_counts["success"] == 1
     assert result.discovery_counts["no_data"] == 1
@@ -261,7 +261,7 @@ def test_fetch_many_raise_keeps_discovery_failures_and_native_frame_handle(
     success_index = next(
         index for index, item in enumerate(partial.discovery_report.items) if item.status == "success"
     )
-    assert partial.discovery_report.frame(success_index).station == "TWN/RCHL"
+    assert partial.discovery_report.frame(success_index).station == "TWRCHL"
     assert client._session.fetch_many_calls == 0
 
 
@@ -273,7 +273,7 @@ async def test_async_fetch_many_keeps_discovery_report(fake_native_session: None
 
     assert result.discovery_counts["total"] == 3
     assert len(result.items) == 1
-    assert result.items[0].ref.station == "TWN/RCHL"
+    assert result.items[0].ref.station == "TWRCHL"
 
 
 def test_raw_context_closes_raw_while_decoded_field_remains_usable(
@@ -281,7 +281,7 @@ def test_raw_context_closes_raw_while_decoded_field_remains_usable(
 ) -> None:
     config = EffectiveConfig(values={}, origins={})
     with Client(config=config) as client:
-        ref = client.discover_report(Query("rdcap", stations=("TWN/RCHL",), latest=True)).frame(0)
+        ref = client.discover_report(Query("rdcap", stations=("TWRCHL",), latest=True)).frame(0)
         with client.acquire(ref) as raw:
             field = client.decode(raw)
         assert raw.closed
@@ -312,7 +312,7 @@ def _rdcap_frame_ref() -> FrameRef:
         "rdcap",
         "reflectivity",
         datetime(2026, 10, 1, 6, 5, 8, tzinfo=timezone.utc),
-        station="TWN/RCHL",
+        station="TWRCHL",
         locator_version="rdcap-csr-v1",
     )
 
@@ -347,7 +347,7 @@ async def test_async_client_writes_an_independent_rdcap_field(tmp_path) -> None:
 
 
 def _write_rdcap_raw_manifest(root: Path) -> FrameRef:
-    station = "TWN/RCHL"
+    station = "TWRCHL"
     key = "1790834708000"
     valid_time = datetime.fromtimestamp(int(key) / 1000, tz=timezone.utc)
     payload = (Path(__file__).parent / "fixtures/sources/rdcap/TWN/RCHL/file-response.reconstructed.json").read_bytes()
@@ -553,7 +553,7 @@ def test_same_raw_frame_matches_cli_sync_and_async_decoded_outputs(tmp_path: Pat
 async def test_async_raw_context_closes_raw_and_keeps_field(fake_native_session: None) -> None:
     config = EffectiveConfig(values={}, origins={})
     async with AsyncClient(config=config) as client:
-        ref = (await client.discover_report(Query("rdcap", stations=("TWN/RCHL",), latest=True))).frame(0)
+        ref = (await client.discover_report(Query("rdcap", stations=("TWRCHL",), latest=True))).frame(0)
         async with client.acquire(ref) as raw:
             field = await client.decode(raw)
         assert raw.closed
@@ -568,6 +568,6 @@ def test_sync_iter_fetch_uses_the_discovered_rdcap_frame(fake_native_session: No
             values = list(stream)
 
     assert len(values) == 1
-    assert values[0].ref.station == "TWN/RCHL"
+    assert values[0].ref.station == "TWRCHL"
     assert values[0].status == "success"
     assert values[0].data is client._session.field

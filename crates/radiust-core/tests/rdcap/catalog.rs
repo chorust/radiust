@@ -27,7 +27,10 @@ fn builtin_catalog_has_a_deduplicated_48_station_rdcap_snapshot() {
         let count = source
             .stations
             .iter()
-            .filter(|station| station.id.starts_with(&format!("{country}/")))
+            .filter(|station| {
+                station.metadata.as_ref().and_then(|metadata| metadata.country.as_deref())
+                    == Some(country)
+            })
             .count();
         assert_eq!(count, expected, "{country}");
         assert_eq!(
@@ -42,9 +45,10 @@ fn builtin_catalog_has_a_deduplicated_48_station_rdcap_snapshot() {
     assert!(targets.iter().all(|target| target.product.as_deref() == Some("reflectivity")));
     assert!(targets.iter().all(|target| {
         target.station.as_deref().is_some_and(|station| {
-            station.starts_with("TWN/")
-                || station.starts_with("JPN/")
-                || station.starts_with("PHL/")
+            !station.contains('/')
+                && (station.starts_with("TW")
+                    || station.starts_with("JP")
+                    || station.starts_with("PH"))
         })
     }));
 }
@@ -53,7 +57,7 @@ fn builtin_catalog_has_a_deduplicated_48_station_rdcap_snapshot() {
 fn bale_status_conflict_and_unverified_science_limits_are_preserved() {
     let catalog = SourceCatalog::builtin().unwrap();
     let source = catalog.source("rdcap").unwrap();
-    let bale = source.stations.iter().find(|station| station.id == "PHL/BALE").unwrap();
+    let bale = source.stations.iter().find(|station| station.id == "PHBALE").unwrap();
     assert_eq!(bale.name, "Baler");
     let metadata = bale.metadata.as_ref().unwrap();
     assert_eq!(metadata.extensions["directory_record_ids"], serde_json::json!(["3004", "5031"]));
@@ -63,7 +67,7 @@ fn bale_status_conflict_and_unverified_science_limits_are_preserved() {
     );
     let conflict =
         metadata.directory_conflicts.iter().find(|conflict| conflict.field == "Status").unwrap();
-    assert_eq!(conflict.station_id, "PHL/BALE");
+    assert_eq!(conflict.station_id, "PHBALE");
     assert_eq!(conflict.values, vec![serde_json::json!("Inactive"), serde_json::json!("Active")]);
 
     let product = &source.products[0];
@@ -151,8 +155,8 @@ fn engine_with_adapter(mut config: CoreConfig, adapter: DirectoryAdapter) -> Eng
 #[tokio::test]
 async fn engine_refreshes_once_merges_new_and_snapshot_stations_and_normalizes_short_codes() {
     let adapter = directory_adapter(vec![
-        live_station("PHL/NEW1", "New Radar"),
-        live_station("TWN/RCHL", "RCHL"),
+        live_station("PHNEW1", "New Radar"),
+        live_station("TWRCHL", "RCHL"),
     ]);
     let refresh_count = adapter.refresh_count.clone();
     let discovered = adapter.discovered.clone();
@@ -180,14 +184,14 @@ async fn engine_refreshes_once_merges_new_and_snapshot_stations_and_normalizes_s
         .filter_map(|target| target.station.clone())
         .collect::<Vec<_>>();
     station_ids.sort();
-    assert_eq!(station_ids, ["PHL/NEW1", "TWN/RCHL"]);
+    assert_eq!(station_ids, ["PHNEW1", "TWRCHL"]);
 }
 
 #[tokio::test]
 async fn short_code_ambiguity_is_reported_without_dispatch() {
     let adapter = directory_adapter(vec![
-        live_station("TWN/DUP1", "Taiwan"),
-        live_station("PHL/DUP1", "Philippines"),
+        live_station("TWDUP1", "Taiwan"),
+        live_station("PHDUP1", "Philippines"),
     ]);
     let refresh_count = adapter.refresh_count.clone();
     let discovered = adapter.discovered.clone();
@@ -224,7 +228,7 @@ async fn refresh_failure_keeps_snapshot_targets_and_marks_unknown_selectors_unav
         .discover_seeded(
             Query {
                 source: Some("rdcap".into()),
-                stations: vec!["TWN/RCHL".into(), "NOPE".into()],
+                stations: vec!["TWRCHL".into(), "NOPE".into()],
                 ..Query::default()
             },
             29,
@@ -241,21 +245,21 @@ async fn refresh_failure_keeps_snapshot_targets_and_marks_unknown_selectors_unav
         [DiscoveryTarget {
             source: "rdcap".into(),
             product: Some("reflectivity".into()),
-            station: Some("TWN/RCHL".into()),
+            station: Some("TWRCHL".into()),
         }]
     );
 }
 
 #[tokio::test]
 async fn normalized_duplicate_station_selection_is_rejected() {
-    let adapter = directory_adapter(vec![live_station("TWN/RCHL", "Hua-Lien")]);
+    let adapter = directory_adapter(vec![live_station("TWRCHL", "Hua-Lien")]);
     let engine = engine_with_adapter(CoreConfig::default(), adapter);
 
     let result = engine
         .discover_seeded(
             Query {
                 source: Some("rdcap".into()),
-                stations: vec!["TWN/RCHL".into(), "RCHL".into()],
+                stations: vec!["TWRCHL".into(), "RCHL".into()],
                 ..Query::default()
             },
             31,
@@ -267,7 +271,7 @@ async fn normalized_duplicate_station_selection_is_rejected() {
 
 #[tokio::test]
 async fn catalog_refresh_consumes_the_shared_discovery_deadline() {
-    let mut adapter = directory_adapter(vec![live_station("TWN/RCHL", "Hua-Lien")]);
+    let mut adapter = directory_adapter(vec![live_station("TWRCHL", "Hua-Lien")]);
     adapter.refresh_delay = Duration::from_millis(80);
     let refresh_count = adapter.refresh_count.clone();
     let discovered = adapter.discovered.clone();
@@ -279,7 +283,7 @@ async fn catalog_refresh_consumes_the_shared_discovery_deadline() {
         .discover_seeded(
             Query {
                 source: Some("rdcap".into()),
-                stations: vec!["TWN/RCHL".into()],
+                stations: vec!["TWRCHL".into()],
                 ..Query::default()
             },
             37,
@@ -294,7 +298,7 @@ async fn catalog_refresh_consumes_the_shared_discovery_deadline() {
 
 #[tokio::test]
 async fn cancellation_interrupts_the_catalog_refresh_and_prevents_station_dispatch() {
-    let mut adapter = directory_adapter(vec![live_station("TWN/RCHL", "Hua-Lien")]);
+    let mut adapter = directory_adapter(vec![live_station("TWRCHL", "Hua-Lien")]);
     adapter.wait_for_cancel = true;
     let refresh_count = adapter.refresh_count.clone();
     let discovered = adapter.discovered.clone();
@@ -305,7 +309,7 @@ async fn cancellation_interrupts_the_catalog_refresh_and_prevents_station_dispat
             .discover_seeded(
                 Query {
                     source: Some("rdcap".into()),
-                    stations: vec!["TWN/RCHL".into()],
+                    stations: vec!["TWRCHL".into()],
                     ..Query::default()
                 },
                 41,

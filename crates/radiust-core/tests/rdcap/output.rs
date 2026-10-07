@@ -59,7 +59,7 @@ async fn reconstructed_three_country_fields_roundtrip_through_all_native_outputs
         .unwrap_or_else(|| temp.path().to_path_buf());
     std::fs::create_dir_all(&output_root).unwrap();
 
-    for station_id in ["TWN/RCHL", "JPN/ISHI", "PHL/SUBI"] {
+    for station_id in ["TWRCHL", "JPISHI", "PHSUBI"] {
         let station_root = output_root.join(station_id.replace('/', "-"));
         std::fs::create_dir_all(&station_root).unwrap();
         let raw = support::fixture_raw_frame(
@@ -182,7 +182,7 @@ async fn reconstructed_three_country_fields_roundtrip_through_all_native_outputs
         provenance: vec![
             "source=rdcap".into(),
             "product=reflectivity".into(),
-            "station=TWN/RCHL".into(),
+            "station=TWRCHL".into(),
             "frame_logical_id=offline-all-missing".into(),
             "raw_sha256=0000000000000000".into(),
         ],

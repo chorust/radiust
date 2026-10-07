@@ -20,13 +20,13 @@
 
 **兼容边界**：目录 hook 缺省返回 None，其他来源继续原路径。CatalogSource/CatalogProduct/CatalogStation及其Python DTO增加可选 `metadata` 映射，保留国家、近期查询能力、原始状态列表、冲突说明、快照日期与能力证据；不提升 JSON schema_version。Python StationInfo坐标类型允许None，RDCAP映射未知坐标为None，已有来源映射和值保持原行为，本次不顺带改写其他来源元信息。
 
-## R03 — 国家/站码与路径安全
+## R03 — 国家前缀/站码与路径安全
 
-**Decision**：RDCAP 公开 station 保持 `TWN/RCHL` 等格式。Rust 帧校验和 Python StationInfo/查询校验增加严格 RDCAP station parser；source/product/locator_version 和其他来源的标识校验继续原规则。只有单个 `/`、允许国家代码和非空 ASCII 大写字母/数字站码可通过。输出模板中的 RDCAP `{station}` 编码为 `TWN%2FRCHL`，默认哈希输出目录不变。
+**Decision（2026-10-07 更新）**：RDCAP 公开 station 使用两字母国家前缀与站码直接拼接，例如 `TWRCHL`、`JPMAKI`、`PHSUBI`，语法为 `(TW|JP|PH)[A-Z0-9]+`。Rust 和 Python 共用这一公开身份合同；上游请求及来源元数据仍使用 `TWN`、`JPN`、`PHL`。短站码仍须在完整目录中唯一匹配。旧的含斜杠选择器不再接受，历史验证报告保留当时的 ID。
 
-**Rationale**：`model.rs::valid_identifier` 和 Python `models.py` 的 StationInfo/FrameRef/DiscoveryTarget 目前拒绝 `/`；这些站点校验均须纳入同一规则。FrameRef/DiscoveryTarget用source判定；没有source字段的StationInfo通过metadata.source_id=rdcap及所属SourceInfo复核限定命名空间。`download.rs::render_output_template` 将 station 原样替换。公开身份和文件系统分量分别校验；`identity.rs` canonical JSON/hash能表示完整字符串，无需变更identity schema或其他来源hash。
+**Rationale**：公开站点 ID 与其他来源一致，不包含路径分隔符。输出模板 `{station}` 直接使用公开 ID；目录刷新和请求生成通过 RDCAP parser 还原上游国家及站码。identity schema 不变，新的 station 字符串会生成新的帧 hash。
 
-**Alternatives considered**：把公开 ID 改为 `TWN_RCHL` 违反 FR-002；全局放行任意斜杠扩大路径语义；隐式拆为目录使模板布局发生意外变化。编码只作用于已通过 RDCAP parser 的 ID，禁止目录穿越、反斜杠、控制字符及百分号别名输入。
+**历史决策**：原规格使用 `TWN/RCHL`，输出模板编码为 `TWN%2FRCHL`；本次按用户要求和更新后的 FR-002 替换。来源范围、科学能力和在线验收状态不因此改变。
 
 ## R04 — 时间线与歧义
 

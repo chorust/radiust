@@ -102,14 +102,14 @@ impl SourceAdapter for BatchAdapter {
             self.fetches.fetch_add(1, Ordering::SeqCst);
             let station = frame.station.clone().expect("RDCAP frame has a station");
             let delay = match station.as_str() {
-                "TWN/RCHL" => Duration::from_millis(60),
-                "JPN/ISHI" => Duration::from_millis(5),
-                "PHL/SUBI" => Duration::from_millis(20),
+                "TWRCHL" => Duration::from_millis(60),
+                "JPISHI" => Duration::from_millis(5),
+                "PHSUBI" => Duration::from_millis(20),
                 _ => panic!("unexpected fixture station: {station}"),
             };
             tokio::time::sleep(delay).await;
 
-            if station == "JPN/ISHI" {
+            if station == "JPISHI" {
                 self.completion_order.lock().unwrap().push(station);
                 return Err(CoreError::Transport("simulated ticket expiry".into()));
             }
@@ -146,7 +146,7 @@ fn selected_fixture_frame(station_id: &str, temp_root: &std::path::Path) -> Fram
 async fn decoded_batch_keeps_order_and_successful_country_fields_when_one_fetch_fails() {
     let root = tempfile::tempdir().unwrap();
     let temp_root = root.path().join("temporary");
-    let frames = ["TWN/RCHL", "JPN/ISHI", "PHL/SUBI"]
+    let frames = ["TWRCHL", "JPISHI", "PHSUBI"]
         .into_iter()
         .map(|station| selected_fixture_frame(station, &temp_root))
         .collect::<Vec<_>>();
@@ -169,7 +169,7 @@ async fn decoded_batch_keeps_order_and_successful_country_fields_when_one_fetch_
 
     assert_eq!((report.success, report.failed, report.cancelled, report.not_started), (2, 1, 0, 0));
     assert_eq!(adapter.fetches.load(Ordering::SeqCst), 3);
-    assert_eq!(*adapter.completion_order.lock().unwrap(), ["JPN/ISHI", "PHL/SUBI", "TWN/RCHL"]);
+    assert_eq!(*adapter.completion_order.lock().unwrap(), ["JPISHI", "PHSUBI", "TWRCHL"]);
     assert_eq!(report.items.iter().map(|item| item.input_index).collect::<Vec<_>>(), [0, 1, 2]);
     assert_eq!(
         report.items.iter().map(|item| item.frame.logical_id.clone()).collect::<Vec<_>>(),
@@ -199,7 +199,7 @@ async fn stop_policy_does_not_fetch_or_commit_frames_after_the_first_failure() {
     let root = tempfile::tempdir().unwrap();
     let temp_root = root.path().join("temporary");
     let output_root = root.path().join("output");
-    let frames = ["JPN/ISHI", "TWN/RCHL", "PHL/SUBI"]
+    let frames = ["JPISHI", "TWRCHL", "PHSUBI"]
         .into_iter()
         .map(|station| selected_fixture_frame(station, &temp_root))
         .collect::<Vec<_>>();
@@ -244,7 +244,7 @@ async fn rdcap_stop_cancels_late_frames_before_raw_manifests_are_committed() {
     let root = tempfile::tempdir().unwrap();
     let temp_root = root.path().join("temporary");
     let output_root = root.path().join("output");
-    let frames = ["JPN/ISHI", "PHL/SUBI", "TWN/RCHL"]
+    let frames = ["JPISHI", "PHSUBI", "TWRCHL"]
         .into_iter()
         .map(|station| selected_fixture_frame(station, &temp_root))
         .collect::<Vec<_>>();
@@ -286,7 +286,7 @@ async fn external_cancel_stops_active_rdcap_frames_and_leaves_queued_frame_unsta
     let root = tempfile::tempdir().unwrap();
     let temp_root = root.path().join("temporary");
     let output_root = root.path().join("output");
-    let frames = ["TWN/RCHL", "JPN/ISHI", "PHL/SUBI"]
+    let frames = ["TWRCHL", "JPISHI", "PHSUBI"]
         .into_iter()
         .map(|station| selected_fixture_frame(station, &temp_root))
         .collect::<Vec<_>>();

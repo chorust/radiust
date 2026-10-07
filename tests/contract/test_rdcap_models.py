@@ -17,16 +17,17 @@ from radiust.registry import _info_from_dict
 
 
 def test_rdcap_query_accepts_country_station_or_short_code_and_rejects_path_aliases():
-    assert Query("rdcap", stations=("TWN/RCHL",), latest=True).stations == ("TWN/RCHL",)
+    for station in ("TWRCHL", "JPMAKI", "PHSUBI"):
+        assert Query("rdcap", stations=(station,), latest=True).stations == (station,)
     assert Query("rdcap", stations=("RCHL",), latest=True).stations == ("RCHL",)
-    for invalid in ("TWN/../RCHL", "USA/RCHL", "TWN/RCH/L", "TWN%2FRCHL"):
+    for invalid in ("JPN/MAKI", "TWN/RCHL", "TWN/../RCHL", "USA/RCHL", "TWN/RCH/L", "TWN%2FRCHL"):
         with pytest.raises(UnsupportedQueryError, match="RDCAP station"):
             Query("rdcap", stations=(invalid,), latest=True)
 
 
 def test_rdcap_station_identity_is_scoped_to_source_metadata_and_source_info():
     station = StationInfo(
-        id="TWN/RCHL",
+        id="TWRCHL",
         name="Hua-Lien",
         longitude=None,
         latitude=None,
@@ -60,7 +61,7 @@ def test_registry_preserves_nested_metadata_and_unknown_coordinates():
             ],
             "stations": [
                 {
-                    "id": "TWN/RCHL",
+                    "id": "TWRCHL",
                     "name": "Hua-Lien",
                     "longitude": None,
                     "latitude": None,
@@ -76,12 +77,13 @@ def test_registry_preserves_nested_metadata_and_unknown_coordinates():
     assert info.stations[0].longitude is info.stations[0].latitude is None
 
 
-def test_rdcap_frames_require_canonical_station_ids_and_targets_accept_selectors():
+@pytest.mark.parametrize("station", ["TWRCHL", "JPMAKI", "PHSUBI"])
+def test_rdcap_frames_require_canonical_station_ids_and_targets_accept_selectors(station):
     valid_time = datetime(2026, 10, 1, tzinfo=timezone.utc)
-    frame = FrameRef("rdcap", "reflectivity", valid_time, station="TWN/RCHL")
-    assert frame.station == "TWN/RCHL"
-    target = DiscoveryTarget("rdcap", "reflectivity", "TWN/RCHL")
-    assert target.station == "TWN/RCHL"
+    frame = FrameRef("rdcap", "reflectivity", valid_time, station=station)
+    assert frame.station == station
+    target = DiscoveryTarget("rdcap", "reflectivity", station)
+    assert target.station == station
     short_target = DiscoveryTarget("rdcap", "reflectivity", "RCHL")
     assert DiscoveryItem(short_target, "ambiguous").target.station == "RCHL"
     with pytest.raises(ValueError, match="country-qualified"):
@@ -89,8 +91,9 @@ def test_rdcap_frames_require_canonical_station_ids_and_targets_accept_selectors
             "source": "rdcap", "product": "reflectivity", "station": "RCHL",
             "valid_time": "2026-10-01T00:00:00Z",
         })
-    with pytest.raises(ValueError, match="country-qualified"):
-        FrameRef("rdcap", "reflectivity", valid_time, station="RCHL")
+    for invalid in ("RCHL", "JPN/MAKI", "JP", "JPmaki", "JPMA-KI", "JP雷達", "USMAKI"):
+        with pytest.raises(ValueError, match="country-qualified"):
+            FrameRef("rdcap", "reflectivity", valid_time, station=invalid)
     with pytest.raises(ValueError, match="country-qualified"):
         DiscoveryTarget("rdcap", "reflectivity", "TWN/../RCHL")
 
@@ -103,10 +106,10 @@ def test_rdcap_failure_reports_preserve_short_selectors_with_successful_frames(s
             "status": "upstream_failed", "error": {"code": "catalog_unavailable"},
         },
         {
-            "source": "rdcap", "product": "reflectivity", "station": "TWN/RCHL",
+            "source": "rdcap", "product": "reflectivity", "station": "TWRCHL",
             "status": "success", "valid_time": "2026-10-01T00:00:00Z",
             "frame": {
-                "source": "rdcap", "product": "reflectivity", "station": "TWN/RCHL",
+                "source": "rdcap", "product": "reflectivity", "station": "TWRCHL",
                 "valid_time": "2026-10-01T00:00:00Z", "base_time": None,
             },
         },
@@ -141,7 +144,7 @@ def test_rdcap_xarray_quality_keeps_annotation_bit_and_coordinates():
                         "y": [24.0],
                         "affine": [120.5, 1.0, 0.0, 24.5, 0.0, -1.0],
                     },
-                    "provenance": ["source=rdcap", "station=TWN/RCHL"],
+                    "provenance": ["source=rdcap", "station=TWRCHL"],
                 }
             )
 

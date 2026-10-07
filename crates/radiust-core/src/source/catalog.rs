@@ -356,14 +356,14 @@ mod tests {
         let update: StationCatalogUpdate = serde_json::from_value(serde_json::json!({
             "source_id": "rdcap",
             "stations": [{
-                "id": "TWN/BALE",
+                "id": "TWBALE",
                 "metadata": {"country": "TWN"}
             }],
             "metadata": {
                 "country": "TWN",
                 "recent_query": {"latest": true, "exact_at": true, "range": true},
                 "directory_conflicts": [{
-                    "station_id": "TWN/BALE",
+                    "station_id": "TWBALE",
                     "field": "status",
                     "values": ["Active", "Inactive"],
                     "provenance": [{"source": "country directory"}]

@@ -93,8 +93,8 @@ fn fixture_adapter(stations: &[&str], wait_for_cancel: bool) -> Arc<FixtureAdapt
                 revision: None,
                 locator_version: "rdcap-v1".into(),
                 locator: json!({
-                    "country": station.split_once('/').unwrap().0,
-                    "station_code": station.split_once('/').unwrap().1,
+                    "country": entry["country"],
+                    "station_code": entry["station_code"],
                     "key": key,
                 }),
             };
@@ -131,11 +131,11 @@ fn query(station: &str, selector: TimeSelector) -> Query {
 
 #[tokio::test]
 async fn latest_and_exact_at_use_the_observed_epoch_millisecond_keys_without_file_gets() {
-    let adapter = fixture_adapter(&["TWN/RCHL"], false);
-    let frames = adapter.timelines["TWN/RCHL"].clone();
+    let adapter = fixture_adapter(&["TWRCHL"], false);
+    let frames = adapter.timelines["TWRCHL"].clone();
     let engine = fixture_engine(adapter.clone());
 
-    let latest = engine.discover(query("TWN/RCHL", TimeSelector::Latest)).await.unwrap();
+    let latest = engine.discover(query("TWRCHL", TimeSelector::Latest)).await.unwrap();
     assert_eq!(latest.items.len(), 1);
     assert_eq!(latest.items[0].status, radiust_core::model::DiscoveryStatus::Success);
     assert_eq!(
@@ -145,7 +145,7 @@ async fn latest_and_exact_at_use_the_observed_epoch_millisecond_keys_without_fil
 
     let exact_time = frames[3].valid_time.clone();
     let exact = engine
-        .discover(query("TWN/RCHL", TimeSelector::At { time: exact_time.clone() }))
+        .discover(query("TWRCHL", TimeSelector::At { time: exact_time.clone() }))
         .await
         .unwrap();
     assert_eq!(exact.items.len(), 1);
@@ -156,12 +156,12 @@ async fn latest_and_exact_at_use_the_observed_epoch_millisecond_keys_without_fil
 
 #[tokio::test]
 async fn range_selection_is_half_open_and_a_missing_time_does_not_invent_a_frame() {
-    let adapter = fixture_adapter(&["JPN/ISHI"], false);
-    let frames = adapter.timelines["JPN/ISHI"].clone();
+    let adapter = fixture_adapter(&["JPISHI"], false);
+    let frames = adapter.timelines["JPISHI"].clone();
     let engine = fixture_engine(adapter.clone());
     let range = engine
         .discover(query(
-            "JPN/ISHI",
+            "JPISHI",
             TimeSelector::Range {
                 start: frames[2].valid_time.clone(),
                 end: frames[5].valid_time.clone(),
@@ -178,7 +178,7 @@ async fn range_selection_is_half_open_and_a_missing_time_does_not_invent_a_frame
         .unwrap()
         .to_rfc3339_opts(SecondsFormat::Micros, true);
     let missing =
-        engine.discover(query("JPN/ISHI", TimeSelector::At { time: missing_time })).await.unwrap();
+        engine.discover(query("JPISHI", TimeSelector::At { time: missing_time })).await.unwrap();
     assert_eq!(missing.items.len(), 1);
     assert_eq!(missing.items[0].status, radiust_core::model::DiscoveryStatus::NoData);
     assert_eq!(missing.items[0].error.as_ref().unwrap().code, "no_matching_time");
@@ -194,20 +194,20 @@ async fn empty_index_for_an_active_station_is_no_data_and_stale_latest_is_marked
         .unwrap()
         .stations
         .iter()
-        .find(|station| station.id == "PHL/APAR")
+        .find(|station| station.id == "PHAPAR")
         .unwrap();
     assert_eq!(aparri.metadata.as_ref().unwrap().extensions["directory_statuses"][0], "Active");
 
-    let empty_adapter = fixture_adapter(&["PHL/APAR"], false);
+    let empty_adapter = fixture_adapter(&["PHAPAR"], false);
     let empty_engine = fixture_engine(empty_adapter.clone());
-    let empty = empty_engine.discover(query("PHL/APAR", TimeSelector::Latest)).await.unwrap();
+    let empty = empty_engine.discover(query("PHAPAR", TimeSelector::Latest)).await.unwrap();
     assert_eq!(empty.counts.no_data, 1);
     assert_eq!(empty.items[0].error.as_ref().unwrap().code, "no_data");
 
     let mut stale_frame = FrameRef {
         source: "rdcap".into(),
         product: "reflectivity".into(),
-        station: Some("TWN/RCHL".into()),
+        station: Some("TWRCHL".into()),
         valid_time: "2000-01-01T00:00:00Z".into(),
         base_time: None,
         logical_id: String::new(),
@@ -217,14 +217,14 @@ async fn empty_index_for_an_active_station_is_no_data_and_stale_latest_is_marked
     };
     stale_frame.logical_id = radiust_core::identity::logical_id(&stale_frame).unwrap();
     let stale_adapter = Arc::new(FixtureAdapter {
-        timelines: Arc::new(BTreeMap::from([("TWN/RCHL".into(), vec![stale_frame])])),
+        timelines: Arc::new(BTreeMap::from([("TWRCHL".into(), vec![stale_frame])])),
         discovery_calls: Arc::new(AtomicUsize::new(0)),
         file_gets: Arc::new(AtomicUsize::new(0)),
         wait_for_cancel: false,
     });
     let stale_engine = fixture_engine(stale_adapter);
     let stale = stale_engine
-        .discover(Query { max_age_secs: Some(3600.0), ..query("TWN/RCHL", TimeSelector::Latest) })
+        .discover(Query { max_age_secs: Some(3600.0), ..query("TWRCHL", TimeSelector::Latest) })
         .await
         .unwrap();
     assert_eq!(stale.counts.stale, 1);
@@ -233,12 +233,12 @@ async fn empty_index_for_an_active_station_is_no_data_and_stale_latest_is_marked
 
 #[tokio::test]
 async fn discovery_cancellation_finishes_without_starting_raw_file_requests() {
-    let adapter = fixture_adapter(&["PHL/SUBI"], true);
+    let adapter = fixture_adapter(&["PHSUBI"], true);
     let engine = Arc::new(fixture_engine(adapter.clone()));
     let task_engine = engine.clone();
     let task =
         tokio::spawn(
-            async move { task_engine.discover(query("PHL/SUBI", TimeSelector::Latest)).await },
+            async move { task_engine.discover(query("PHSUBI", TimeSelector::Latest)).await },
         );
     tokio::time::sleep(Duration::from_millis(20)).await;
     engine.cancel();

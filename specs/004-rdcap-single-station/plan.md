@@ -8,7 +8,7 @@
 
 ## Summary
 
-新增独立来源rdcap、默认产品reflectivity，公开站点为TWN/JPN/PHL国家/站码组合。原生Rust adapter刷新目录、发现实际秒/毫秒时次，以单读票据获取JSON字符串封装的CSR数值网格；保存原始响应及确定性帧绑定，解码为EPSG:4326、float32 dBZ/u16 quality，统一支持现有CLI、同步/异步SDK、科学预览及PNG/NetCDF/GeoTIFF/Zarr。
+新增独立来源rdcap、默认产品reflectivity，公开站点为TW/JP/PH两字母国家前缀与站码直接拼接（如JPMAKI）。原生Rust adapter刷新目录、发现实际秒/毫秒时次，以单读票据获取JSON字符串封装的CSR数值网格；保存原始响应及确定性帧绑定，解码为EPSG:4326、float32 dBZ/u16 quality，统一支持现有CLI、同步/异步SDK、科学预览及PNG/NetCDF/GeoTIFF/Zarr。
 
 共享改动限于可选动态目录hook、RDCAP严格站点校验/路径编码、单次GET策略、来源错误分类、质量bit6、版本化palette及科学/regrid能力注册。其他来源继续既有缺省行为。首个实施门槛是三国原生HTTP完整链路，离线通过不能代替该门槛。
 
@@ -30,7 +30,7 @@
 
 **Constraints**: 默认禁公网、TLS验证、同源artifact；request30秒/frame300秒及可配置字节/像素/临时盘上限。最多3张ticket、每张一次GET，期限包括刷新/等待。不得推断扫描高度/体扫、QC、雨强或长期历史；不依赖人工Orca会话。9999排除为版本化实测推断。
 
-**Scale/Scope**: 一个来源/一个产品、48唯一快照站（13 TWN/20 JPN/15 PHL），在线可增补，数量非硬上限。总体24来源/26目标增至25/74，旧来源回归集合仍24/26。近期单站及既有工作流。
+**Scale/Scope**: 一个来源/一个产品、48唯一快照站（13 TW20 JP15 PHL），在线可增补，数量非硬上限。总体24来源/26目标增至25/74，旧来源回归集合仍24/26。近期单站及既有工作流。
 
 ## Constitution Check
 

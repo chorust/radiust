@@ -23,7 +23,7 @@ ALLOWED_AVAILABILITY = {
     "upstream_unavailable",
     "retired",
 }
-RDCAP_COUNTRIES = frozenset({"TWN", "JPN", "PHL"})
+RDCAP_COUNTRY_PREFIXES = frozenset({"TW", "JP", "PH"})
 
 
 def _valid_rdcap_code(value: str) -> bool:
@@ -31,10 +31,7 @@ def _valid_rdcap_code(value: str) -> bool:
 
 
 def _valid_rdcap_station_id(value: str) -> bool:
-    if value.count("/") != 1:
-        return False
-    country, code = value.split("/", 1)
-    return country in RDCAP_COUNTRIES and _valid_rdcap_code(code)
+    return value[:2] in RDCAP_COUNTRY_PREFIXES and _valid_rdcap_code(value[2:])
 
 
 def _valid_rdcap_station_selection(value: str) -> bool:

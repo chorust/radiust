@@ -8,7 +8,7 @@
 |---|---|---|
 | Source | id=rdcap、provider=RDCAP/CWA、countries=[TWN,JPN,PHL]、版本、能力证据 | 独立于tw/tw-http/ph |
 | Product | id/variable=reflectivity、units=dBZ、grid=geographic、historical/forecast=false、metadata.recent_time_queries=true | scan_type/height/upstream_qc未知；不保证cadence/窗口长度 |
-| Station | id=country/code、name、可选lon/lat/altitude、product_ids、metadata | 保留原始记录ID/status列表、conflict、快照日期/出处；非实时状态 |
+| Station | id=两字母国家前缀+站码、name、可选lon/lat/altitude、product_ids、metadata | 保留原始记录ID/status列表、conflict、快照日期/出处；非实时状态 |
 | StationCatalogUpdate | stations、observed_at、origin、冲突说明 | 可选adapter目录hook，一次发现共享，合并快照 |
 | Timeline | country/station_code、list(key,url[])、header | ticket仅内存，header非必需；非完整历史 |
 | FrameRef | source/product/station、valid_time、base_time=None、logical_id/revision、locator_version、private locator | 一站一个实际key绑定帧；ticket不参与身份 |
@@ -22,7 +22,7 @@
 
 ## 标识与目录
 
-RDCAP station语法为`(TWN|JPN|PHL)/[A-Z0-9]+`，不将当前四字符站码作为永久长度约束。不接受空码、重复分隔符、`.`/`..`、控制字符、反斜杠或百分号别名。短码在该次完整目录唯一时归一化；规范化后再查重，RCHL和TWN/RCHL不能变成两个目标。其他来源不能由此放行斜杠。
+RDCAP station语法为`(TW|JP|PH)[A-Z0-9]+`，不将当前四字符站码作为永久长度约束。不接受空码、重复分隔符、`.`/`..`、控制字符、反斜杠或百分号别名。短码在该次完整目录唯一时归一化；规范化后再查重，RCHL和TWRCHL不能变成两个目标。所有来源的公开站点 ID 均不放行斜杠。
 
 目录增加可选metadata，schema仍v1。SDK StationInfo lon/lat为float或None，未知不补0。BALE保留全部原始记录ID和状态冲突但仅一个身份。Inactive仍可请求，Active空索引仍no_data。
 
@@ -45,9 +45,9 @@ dense先填-999、写稀疏值、翻转行。科学值=raw×0.1。dx=(last_lon-f
 
 | 基准 | shape[H,W] | bounds[W,S,E,N] | 格距 |
 |---|---|---|---|
-| TWN/RCHL | [901,901] | [117.12,19.48,126.13,28.49] | 0.01° |
-| JPN/ISHI | [900,900] | [119.69,19.92,128.69,28.92] | 0.01° |
-| PHL/SUBI | [900,900] | [115.87,10.32,124.87,19.32] | 0.01° |
+| TWRCHL | [901,901] | [117.12,19.48,126.13,28.49] | 0.01° |
+| JPISHI | [900,900] | [119.69,19.92,128.69,28.92] | 0.01° |
+| PHSUBI | [900,900] | [115.87,10.32,124.87,19.32] | 0.01° |
 
 ## 数值与质量
 

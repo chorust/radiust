@@ -119,8 +119,22 @@ fn rdcap_listing_exposes_offline_directory_provenance_and_country_capabilities()
     assert_eq!(stations["items"].as_array().unwrap().len(), 48);
     assert_eq!(stations["items"][0]["catalog_status"], "offline_snapshot");
     assert_eq!(stations["items"][0]["snapshot_date"], "2026-10-01");
+    assert!(
+        stations["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|station| { station["id"] == "JPMAKI" && station["country"] == "JPN" })
+    );
+    assert!(
+        stations["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|station| { !station["id"].as_str().unwrap().contains('/') })
+    );
     assert!(stations["items"].as_array().unwrap().iter().any(|station| {
-        station["id"] == "PHL/BALE"
+        station["id"] == "PHBALE"
             && station["country"] == "PHL"
             && station["directory_statuses"] == serde_json::json!(["Inactive", "Active"])
             && station["directory_conflicts"].as_array().is_some_and(|conflicts| {

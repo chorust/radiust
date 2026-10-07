@@ -41,12 +41,12 @@ async fn decode(engine: &Engine, raw: RawFrame) -> RadarField {
 async fn three_country_csr_fixtures_keep_native_geometry_and_markers_out_of_science_values() {
     let engine = Engine::new(CoreConfig::default(), SourceRegistry::default()).unwrap();
     let root = tempfile::tempdir().unwrap();
-    for station_id in ["TWN/RCHL", "JPN/ISHI", "PHL/SUBI"] {
+    for station_id in ["TWRCHL", "JPISHI", "PHSUBI"] {
         let metadata = fixture_metadata(station_id);
         let expected_grid: Value = serde_json::from_slice(
             &std::fs::read(
                 support::repository_root()
-                    .join(format!("tests/fixtures/sources/rdcap/{station_id}/grid.json")),
+                    .join(metadata["files"]["grid"]["path"].as_str().unwrap()),
             )
             .unwrap(),
         )
@@ -69,7 +69,7 @@ async fn three_country_csr_fixtures_keep_native_geometry_and_markers_out_of_scie
             annotation_cells,
             "{station_id} annotation cells"
         );
-        if station_id == "TWN/RCHL" {
+        if station_id == "TWRCHL" {
             assert!(field.values.iter().any(|value| *value == -1.5));
         }
         assert!(
@@ -117,7 +117,7 @@ async fn three_country_csr_fixtures_keep_native_geometry_and_markers_out_of_scie
 async fn rchl_eight_reference_points_match_and_missing_or_annotation_values_stay_masked() {
     let engine = Engine::new(CoreConfig::default(), SourceRegistry::default()).unwrap();
     let root = tempfile::tempdir().unwrap();
-    let field = decode(&engine, raw_fixture("TWN/RCHL", root.path())).await;
+    let field = decode(&engine, raw_fixture("TWRCHL", root.path())).await;
     let reference: Value = serde_json::from_slice(
         &std::fs::read(
             support::repository_root()
@@ -165,11 +165,11 @@ async fn rchl_eight_reference_points_match_and_missing_or_annotation_values_stay
 #[tokio::test]
 async fn unknown_transform_corrupt_csr_and_pixel_budget_fail_with_typed_errors() {
     let root = tempfile::tempdir().unwrap();
-    let response = support::reconstructed_file_response("TWN/RCHL");
+    let response = support::reconstructed_file_response("TWRCHL");
     let mut content: String = serde_json::from_slice(&response).unwrap();
     let unsupported = content.replacen("EPSG:4326", "EPSG:3857", 1);
     let unsupported_raw = support::fixture_raw_frame(
-        "TWN/RCHL",
+        "TWRCHL",
         "1790834708000",
         &serde_json::to_vec(&unsupported).unwrap(),
         root.path(),
@@ -186,7 +186,7 @@ async fn unknown_transform_corrupt_csr_and_pixel_budget_fail_with_typed_errors()
     corrupt_lines[5] = format!("rowPtr:{}", row_ptr.rsplit_once(',').unwrap().0);
     content = corrupt_lines.join("\n");
     let corrupt_raw = support::fixture_raw_frame(
-        "TWN/RCHL",
+        "TWRCHL",
         "1790834708000",
         &serde_json::to_vec(&content).unwrap(),
         root.path(),
@@ -196,7 +196,7 @@ async fn unknown_transform_corrupt_csr_and_pixel_budget_fail_with_typed_errors()
         Err(EngineError::Core(CoreError::Provider(ProviderError::InvalidGrid)))
     ));
 
-    let limited_raw = raw_fixture("TWN/RCHL", root.path());
+    let limited_raw = raw_fixture("TWRCHL", root.path());
     let mut limited_config = CoreConfig::default();
     limited_config.runtime.max_pixels = 16;
     let limited_engine = Engine::new(limited_config, SourceRegistry::default()).unwrap();
@@ -209,7 +209,7 @@ async fn unknown_transform_corrupt_csr_and_pixel_budget_fail_with_typed_errors()
 #[tokio::test]
 async fn csr_rejects_unverified_header_legend_and_invalid_sparse_layouts() {
     let root = tempfile::tempdir().unwrap();
-    let response = support::reconstructed_file_response("TWN/RCHL");
+    let response = support::reconstructed_file_response("TWRCHL");
     let content: String = serde_json::from_slice(&response).unwrap();
     let mut variants = Vec::new();
 
@@ -256,7 +256,7 @@ async fn csr_rejects_unverified_header_legend_and_invalid_sparse_layouts() {
     let engine = Engine::new(CoreConfig::default(), SourceRegistry::default()).unwrap();
     for variant in variants {
         let raw = support::fixture_raw_frame(
-            "TWN/RCHL",
+            "TWRCHL",
             "1790834708000",
             &serde_json::to_vec(&variant).unwrap(),
             root.path(),
@@ -274,7 +274,7 @@ async fn csr_rejects_unverified_header_legend_and_invalid_sparse_layouts() {
 #[tokio::test]
 async fn valid_zero_nnz_and_annotation_only_csr_are_science_fields() {
     let root = tempfile::tempdir().unwrap();
-    let response = support::reconstructed_file_response("TWN/RCHL");
+    let response = support::reconstructed_file_response("TWRCHL");
     let original: String = serde_json::from_slice(&response).unwrap();
     let legend = original.lines().nth(2).unwrap();
     let engine = Engine::new(CoreConfig::default(), SourceRegistry::default()).unwrap();
@@ -283,7 +283,7 @@ async fn valid_zero_nnz_and_annotation_only_csr_are_science_fields() {
         "2,2,T,140,40,141,39,int16,-999,-999,EPSG:4326\nlinearTransform(0.1,0)\n{legend}\nndv:0\ncolIdx:\nrowPtr:0,0,0\nvals:"
     );
     let missing_raw = support::fixture_raw_frame(
-        "TWN/RCHL",
+        "TWRCHL",
         "1790834708000",
         &serde_json::to_vec(&all_missing).unwrap(),
         root.path(),
@@ -296,7 +296,7 @@ async fn valid_zero_nnz_and_annotation_only_csr_are_science_fields() {
         "2,2,T,140,40,141,39,int16,-999,-999,EPSG:4326\nlinearTransform(0.1,0)\n{legend}\nndv:4\ncolIdx:0,1,0,1\nrowPtr:0,2,4\nvals:9999,9999,9999,9999"
     );
     let annotation_raw = support::fixture_raw_frame(
-        "TWN/RCHL",
+        "TWRCHL",
         "1790834708000",
         &serde_json::to_vec(&annotation_only).unwrap(),
         root.path(),
@@ -310,7 +310,7 @@ async fn valid_zero_nnz_and_annotation_only_csr_are_science_fields() {
 #[test]
 fn sparse_buffers_are_included_in_the_decode_byte_budget() {
     let root = tempfile::tempdir().unwrap();
-    let response = support::reconstructed_file_response("TWN/RCHL");
+    let response = support::reconstructed_file_response("TWRCHL");
     let original: String = serde_json::from_slice(&response).unwrap();
     let legend = original.lines().nth(2).unwrap();
     for (ndv, columns, row_ptr, values) in
@@ -320,7 +320,7 @@ fn sparse_buffers_are_included_in_the_decode_byte_budget() {
             "2,2,T,140,40,141,39,int16,-999,-999,EPSG:4326\nlinearTransform(0.1,0)\n{legend}\nndv:{ndv}\ncolIdx:{columns}\nrowPtr:{row_ptr}\nvals:{values}"
         );
         let raw = support::fixture_raw_frame(
-            "TWN/RCHL",
+            "TWRCHL",
             "1790834708000",
             &serde_json::to_vec(&content).unwrap(),
             root.path(),

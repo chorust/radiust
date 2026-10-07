@@ -140,7 +140,7 @@ def _write_rdcap_raw_manifest(root: Path, ref: FrameRef) -> Path:
         "schema_version": 1,
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCHL",
+        "station": "TWRCHL",
         "country": "TWN",
         "station_code": "RCHL",
         "key": str(ref.locator["key"]),
@@ -187,7 +187,7 @@ def _write_rdcap_raw_manifest(root: Path, ref: FrameRef) -> Path:
 def _seed_rdcap_frame(cache_root: Path) -> FrameRef:
     fixture_root = REPO_ROOT / "tests/fixtures/sources/rdcap"
     fixture = json.loads((fixture_root / "manifest.json").read_text(encoding="utf-8"))
-    station = next(item for item in fixture["stations"] if item["station_id"] == "TWN/RCHL")
+    station = next(item for item in fixture["stations"] if item["station_id"] == "TWRCHL")
     key = str(station["selected_key_epoch_ms"])
     response = (
         fixture_root / "TWN/RCHL/file-response.reconstructed.json"
@@ -198,7 +198,7 @@ def _seed_rdcap_frame(cache_root: Path) -> FrameRef:
         "rdcap",
         "reflectivity",
         valid_time,
-        station="TWN/RCHL",
+        station="TWRCHL",
         locator={"country": "TWN", "station_code": "RCHL", "key": key},
         locator_version="rdcap-csr-v1",
         revision=content_digest,
@@ -208,7 +208,7 @@ def _seed_rdcap_frame(cache_root: Path) -> FrameRef:
         "schema_version": 1,
         "source": "rdcap",
         "product": "reflectivity",
-        "station": "TWN/RCHL",
+        "station": "TWRCHL",
         "country": "TWN",
         "station_code": "RCHL",
         "key": key,
@@ -414,7 +414,7 @@ def test_rdcap_replay_rejects_binding_mismatch_after_valid_manifest_hash_update(
     manifest_path = _write_rdcap_raw_manifest(tmp_path / "raw", ref)
     binding_path = manifest_path.parent / "raw" / "binding.json"
     binding = json.loads(binding_path.read_text(encoding="utf-8"))
-    binding["station"] = "JPN/ISHI"
+    binding["station"] = "JPISHI"
     binding_bytes = json.dumps(binding, ensure_ascii=False, indent=2).encode("utf-8")
     binding_path.write_bytes(binding_bytes)
 

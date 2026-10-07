@@ -41,7 +41,7 @@ pub fn fixture_raw_frame(
     response_bytes: &[u8],
     temp_root: &std::path::Path,
 ) -> RawFrame {
-    let (country, station_code) = station_id.split_once('/').expect("canonical station id");
+    let (country, station_code) = fixture_station_parts(station_id);
     let valid_time = chrono::DateTime::from_timestamp_millis(key.parse().unwrap())
         .unwrap()
         .to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
@@ -112,9 +112,22 @@ pub fn fixture_raw_frame(
 }
 
 pub fn reconstructed_file_response(station_id: &str) -> Vec<u8> {
-    let relative =
-        format!("tests/fixtures/sources/rdcap/{station_id}/file-response.reconstructed.json");
+    let (country, station_code) = fixture_station_parts(station_id);
+    let relative = format!(
+        "tests/fixtures/sources/rdcap/{country}/{station_code}/file-response.reconstructed.json"
+    );
     std::fs::read(repository_root().join(relative)).unwrap()
+}
+
+fn fixture_station_parts(station_id: &str) -> (&str, &str) {
+    let (prefix, code) = station_id.split_at(2);
+    let country = match prefix {
+        "TW" => "TWN",
+        "JP" => "JPN",
+        "PH" => "PHL",
+        _ => panic!("invalid fixture station id"),
+    };
+    (country, code)
 }
 
 pub fn repository_root() -> PathBuf {

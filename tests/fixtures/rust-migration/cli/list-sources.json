@@ -146,7 +146,7 @@
         "metadata": {
           "directory_conflicts": [
             {
-              "station_id": "PHL/BALE",
+              "station_id": "PHBALE",
               "field": "Status",
               "values": [
                 "Inactive",

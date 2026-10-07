@@ -29,7 +29,7 @@ fn research_fixture_manifest_hashes_match_the_checked_in_payloads() {
 
     for station in stations {
         let id = station["station_id"].as_str().unwrap();
-        assert!(matches!(id, "TWN/RCHL" | "JPN/ISHI" | "PHL/SUBI"));
+        assert!(matches!(id, "TWRCHL" | "JPISHI" | "PHSUBI"));
         for file in station["files"].as_object().unwrap().values() {
             let relative_path = file["path"].as_str().unwrap();
             let path = support::repository_root().join(relative_path);

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-STATIONS = ("TWN/RCHL", "JPN/ISHI", "PHL/SUBI")
+STATIONS = ("TWRCHL", "JPISHI", "PHSUBI")
 FORMATS = ("png", "netcdf", "geotiff", "zarr")
 READBACK_MODULES = ("numpy", "PIL", "xarray", "h5netcdf", "rasterio", "zarr")
 

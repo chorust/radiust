@@ -43,7 +43,7 @@ with radiust.Client() as client:
 
 批量入口保持输入顺序并为每帧生成结果；`iter_fetch` 按完成顺序产生结果，预取数量有界。对包含 `Query` 的 `fetch_many()`，`on_error="collect"` 或 `"continue"` 会保留完整发现终态并继续获取成功 refs；返回的 `BatchResult.discovery_report` 保存逐目标报告，`discovery_counts` 是其状态计数。`no_data` 也会出现在发现报告中，但不会生成虚构的 frame。发现状态计数与 frame 结果的 `BatchResult.counts` 分开统计。`on_error="raise"` 或 `"stop"` 遇到发现失败时会抛出带 `partial_result` 的 `BatchError`，其中仍含完整发现报告和可用的成功 frame 句柄；发现阶段失败时不会开始获取这些成功 frame。输入只有 `FrameRef` 时没有发现报告，这两个属性为 `None`。重复的逻辑帧输入会在获取前被拒绝。
 
-`download()` 经 Rust Engine 写入本地目录或对象存储，支持 raw-only、PNG、NetCDF、GeoTIFF 和 Zarr v2；科学格式只对已实现相应 decoder 的来源/产品开放，RDCAP 科学值仍须结合本节的逐国在线验收状态使用。`raw=True` 可将验证过的原始 artifact 与解码成果放进同一次正式提交。解码下载支持 `variable`、`grid`、`bbox`、`resolution` 和 `resampling` 参数；RainViewer EPSG:4326 geographic 下载有既有验证，RDCAP 解码场为 EPSG:4326 原生网格，但三国在线发现、获取和科学读回仍未验收。绑定结果的 `RadarField.regrid()`/`RadarDataset.regrid()` 与 Rust `Engine::regrid()` 支持 EPSG:4326↔EPSG:3857 的 Web Mercator 坐标变换；其他 datum/projection 转换（包括 TW EPSG:3821 到 EPSG:4326）仍明确失败。对象存储目标使用 `s3://bucket/prefix` 或 `oss://bucket/prefix`，并须在配置中显式启用 `runtime.allow_network`，通过 `storage` 配置提供 endpoint/region 和凭据；URI 本身不能包含凭据。解码格式支持安全的 `output_template` 字段 `{source}`、`{product}`、`{station}`、`{valid_time}`、`{base_time}`、`{date}`、`{hour}`、`{variant_id}` 与 `{ext}`；本地模板必须生成相对路径，不能越过输出根目录。RDCAP 的 `{station}`（例如 `TWN/RCHL`）会编码为单个路径分量 `TWN%2FRCHL`。模板仅用于解码输出；raw-only 与模板组合会被拒绝。非空 `encoder_options` 目前不支持。远端 generation/pointer 提交流水线已有内存故障合同，真实 AWS S3/阿里云 OSS 尚未验收；尚不支持的来源能力也会返回有界错误。
+`download()` 经 Rust Engine 写入本地目录或对象存储，支持 raw-only、PNG、NetCDF、GeoTIFF 和 Zarr v2；科学格式只对已实现相应 decoder 的来源/产品开放，RDCAP 科学值仍须结合本节的逐国在线验收状态使用。`raw=True` 可将验证过的原始 artifact 与解码成果放进同一次正式提交。解码下载支持 `variable`、`grid`、`bbox`、`resolution` 和 `resampling` 参数；RainViewer EPSG:4326 geographic 下载有既有验证，RDCAP 解码场为 EPSG:4326 原生网格，但三国在线发现、获取和科学读回仍未验收。绑定结果的 `RadarField.regrid()`/`RadarDataset.regrid()` 与 Rust `Engine::regrid()` 支持 EPSG:4326↔EPSG:3857 的 Web Mercator 坐标变换；其他 datum/projection 转换（包括 TW EPSG:3821 到 EPSG:4326）仍明确失败。对象存储目标使用 `s3://bucket/prefix` 或 `oss://bucket/prefix`，并须在配置中显式启用 `runtime.allow_network`，通过 `storage` 配置提供 endpoint/region 和凭据；URI 本身不能包含凭据。解码格式支持安全的 `output_template` 字段 `{source}`、`{product}`、`{station}`、`{valid_time}`、`{base_time}`、`{date}`、`{hour}`、`{variant_id}` 与 `{ext}`；本地模板必须生成相对路径，不能越过输出根目录。RDCAP 的 `{station}` 直接使用无斜杠站点 ID（例如 `TWRCHL`）。模板仅用于解码输出；raw-only 与模板组合会被拒绝。非空 `encoder_options` 目前不支持。远端 generation/pointer 提交流水线已有内存故障合同，真实 AWS S3/阿里云 OSS 尚未验收；尚不支持的来源能力也会返回有界错误。
 
 `Client.write()` 和 `AsyncClient.write()` 接收 Rust `RadarField`、`RadarDataset` 或有 receipt 的 `RasterResult`，通过 Rust writer 发布到本地 manifest-last store。未绑定的旧 field/dataset 必须提供来源 `FrameRef`；带 Source/Local/NumericFile 身份的新 `RasterResult` 可用自己的读取 receipt，无需合成 ref。字段时间与显式 ref 必须相同，多变量 Dataset 必须用 `variable=` 选择一个变量。重复写入完整且身份相同的成果会返回 `skipped`；RasterResult 当前不接受远端 URI 或地理重网格选项。
 
@@ -104,9 +104,9 @@ For batches, `fetch_many()` keeps input order and returns each frame's status; `
 
 ## RDCAP 单站 API 与当前边界
 
-`rdcap/reflectivity` 提供台湾、日本和菲律宾的完整站点 ID（如 `TWN/RCHL`、`JPN/ISHI`、`PHL/SUBI`），内置离线目录快照有 48 个去重站点。快照中的逐国 discovery、raw acquisition、science、readback 能力仍标为 `unverified`；离线目录可用于查站，不能代表实时索引或在线服务可用。当前支持近期 `latest`、精确 `at` 和时间范围查询，不承诺历史归档。联网操作必须显式设置 `runtime.allow_network: true`。
+`rdcap/reflectivity` 提供台湾、日本和菲律宾的完整站点 ID（如 `TWRCHL`、`JPISHI`、`PHSUBI`），内置离线目录快照有 48 个去重站点。快照中的逐国 discovery、raw acquisition、science、readback 能力仍标为 `unverified`；离线目录可用于查站，不能代表实时索引或在线服务可用。当前支持近期 `latest`、精确 `at` 和时间范围查询，不承诺历史归档。联网操作必须显式设置 `runtime.allow_network: true`。
 
-RDCAP 文件票据依赖申请索引时的匿名会话 cookie；Rust Engine 自动在内存中保持会话，覆盖索引刷新及 raw 文件获取。会话仅供 RDCAP 使用，不持久化、不公开，CLI/SDK 无需手动配置 cookie。 RDCAP 返回数值网格，预览使用 `radiust cat rdcap --station JPN/MAKI --decoded` 或 `--dbz`；`--gray` 是来源图像模式，不适用于此数值产品。
+RDCAP 文件票据依赖申请索引时的匿名会话 cookie；Rust Engine 自动在内存中保持会话，覆盖索引刷新及 raw 文件获取。会话仅供 RDCAP 使用，不持久化、不公开，CLI/SDK 无需手动配置 cookie。 RDCAP 返回数值网格，预览使用 `radiust cat rdcap --station JPMAKI --decoded` 或 `--dbz`；`--gray` 是来源图像模式，不适用于此数值产品。
 
 若 RDCAP 的证书链无法验证，可选择仅对本站关闭证书校验（默认关闭此例外）：
 
@@ -118,7 +118,7 @@ sources:
     insecure_tls: true
 ```
 
-CLI 可将此配置写入 `config.yaml`，执行 `radiust discover rdcap --station TWN/RCHL`；SDK 对应传入 `config={"runtime": {"allow_network": True}, "sources": {"rdcap": {"insecure_tls": True}}}`。环境变量为 `RADIUST_SOURCES__RDCAP__INSECURE_TLS=true`。仅 RDCAP 来源访问 `https://rdcap.cwa.gov.tw` 时跳过校验，其他来源、其他主机和网络 opt-in 保持原规则。
+CLI 可将此配置写入 `config.yaml`，执行 `radiust discover rdcap --station TWRCHL`；SDK 对应传入 `config={"runtime": {"allow_network": True}, "sources": {"rdcap": {"insecure_tls": True}}}`。环境变量为 `RADIUST_SOURCES__RDCAP__INSECURE_TLS=true`。仅 RDCAP 来源访问 `https://rdcap.cwa.gov.tw` 时跳过校验，其他来源、其他主机和网络 opt-in 保持原规则。
 
 `discover_report()` 返回逐目标终态的 `DiscoveryReport`，含 `items`、`counts`、安全错误字段和 `to_json()`。JSON 不含私有 locator/ticket；成功项只有在原进程内的报告上才能用 `frame(index)` 取得带私有 locator 的 `FrameRef`。从 JSON 重建的报告不携带该进程内句柄。错误报告保留安全 `code`、`stage`、`retryable` 字段；SDK 的 `RadiustError.context` 提供对应错误上下文。现有 `discover()` 仍返回 refs。对单站可这样使用：
 
@@ -126,7 +126,7 @@ CLI 可将此配置写入 `config.yaml`，执行 `radiust discover rdcap --stati
 import radiust
 
 query = radiust.Query(
-    "rdcap", product="reflectivity", stations=("TWN/RCHL",), latest=True
+    "rdcap", product="reflectivity", stations=("TWRCHL",), latest=True
 )
 with radiust.Client(config={"runtime": {"allow_network": True}}) as client:
     report = client.discover_report(query)

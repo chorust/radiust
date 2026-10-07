@@ -10,43 +10,43 @@ radiust --json list products rdcap
 radiust --json list stations rdcap
 ```
 
-默认list离线读取内置快照。新增rdcap/reflectivity，48唯一站点；station ID为TWN/RCHL、JPN/ISHI、PHL/SUBI等。JSON保留已有字段并附可选metadata，显示country、原始catalog状态/冲突、快照时间、能力验证状态；未知坐标null，不能0。human输出区别“目录状态”与“实时发现状态”。不新增国家flag，使用完整站点身份选择国家。
+默认list离线读取内置快照。新增rdcap/reflectivity，48唯一站点；station ID为TWRCHL、JPISHI、PHSUBI等。JSON保留已有字段并附可选metadata，显示country、原始catalog状态/冲突、快照时间、能力验证状态；未知坐标null，不能0。human输出区别“目录状态”与“实时发现状态”。不新增国家flag，使用完整站点身份选择国家。
 
-Python `radiust.registry.get_source_info("rdcap")` 同样映射目录；StationInfo的lon/lat允许None、增加可选metadata，站点专用校验支持严格country/code。StationInfo以metadata.source_id=rdcap及所属SourceInfo复核限定命名空间；FrameRef/DiscoveryTarget及Query按source限定，不能漏掉Python DTO校验。SourceInfo、ProductInfo增加可选metadata以携带逐国能力和近期at/range能力。既有字段及有值坐标不变。
+Python `radiust.registry.get_source_info("rdcap")` 同样映射目录；StationInfo的lon/lat允许None、增加可选metadata，站点专用校验支持严格两字母国家前缀+站码。StationInfo以metadata.source_id=rdcap及所属SourceInfo复核限定命名空间；FrameRef/DiscoveryTarget及Query按source限定，不能漏掉Python DTO校验。SourceInfo、ProductInfo增加可选metadata以携带逐国能力和近期at/range能力。既有字段及有值坐标不变。
 
 来源availability使用现有枚举，不新增blocked枚举；metadata逐国记录live=unverified/verified及证据。新增adapter有离线science合同不自动等于三国在线已验收。
 
 ## 发现与时间
 
 ```sh
-radiust --json discover rdcap --station TWN/RCHL --latest
-radiust --json discover rdcap --station JPN/ISHI --latest --max-age 1800
-radiust --json discover rdcap --station PHL/SUBI --at 2026-10-01T05:40:10Z
-radiust --json discover rdcap --station TWN/RCHL --start 2026-10-01T05:00:00Z --end 2026-10-01T06:10:00Z
+radiust --json discover rdcap --station TWRCHL --latest
+radiust --json discover rdcap --station JPISHI --latest --max-age 1800
+radiust --json discover rdcap --station PHSUBI --at 2026-10-01T05:40:10Z
+radiust --json discover rdcap --station TWRCHL --start 2026-10-01T05:00:00Z --end 2026-10-01T06:10:00Z
 radiust --json discover rdcap --latest
 radiust --json discover all --latest
 ```
 
 固定2026-10-01时间仅演示语法；现场需用当前索引返回时刻。CLI未指定selector沿用latest；SDK Query仍要求恰好一种。at精确、range半开，不最近邻、不补时次。无站点展开全部去重站点；all维持既有latest-only/no station filter合同。上游新增站点经一次目录刷新进入当前目标；不把无资料/Inactive站删掉。
 
-短码RCHL仅唯一时接受，返回规范身份TWN/RCHL。显式重复规范身份拒绝；未知站返回unknown_station，目录不可用时未知站返回catalog_unavailable。同key仅票据不同不算歧义，有稳定候选冲突为ambiguous_index。
+短码RCHL仅唯一时接受，返回规范身份TWRCHL。显式重复规范身份拒绝；未知站返回unknown_station，目录不可用时未知站返回catalog_unavailable。同key仅票据不同不算歧义，有稳定候选冲突为ambiguous_index。
 
 完整report保留source/product/station实际UTC时刻、安全code/stage/retryable，公开JSON不含private locator。目录刷新时间计入发现总期限；刷新失败继续已知快照目标，未知目标单独失败。48站latest冻结回放sum(counts)=48；range totals按frame items，详见[data-model](../data-model.md)。
 
 ## 原始、科学下载与预览
 
 ```sh
-radiust --json download rdcap --station TWN/RCHL --latest --raw-only --output ./data/rdcap-raw
-radiust --json download rdcap --station JPN/ISHI --latest --raw --format netcdf --output ./data/rdcap-nc
-radiust --json download rdcap --station PHL/SUBI --latest --format geotiff --output ./data/rdcap-tif
-radiust --json download rdcap --station TWN/RCHL --latest --format png --output ./data/rdcap-png
-radiust --json download rdcap --station PHL/SUBI --latest --format zarr --output ./data/rdcap-zarr
-radiust cat rdcap --station TWN/RCHL --latest --decoded --renderer text
+radiust --json download rdcap --station TWRCHL --latest --raw-only --output ./data/rdcap-raw
+radiust --json download rdcap --station JPISHI --latest --raw --format netcdf --output ./data/rdcap-nc
+radiust --json download rdcap --station PHSUBI --latest --format geotiff --output ./data/rdcap-tif
+radiust --json download rdcap --station TWRCHL --latest --format png --output ./data/rdcap-png
+radiust --json download rdcap --station PHSUBI --latest --format zarr --output ./data/rdcap-zarr
+radiust cat rdcap --station TWRCHL --latest --decoded --renderer text
 ```
 
 raw-only保存原始响应/绑定/manifest，不科学解码。原始JSON/CSV不是图像，cat原始图像模式不隐式解释它；科学预览使用明确的--decoded，错误给出可操作说明。默认科学PNG使用验证15档palette，preview和writer共享规则。原始样本PNG含白色标记，因此默认科学PNG与网页图像不是逐像元完全相同，必须核对科学回波色阶和annotation透明。
 
-多站可重复--station；未指定站点的download展开全部。单帧cat/fetch在多匹配时拒绝歧义，不任意取第一站。默认native网格；显式地理重网格与已有bbox/resolution/resampling合同一致，dBZ bilinear使用线性反射率。输出模板{station}对rdcap编码为TWN%2FRCHL，不将公开斜杠解释为文件目录；其他source布局不变。
+多站可重复--station；未指定站点的download展开全部。单帧cat/fetch在多匹配时拒绝歧义，不任意取第一站。默认native网格；显式地理重网格与已有bbox/resolution/resampling合同一致，dBZ bilinear使用线性反射率。输出模板{station}对rdcap直接使用无斜杠站点ID（如TWRCHL）。
 
 ## SDK 与最小必要接口加法
 
@@ -64,7 +64,7 @@ raw-only保存原始响应/绑定/manifest，不科学解码。原始JSON/CSV不
 ```python
 import radiust
 
-query = radiust.Query("rdcap", stations=("TWN/RCHL",), latest=True)
+query = radiust.Query("rdcap", stations=("TWRCHL",), latest=True)
 config = {"runtime": {"allow_network": True}}
 with radiust.Client(config=config) as client:
     ref = client.discover(query)[0]

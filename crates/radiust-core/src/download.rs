@@ -3067,19 +3067,7 @@ fn render_output_template(
     let values = BTreeMap::from([
         ("source", frame.source.as_str().to_owned()),
         ("product", frame.product.as_str().to_owned()),
-        (
-            "station",
-            frame.station.as_deref().map_or_else(
-                || "composite".to_owned(),
-                |station| {
-                    if frame.source == "rdcap" {
-                        url::form_urlencoded::byte_serialize(station.as_bytes()).collect()
-                    } else {
-                        station.to_owned()
-                    }
-                },
-            ),
-        ),
+        ("station", frame.station.as_deref().unwrap_or("composite").to_owned()),
         ("valid_time", valid_value),
         ("base_time", base_value),
         ("date", valid_time.format("%Y-%m-%d").to_string()),
@@ -4409,11 +4397,11 @@ mod tests {
     }
 
     #[test]
-    fn rdcap_station_template_value_is_percent_encoded_as_one_path_component() {
+    fn rdcap_station_template_value_is_one_path_component() {
         let mut frame = fixture_frame(0);
         frame.source = "rdcap".into();
         frame.product = "reflectivity".into();
-        frame.station = Some("TWN/RCHL".into());
+        frame.station = Some("TWRCHL".into());
         frame.locator_version = "rdcap-csr-v1".into();
         frame.locator = serde_json::json!({
             "country": "TWN",
@@ -4429,7 +4417,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(rendered.starts_with("rdcap/TWN%2FRCHL/"));
+        assert!(rendered.starts_with("rdcap/TWRCHL/"));
         assert_eq!(rendered.matches('/').count(), 2);
     }
 

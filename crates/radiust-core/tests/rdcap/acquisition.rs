@@ -10,7 +10,7 @@ fn rdcap_frame(ticket: &str, key: &str) -> FrameRef {
     let mut frame = FrameRef {
         source: "rdcap".into(),
         product: "reflectivity".into(),
-        station: Some("TWN/RCHL".into()),
+        station: Some("TWRCHL".into()),
         valid_time: "2026-10-01T06:05:08.000000Z".into(),
         base_time: None,
         logical_id: String::new(),
@@ -47,7 +47,7 @@ fn public_discovery_json_omits_private_frame_locator_and_single_use_ticket() {
     let query = Query {
         source: Some("rdcap".into()),
         product: Some("reflectivity".into()),
-        stations: vec!["TWN/RCHL".into()],
+        stations: vec!["TWRCHL".into()],
         ..Query::default()
     };
     let report = DiscoveryReport::from_items(
@@ -56,7 +56,7 @@ fn public_discovery_json_omits_private_frame_locator_and_single_use_ticket() {
             target: DiscoveryTarget {
                 source: "rdcap".into(),
                 product: Some("reflectivity".into()),
-                station: Some("TWN/RCHL".into()),
+                station: Some("TWRCHL".into()),
             },
             status: DiscoveryStatus::Success,
             valid_time: Some(frame.valid_time.clone()),
@@ -70,5 +70,5 @@ fn public_discovery_json_omits_private_frame_locator_and_single_use_ticket() {
     assert!(!document.contains("private-ticket"));
     assert!(!document.contains("rdcap.cwa.gov.tw"));
     assert!(!document.contains("locator"));
-    assert!(document.contains("TWN/RCHL"));
+    assert!(document.contains("TWRCHL"));
 }

@@ -47,7 +47,7 @@ logical ID沿用source/product/完整station/实际UTC/safe locator/locator_vers
 
 cache只复用摘要验证完整raw；并发获取同logical frame应coalesce保存后的结果，不能两个消费者各读取同ticket。正式raw不是可回收cache；已验证完整输出重复请求skipped。--raw补充只能相同revision，不能把新内容补入旧科学成果。
 
-RDCAP模板{station}以单个安全分量TWN%2FRCHL输出；公开station仍TWN/RCHL。默认hash目录、root containment、manifest-last、overwrite、锁、取消fence与未知远端提交结果规则不变。native输出不依赖Python writer。
+RDCAP模板{station}直接以无斜杠公开站点ID（如TWRCHL）作为单个安全分量输出。默认hash目录、root containment、manifest-last、overwrite、锁、取消fence与未知远端提交结果规则不变。native输出不依赖Python writer。
 
 ## 验收证据分层
 

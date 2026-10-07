@@ -35,13 +35,16 @@ pub(crate) struct RdcapStationId<'a> {
     pub station_code: &'a str,
 }
 
-/// Parses only a canonical public RDCAP station id such as `TWN/RCHL`.
+/// Parses only a canonical public RDCAP station id such as `TWRCHL`.
 pub(crate) fn parse_station_id(value: &str) -> Option<RdcapStationId<'_>> {
-    let (country, station_code) = value.split_once('/')?;
-    if value.matches('/').count() != 1
-        || !COUNTRIES.contains(&country)
-        || !valid_station_code(station_code)
-    {
+    let (prefix, station_code) = value.split_at_checked(2)?;
+    let country = match prefix {
+        "TW" => "TWN",
+        "JP" => "JPN",
+        "PH" => "PHL",
+        _ => return None,
+    };
+    if !valid_station_code(station_code) {
         return None;
     }
     Some(RdcapStationId { country, station_code })
@@ -56,7 +59,13 @@ pub(crate) fn normalize_catalog_station(country: &str, code: &str) -> Option<Str
     if !COUNTRIES.contains(&country.as_str()) || !valid_station_code(&code) {
         return None;
     }
-    Some(format!("{country}/{code}"))
+    let prefix = match country.as_str() {
+        "TWN" => "TW",
+        "JPN" => "JP",
+        "PHL" => "PH",
+        _ => return None,
+    };
+    Some(format!("{prefix}{code}"))
 }
 
 /// Query selectors may use a short code before Engine resolves uniqueness
@@ -165,8 +174,9 @@ impl RdcapSourceAdapter {
             )
             .await
             .map_err(sanitize_index_error)?;
-        parse_station_index(&payload, &format!("{country}/{station_code}"), &self.base_url)
-            .map_err(CoreError::Provider)
+        let station_id = normalize_catalog_station(country, station_code)
+            .ok_or(CoreError::Provider(ProviderError::UnknownStation))?;
+        parse_station_index(&payload, &station_id, &self.base_url).map_err(CoreError::Provider)
     }
 
     async fn fetch_raw_with_ticket(
@@ -1087,7 +1097,7 @@ mod tests {
         let mut frame = FrameRef {
             source: SOURCE.into(),
             product: "reflectivity".into(),
-            station: Some("TWN/RCHL".into()),
+            station: Some("TWRCHL".into()),
             valid_time: epoch_millis_to_rfc3339(key).unwrap(),
             base_time: None,
             logical_id: String::new(),
@@ -1173,10 +1183,28 @@ mod tests {
     #[test]
     fn parses_only_canonical_country_station_ids() {
         assert_eq!(
-            parse_station_id("TWN/RCHL"),
+            parse_station_id("TWRCHL"),
             Some(super::RdcapStationId { country: "TWN", station_code: "RCHL" })
         );
+        assert_eq!(
+            parse_station_id("JPMAKI"),
+            Some(super::RdcapStationId { country: "JPN", station_code: "MAKI" })
+        );
+        assert_eq!(
+            parse_station_id("PHSUBI"),
+            Some(super::RdcapStationId { country: "PHL", station_code: "SUBI" })
+        );
         for invalid in [
+            "",
+            "JP",
+            "JPMA-KI",
+            "JPmaki",
+            "jpMAKI",
+            "JP雷達",
+            "雷達",
+            "USMAKI",
+            "JPN/MAKI",
+            "TWN/RCHL",
             "TWN/",
             "USA/RCHL",
             "TWN/RCHL/EXTRA",
@@ -1191,7 +1219,9 @@ mod tests {
 
     #[test]
     fn normalizes_catalog_codes_without_widening_the_public_grammar() {
-        assert_eq!(normalize_catalog_station(" twn ", " rchl ").as_deref(), Some("TWN/RCHL"));
+        assert_eq!(normalize_catalog_station(" twn ", " rchl ").as_deref(), Some("TWRCHL"));
+        assert_eq!(normalize_catalog_station(" jpn ", " maki ").as_deref(), Some("JPMAKI"));
+        assert_eq!(normalize_catalog_station("PHL", "SUBI").as_deref(), Some("PHSUBI"));
         assert!(normalize_catalog_station("USA", "RCHL").is_none());
         assert!(normalize_catalog_station("TWN", "RCH-L").is_none());
         assert!(is_valid_station_selection("RCHL"));
@@ -1200,8 +1230,8 @@ mod tests {
 
     #[test]
     fn short_station_resolution_requires_a_unique_country_match() {
-        let ids = vec!["TWN/RCHL".into(), "JPN/RCHL".into(), "PHL/SUBI".into()];
-        assert_eq!(resolve_station_selection("SUBI", &ids).unwrap(), "PHL/SUBI");
+        let ids = vec!["TWRCHL".into(), "JPRCHL".into(), "PHSUBI".into()];
+        assert_eq!(resolve_station_selection("SUBI", &ids).unwrap(), "PHSUBI");
         assert_eq!(
             resolve_station_selection("RCHL", &ids),
             Err(crate::errors::ProviderError::AmbiguousIndex)
@@ -1249,14 +1279,15 @@ mod tests {
         .unwrap();
         assert_eq!(update.source_id, SOURCE);
         assert_eq!(update.stations.len(), 48);
-        let bale = update.stations.iter().find(|station| station.id == "PHL/BALE").unwrap();
+        let bale = update.stations.iter().find(|station| station.id == "PHBALE").unwrap();
         let metadata = bale.metadata.as_ref().unwrap();
         assert_eq!(metadata.extensions["directory_record_ids"], json!(["3004", "5031"]));
         assert_eq!(metadata.extensions["directory_statuses"], json!(["Active", "Inactive"]));
         assert!(
-            metadata.directory_conflicts.iter().any(|conflict| {
-                conflict.station_id == "PHL/BALE" && conflict.field == "Status"
-            })
+            metadata
+                .directory_conflicts
+                .iter()
+                .any(|conflict| { conflict.station_id == "PHBALE" && conflict.field == "Status" })
         );
         assert_eq!(bale.longitude, Some(121.6331));
         assert_eq!(bale.latitude, Some(15.7502));
@@ -1292,13 +1323,13 @@ mod tests {
         };
         let first = parse_station_index(
             &make_index("https://rdcap.cwa.gov.tw/file?ft=private-ticket-one"),
-            "TWN/RCHL",
+            "TWRCHL",
             "https://rdcap.cwa.gov.tw",
         )
         .unwrap();
         let second = parse_station_index(
             &make_index("https://rdcap.cwa.gov.tw/file?ft=private-ticket-two"),
-            "TWN/RCHL",
+            "TWRCHL",
             "https://rdcap.cwa.gov.tw",
         )
         .unwrap();
@@ -1328,8 +1359,7 @@ mod tests {
             ]
         }))
         .unwrap();
-        let frames =
-            parse_station_index(&same_key, "TWN/RCHL", "https://rdcap.cwa.gov.tw").unwrap();
+        let frames = parse_station_index(&same_key, "TWRCHL", "https://rdcap.cwa.gov.tw").unwrap();
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].locator["url"], "https://rdcap.cwa.gov.tw/file?ft=first");
 
@@ -1341,7 +1371,7 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            parse_station_index(&conflict, "TWN/RCHL", "https://rdcap.cwa.gov.tw"),
+            parse_station_index(&conflict, "TWRCHL", "https://rdcap.cwa.gov.tw"),
             Err(crate::errors::ProviderError::AmbiguousIndex)
         );
     }
@@ -1357,7 +1387,7 @@ mod tests {
             br#"{"list":[{"key":1.5,"url":["https://rdcap.cwa.gov.tw/file?ft=x"]}]}"#.as_slice(),
         ] {
             assert_eq!(
-                parse_station_index(payload, "TWN/RCHL", "https://rdcap.cwa.gov.tw"),
+                parse_station_index(payload, "TWRCHL", "https://rdcap.cwa.gov.tw"),
                 Err(crate::errors::ProviderError::UnexpectedBody)
             );
         }
@@ -1370,7 +1400,7 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            parse_station_index(&reused_ticket, "TWN/RCHL", "https://rdcap.cwa.gov.tw"),
+            parse_station_index(&reused_ticket, "TWRCHL", "https://rdcap.cwa.gov.tw"),
             Err(crate::errors::ProviderError::AmbiguousIndex)
         );
     }
@@ -1388,7 +1418,7 @@ mod tests {
             }))
             .unwrap();
             assert_eq!(
-                parse_station_index(&payload, "TWN/RCHL", "https://rdcap.cwa.gov.tw"),
+                parse_station_index(&payload, "TWRCHL", "https://rdcap.cwa.gov.tw"),
                 Err(ProviderError::AmbiguousIndex)
             );
         }
@@ -1772,7 +1802,7 @@ mod tests {
         let update = adapter.refresh_station_catalog(context).await.unwrap().unwrap();
         server.await.unwrap();
         assert_eq!(update.stations.len(), 2);
-        let bale = update.stations.iter().find(|station| station.id == "PHL/BALE").unwrap();
+        let bale = update.stations.iter().find(|station| station.id == "PHBALE").unwrap();
         assert_eq!(bale.metadata.as_ref().unwrap().directory_conflicts[0].field, "Status");
         let serialized = serde_json::to_string(&update).unwrap();
         assert!(!serialized.contains("discard-me"));
@@ -1859,7 +1889,7 @@ mod tests {
                 DiscoveryTarget {
                     source: SOURCE.into(),
                     product: Some("reflectivity".into()),
-                    station: Some("TWN/RCHL".into()),
+                    station: Some("TWRCHL".into()),
                 },
                 context,
             )

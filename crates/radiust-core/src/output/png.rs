@@ -736,7 +736,7 @@ mod tests {
         field.provenance = vec![
             "source=rdcap".into(),
             "product=reflectivity".into(),
-            "station=TWN/RCHL".into(),
+            "station=TWRCHL".into(),
             "key=1790834708000".into(),
             "frame_logical_id=stable-frame-id".into(),
             "raw_sha256=0123456789abcdef".into(),

@@ -55,7 +55,7 @@ fn json_report(output: &Output, expected_exit: i32) -> Value {
 }
 
 fn write_reconstructed_rdcap_manifest(root: &Path) -> PathBuf {
-    let station = "TWN/RCHL";
+    let station = "TWRCHL";
     let country = "TWN";
     let station_code = "RCHL";
     let key = "1790834708000";
@@ -129,15 +129,8 @@ fn decoded_download_gate_accepts_rdcap_reflectivity_for_native_formats_offline()
     // default network-off config, this checks format/source capability
     // validation and verifies that no output is written before acquisition.
     for format in ["png", "netcdf", "geotiff", "zarr"] {
-        let output = cli.run(&[
-            "download",
-            "rdcap",
-            "--station",
-            "TWN/RCHL",
-            "--latest",
-            "--format",
-            format,
-        ]);
+        let output =
+            cli.run(&["download", "rdcap", "--station", "TWRCHL", "--latest", "--format", format]);
         let report = json_report(&output, 2);
         assert_ne!(
             report["error"]["code"], "unsupported",
@@ -181,7 +174,7 @@ fn replay_command_decodes_one_offline_manifest_to_all_native_formats_idempotentl
     assert_eq!(first["mode_info"]["actual"], "scientific");
     assert_eq!(first["mode_info"]["variable"], "reflectivity");
     assert_eq!(first["mode_info"]["units"], "dBZ");
-    assert_eq!(first["query"]["station"], "TWN/RCHL");
+    assert_eq!(first["query"]["station"], "TWRCHL");
     assert_eq!(first["counts"]["written"], 4);
     assert_eq!(first["items"].as_array().unwrap().len(), 4);
     for item in first["items"].as_array().unwrap() {

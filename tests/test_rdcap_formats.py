@@ -329,9 +329,9 @@ def test_rust_rdcap_formats_are_readable_by_independent_python_libraries() -> No
     assert manifest["provenance"]["native_http_file_response_retained"] is False
     stations = manifest["stations"]
     assert {station["station_id"] for station in stations} == {
-        "TWN/RCHL",
-        "JPN/ISHI",
-        "PHL/SUBI",
+        "TWRCHL",
+        "JPISHI",
+        "PHSUBI",
     }
     for station in stations:
         _read_and_check_station(output_root, station)

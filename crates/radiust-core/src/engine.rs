@@ -2090,7 +2090,8 @@ fn merge_station(
     let coordinate_conflict = live.metadata.as_ref().is_some_and(|metadata| {
         metadata.directory_conflicts.iter().any(|conflict| conflict.field == "Longitude/Latitude")
     });
-    let station_code = snapshot.id.rsplit('/').next().unwrap_or_default();
+    let station_code = crate::source::rdcap::parse_station_id(&snapshot.id)
+        .map_or(snapshot.id.as_str(), |station| station.station_code);
     if live.name.trim().is_empty() || live.name.eq_ignore_ascii_case(station_code) {
         live.name = snapshot.name.clone();
     }
@@ -2836,8 +2837,8 @@ mod tests {
     fn directory_merge_separates_live_state_from_retained_snapshot_provenance() {
         let mut catalog = SourceCatalog::builtin().unwrap();
         let live_bale = CatalogStation {
-            id: "PHL/BALE".into(),
-            name: "Baler".into(),
+            id: "PHBALE".into(),
+            name: "BALE".into(),
             longitude: Some(121.6331),
             latitude: Some(15.7502),
             product_ids: vec!["reflectivity".into()],
@@ -2850,7 +2851,7 @@ mod tests {
             }),
         };
         let added = CatalogStation {
-            id: "PHL/NEW1".into(),
+            id: "PHNEW1".into(),
             name: "New Radar".into(),
             longitude: None,
             latitude: None,
@@ -2869,7 +2870,8 @@ mod tests {
 
         let source = catalog.source("rdcap").unwrap();
         assert_eq!(source.stations.len(), 49);
-        let bale = source.stations.iter().find(|station| station.id == "PHL/BALE").unwrap();
+        let bale = source.stations.iter().find(|station| station.id == "PHBALE").unwrap();
+        assert_eq!(bale.name, "Baler");
         let bale_metadata = bale.metadata.as_ref().unwrap();
         assert_eq!(bale_metadata.extensions["snapshot_catalog_state"], "present");
         assert_eq!(bale_metadata.extensions["live_catalog_state"], "present");
@@ -2879,12 +2881,12 @@ mod tests {
         );
         assert_eq!(bale_metadata.extensions["directory_statuses"], json!(["Active"]));
 
-        let retained = source.stations.iter().find(|station| station.id == "TWN/RCHL").unwrap();
+        let retained = source.stations.iter().find(|station| station.id == "TWRCHL").unwrap();
         assert_eq!(
             retained.metadata.as_ref().unwrap().extensions["live_catalog_state"],
             "not_seen_in_refresh"
         );
-        let added = source.stations.iter().find(|station| station.id == "PHL/NEW1").unwrap();
+        let added = source.stations.iter().find(|station| station.id == "PHNEW1").unwrap();
         assert_eq!(added.metadata.as_ref().unwrap().extensions["snapshot_catalog_state"], "absent");
         assert_eq!(
             added.metadata.as_ref().unwrap().extensions["live_catalog_state"],
@@ -3262,7 +3264,7 @@ mod tests {
         let mut frame = FrameRef {
             source: "rdcap".into(),
             product: "reflectivity".into(),
-            station: Some("TWN/RCHL".into()),
+            station: Some("TWRCHL".into()),
             valid_time: "2026-10-01T06:05:08.000000Z".into(),
             base_time: None,
             logical_id: String::new(),

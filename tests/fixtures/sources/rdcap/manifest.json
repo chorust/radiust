@@ -15,7 +15,7 @@
     "catalog_records": 49,
     "comparison": {
       "source": "validation-results/rdcap-analysis/comparison.json",
-      "station_id": "TWN/RCHL",
+      "station_id": "TWRCHL",
       "reference_points": 8
     },
     "limitations": [
@@ -29,7 +29,7 @@
     {
       "country": "TWN",
       "station_code": "RCHL",
-      "station_id": "TWN/RCHL",
+      "station_id": "TWRCHL",
       "name": "Hua-Lien",
       "selected_key_epoch_ms": 1790834708000,
       "available_keys_epoch_ms": [
@@ -98,7 +98,7 @@
     {
       "country": "JPN",
       "station_code": "ISHI",
-      "station_id": "JPN/ISHI",
+      "station_id": "JPISHI",
       "name": "Ishigakijima",
       "selected_key_epoch_ms": 1790834268000,
       "available_keys_epoch_ms": [
@@ -151,7 +151,7 @@
     {
       "country": "PHL",
       "station_code": "SUBI",
-      "station_id": "PHL/SUBI",
+      "station_id": "PHSUBI",
       "name": "Subic",
       "selected_key_epoch_ms": 1790833210000,
       "available_keys_epoch_ms": [

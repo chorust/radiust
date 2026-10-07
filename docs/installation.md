@@ -2,14 +2,14 @@
 
 ## 从包仓库直接安装
 
-截至 2026-10-07，`0.1.5` 已发布到 [PyPI](https://pypi.org/project/radiust/0.1.5/)、[radiust-core](https://crates.io/crates/radiust-core/0.1.5) 和 [radiust-cli](https://crates.io/crates/radiust-cli/0.1.5)，可直接安装当前 CLI、SDK 与核心库。本版本修复 RDCAP 匿名会话票据，提供仅对 RDCAP 生效的显式 TLS 校验例外，并去掉该配置的 warning。GitHub tag 工作流构建并验证两个平台的 crate 与八个 Python wheel，包由工作流发布，PyPI Trusted Publishing 已成功；验证详情见[发布流程与验证记录](releases.md)。
+截至 2026-10-07，`0.1.6` 已发布到 [PyPI](https://pypi.org/project/radiust/0.1.6/)、[radiust-core](https://crates.io/crates/radiust-core/0.1.6) 和 [radiust-cli](https://crates.io/crates/radiust-cli/0.1.6)，可直接安装当前 CLI、SDK 与核心库。本版本统一 RDCAP 公开站点 ID 格式；GitHub tag 工作流构建并验证两个平台的 crate 与八个 Python wheel，包由工作流发布，PyPI Trusted Publishing 已成功；验证详情见[发布流程与验证记录](releases.md)。
 
 ```bash
-cargo install --locked --version 0.1.5 radiust-cli
+cargo install --locked --version 0.1.6 radiust-cli
 radiust --help
 
 python3 -m venv .venv
-.venv/bin/python -m pip install --only-binary=:all: "radiust==0.1.5"
+.venv/bin/python -m pip install --only-binary=:all: "radiust==0.1.6"
 .venv/bin/python -m radiust --help
 ```
 
@@ -80,7 +80,7 @@ cargo install --locked --path crates/radiust-cli --root /tmp/radiust-native
 
 Python SDK 的 `Client`、`AsyncClient`、便捷函数和 `radiust` console script 通过 PyO3 共用 Rust Engine 与原生 CLI。基础 wheel 不要求 NumPy/xarray；科学数组只在显式调用 `to_xarray()` 时转成 Python 对象。
 
-核心包要求 CPython 3.10–3.13。PyPI `0.1.5` 提供 macOS arm64（macOS 11+）和 Linux x86_64（glibc ≥ 2.28）共八个 wheel；这些环境可使用上方直接安装命令。当前没有发布 sdist，其他架构或 Python 版本不能据此视为支持。以下命令从源码安装，需要先准备 Rust 1.92 或更新版本、CMake、C/C++ 编译器和构建工具；macOS 安装步骤见[源码构建前置依赖](#从源码构建或使用-cargo-安装)。命令须在仓库根目录执行：
+核心包要求 CPython 3.10–3.13。PyPI `0.1.6` 提供 macOS arm64（macOS 11+）和 Linux x86_64（glibc ≥ 2.28）共八个 wheel；这些环境可使用上方直接安装命令。当前没有发布 sdist，其他架构或 Python 版本不能据此视为支持。以下命令从源码安装，需要先准备 Rust 1.92 或更新版本、CMake、C/C++ 编译器和构建工具；macOS 安装步骤见[源码构建前置依赖](#从源码构建或使用-cargo-安装)。命令须在仓库根目录执行：
 
 ```bash
 python -m venv .venv

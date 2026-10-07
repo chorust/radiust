@@ -664,7 +664,7 @@ mod tests {
 
     #[test]
     fn rdcap_query_accepts_canonical_or_short_station_codes_and_rejects_bad_paths() {
-        for station in ["TWN/RCHL", "RCHL"] {
+        for station in ["TWRCHL", "RCHL"] {
             let query = Query {
                 source: Some("rdcap".into()),
                 stations: vec![station.into()],
@@ -756,7 +756,7 @@ mod tests {
         let mut rdcap = valid_frame();
         rdcap.source = "rdcap".into();
         rdcap.product = "reflectivity".into();
-        rdcap.station = Some("TWN/RCHL".into());
+        rdcap.station = Some("TWRCHL".into());
         rdcap.logical_id = crate::identity::logical_id(&rdcap).unwrap();
         assert!(rdcap.validate_identity().is_ok());
 
