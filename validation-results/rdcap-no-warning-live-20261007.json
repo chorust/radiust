@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "run_at": "2026-10-07T08:18:29.864766+00:00",
+  "station": "JPN/MAKI",
+  "mode": "decoded",
+  "cache_enabled": false,
+  "insecure_tls": true,
+  "exit_code": 0,
+  "stderr_empty": true,
+  "results": [
+    {
+      "source": "rdcap",
+      "product": "reflectivity",
+      "station": "JPN/MAKI",
+      "valid_time": "2026-10-07T08:08:10.000000Z",
+      "variable": "reflectivity",
+      "units": "dBZ",
+      "width": 900,
+      "height": 900,
+      "display_mode": "decoded"
+    }
+  ]
+}

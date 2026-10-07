@@ -2,11 +2,19 @@
 
 `.github/workflows/release.yml` 在推送 `vMAJOR.MINOR.PATCH` tag 时执行。tag 必须包含这套发布代码；仅接受三段稳定版本号，不接受前导零、预发布或任意分支名。版本 `0.x` 仍可作为明确标注能力范围的预览版，不代表所有来源或迁移规格已经验收。
 
+## v0.1.5 RDCAP 修复
+
+本补丁新增 RDCAP 的显式 TLS 校验例外 `sources.rdcap.insecure_tls: true`（默认仍校验证书），并保留匿名会话 cookie，使申请索引与读取文件票据使用同一内存会话。配置例外仅适用于 RDCAP HTTPS 主机，其他来源与主机保持正常证书校验；不输出该配置的 warning，网络 opt-in、请求限额、超时、取消与票据重试规则保持不变。
+
+[MAKI 在线验证](../validation-results/rdcap-session-live-20261007.json)在禁用缓存后成功获取原始数据并完成 `--decoded` / `--dbz` 数值预览；[去掉 warning 后的对照](../validation-results/rdcap-no-warning-live-20261007.json)确认预览成功且 stderr 为空。RDCAP 返回数值网格，`--gray` 来源图像模式不适用。当前单站证据不代表三国科学能力或独立输出读回全部验收。
+
+`v0.1.3` 与 `v0.1.4` 的构建发布均在 registry 上传之前取消，tag 保留不改写，包未上传。本版本的 registry 发布与安装结果将在完成后记录。
+
 ## v0.1.2 发布结果（2026-10-06）
 
 [GitHub Actions run 37466179486](https://github.com/chorust/radiust/actions/runs/37466179486) 已通过源码准备、发布检查、Linux/macOS crate 打包与独立安装、八个 wheel 构建与隔离安装；`radiust-core` 和 `radiust-cli` 已由工作流发布到 crates.io。Python 发布 job 的 OIDC 交换返回 `invalid-publisher`，所以八个经 CI 验证的同一 wheel 改用本地 PyPI 凭据上传。公开 PyPI 摘要与 CI 产物一致，CPython 3.10–3.13 的 macOS arm64 和 Linux x86_64 环境均从公开索引安装并通过 SDK/CLI 检查。详细摘要见 [`tag-release-v0.1.2.json`](../validation-results/tag-release-v0.1.2.json)。
 
-失败 token 的 claims 是 owner `chorust`、repository `radiust`、workflow `.github/workflows/release.yml`、environment `pypi`。请在 PyPI 的 `radiust` 项目 Publishing 设置核对这四项；当前版本的 wheel 已发布，不能用同一版本重传来验证 OIDC。修正后，新版本 tag（下一版为 `v0.1.3`）会实际验证 Trusted Publishing。
+失败 token 的 claims 是 owner `chorust`、repository `radiust`、workflow `.github/workflows/release.yml`、environment `pypi`。请在 PyPI 的 `radiust` 项目 Publishing 设置核对这四项；当前版本的 wheel 已发布，不能用同一版本重传来验证 OIDC。修正后，新版本 tag会实际验证 Trusted Publishing。
 
 ## 首次配置
 
@@ -23,8 +31,8 @@
 将代码和工作流合入需要发布的提交后，创建新的未使用版本 tag，例如：
 
 ```bash
-git tag -a v0.1.3 -m "Radiust 0.1.3"
-git push origin v0.1.3
+git tag -a v0.1.6 -m "Radiust 0.1.6"
+git push origin v0.1.6
 ```
 
 发布新版本时将 `git push` 命令中的 tag 与上方示例保持一致。`0.1.1` 首次发布使用本地凭据；`0.1.2` 的 crate 由 GitHub 发布、wheel 因 Trusted Publisher 不匹配而使用本地凭据发布。后续自动发布应使用新版本，不能用 CI 重建产物覆盖同版本。已有 GitHub `v0.1.0` 预览资产不应移动旧 tag 来替换其内容。
@@ -49,7 +57,7 @@ GitHub Actions 的 `release` 工作流支持手动运行：填写含有发布工
 本地可先生成快照并在离线依赖已缓存的环境中检查：
 
 ```bash
-python3 scripts/release/prepare.py --tag v0.1.3 --output /tmp/radiust-release-source
+python3 scripts/release/prepare.py --tag v0.1.6 --output /tmp/radiust-release-source
 python3 scripts/release/verify_crates.py --source /tmp/radiust-release-source \
   --output /tmp/radiust-release-artifacts --offline
 ```

@@ -74,11 +74,6 @@ impl Engine {
             )
             .map_err(|_| EngineError::InvalidConfiguration)?,
         );
-        if config.rdcap_insecure_tls() && config.runtime.allow_network {
-            eprintln!(
-                "warning: RDCAP TLS certificate verification is disabled (sources.rdcap.insecure_tls=true)"
-            );
-        }
         let rdcap_http_transport = Arc::new(
             http_transport
                 .as_ref()

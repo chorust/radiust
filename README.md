@@ -21,7 +21,7 @@ Radiust 希望让用户通过自己设备上的开放工具连接雷达来源，
   <a href="DATA_SOURCES.md">数据来源政策</a> · <a href="TRADEMARKS.md">品牌使用规则</a>
 </p>
 
-当前版本为 **0.1.2 alpha**。
+当前版本为 **0.1.5 alpha**。
 
 [Features](#features) · [Install](#install) · [Usage](#usage) · [项目与许可](#项目与许可) · [Dev](#dev)
 
@@ -42,25 +42,25 @@ Radiust 希望让用户通过自己设备上的开放工具连接雷达来源，
 原生 CLI 无需 Python。Cargo 安装会从源码编译，需要 Rust **1.92+**、CMake、C/C++ 编译器及构建工具：
 
 ```bash
-cargo install --locked --version 0.1.2 radiust-cli
+cargo install --locked --version 0.1.5 radiust-cli
 radiust --version
 ```
 
-Cargo 包名是 `radiust-cli`，可执行命令名是 `radiust`；`~/.cargo/bin` 需要在 PATH 中。Rust 项目可通过 `cargo add radiust-core@0.1.2` 使用同版本核心库。macOS 用户可用 `xcode-select --install` 准备编译工具，再用 `brew install cmake` 安装 CMake；完整前置依赖和 v0.1.2 发布验证记录见[安装说明](docs/installation.md#从源码构建或使用-cargo-安装)及[发布记录](docs/releases.md)。
+Cargo 包名是 `radiust-cli`，可执行命令名是 `radiust`；`~/.cargo/bin` 需要在 PATH 中。Rust 项目可通过 `cargo add radiust-core@0.1.5` 使用同版本核心库。macOS 用户可用 `xcode-select --install` 准备编译工具，再用 `brew install cmake` 安装 CMake；完整前置依赖和 v0.1.5 发布验证记录见[安装说明](docs/installation.md#从源码构建或使用-cargo-安装)及[发布记录](docs/releases.md)。
 
 ### Python SDK
 
-使用 CPython **3.10–3.13**。`0.1.2` 的预编译 wheel 覆盖 macOS Apple Silicon（macOS 11+）和 Linux x86_64（glibc ≥ 2.28），无需安装 Rust 或 CMake：
+使用 CPython **3.10–3.13**。`0.1.5` 的预编译 wheel 覆盖 macOS Apple Silicon（macOS 11+）和 Linux x86_64（glibc ≥ 2.28），无需安装 Rust 或 CMake：
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "radiust==0.1.2"
+python -m pip install "radiust==0.1.5"
 python -m radiust --version
 radiust --help
 ```
 
-Python 包同时提供 `radiust` 命令和 SDK。需要 NumPy／xarray 转换时，安装 `"radiust[science]==0.1.2"`；GeoTIFF、Zarr 及其他可选依赖见[安装说明](docs/installation.md#python-包)。同时安装独立 CLI 时，可用 `python -m radiust` 明确调用虚拟环境中的版本。
+Python 包同时提供 `radiust` 命令和 SDK。需要 NumPy／xarray 转换时，安装 `"radiust[science]==0.1.5"`；GeoTIFF、Zarr 及其他可选依赖见[安装说明](docs/installation.md#python-包)。同时安装独立 CLI 时，可用 `python -m radiust` 明确调用虚拟环境中的版本。
 
 ### 独立预编译
 
@@ -81,7 +81,7 @@ radiust --help
 
 校验通过后再解压安装。若新终端找不到 `radiust`，将上述 `export PATH` 行加入 `~/.zshrc`。此预览包未经过 Apple 公证，首次运行可能出现 Gatekeeper 提示；处理方式及适用范围见[完整安装说明](docs/installation.md#macos-apple-silicon-预编译版本预览)。
 
-这个 `v0.1.0` 旧预览包不包含 `0.1.2` 的全部变化；当前版本可通过上方 PyPI 或 Cargo 命令安装。
+这个 `v0.1.0` 旧预览包不包含 `0.1.5` 的全部变化；当前版本可通过上方 PyPI 或 Cargo 命令安装。
 
 ### 从源码安装
 

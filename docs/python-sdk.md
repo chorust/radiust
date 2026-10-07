@@ -118,7 +118,7 @@ sources:
     insecure_tls: true
 ```
 
-CLI 可将此配置写入 `config.yaml`，执行 `radiust discover rdcap --station TWN/RCHL`；SDK 对应传入 `config={"runtime": {"allow_network": True}, "sources": {"rdcap": {"insecure_tls": True}}}`。环境变量为 `RADIUST_SOURCES__RDCAP__INSECURE_TLS=true`。启用时向 stderr 输出提示；仅 RDCAP 来源访问 `https://rdcap.cwa.gov.tw` 时跳过校验，其他来源、其他主机和网络 opt-in 保持原规则。
+CLI 可将此配置写入 `config.yaml`，执行 `radiust discover rdcap --station TWN/RCHL`；SDK 对应传入 `config={"runtime": {"allow_network": True}, "sources": {"rdcap": {"insecure_tls": True}}}`。环境变量为 `RADIUST_SOURCES__RDCAP__INSECURE_TLS=true`。仅 RDCAP 来源访问 `https://rdcap.cwa.gov.tw` 时跳过校验，其他来源、其他主机和网络 opt-in 保持原规则。
 
 `discover_report()` 返回逐目标终态的 `DiscoveryReport`，含 `items`、`counts`、安全错误字段和 `to_json()`。JSON 不含私有 locator/ticket；成功项只有在原进程内的报告上才能用 `frame(index)` 取得带私有 locator 的 `FrameRef`。从 JSON 重建的报告不携带该进程内句柄。错误报告保留安全 `code`、`stage`、`retryable` 字段；SDK 的 `RadiustError.context` 提供对应错误上下文。现有 `discover()` 仍返回 refs。对单站可这样使用：
 
