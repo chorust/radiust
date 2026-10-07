@@ -17,6 +17,7 @@ use url::Url;
 #[derive(Clone)]
 pub struct HttpTransport {
     client: Client,
+    rdcap_insecure_client: Option<Client>,
     budget: Arc<RequestBudget>,
     allow_public: bool,
     max_bytes: u64,
@@ -67,7 +68,38 @@ impl HttpTransport {
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| CoreError::Transport(e.to_string()))?;
-        Ok(Self { client, budget, allow_public, max_bytes: limits.max_artifact_bytes })
+        Ok(Self {
+            client,
+            rdcap_insecure_client: None,
+            budget,
+            allow_public,
+            max_bytes: limits.max_artifact_bytes,
+        })
+    }
+
+    /// Keep the same budget and network policy; the exception is restricted to
+    /// RDCAP's HTTPS host, including after manually followed redirects.
+    pub(crate) fn with_rdcap_insecure_tls(mut self, limits: &Limits) -> CoreResult<Self> {
+        self.rdcap_insecure_client = Some(
+            Client::builder()
+                .timeout(Duration::from_secs(limits.request_timeout_secs))
+                .redirect(reqwest::redirect::Policy::none())
+                .danger_accept_invalid_certs(true)
+                .build()
+                .map_err(|_| {
+                    CoreError::Transport("RDCAP TLS client could not be initialized".into())
+                })?,
+        );
+        Ok(self)
+    }
+
+    fn client_for(&self, url: &Url) -> &Client {
+        if url.scheme() == "https" && url.host_str() == Some("rdcap.cwa.gov.tw") {
+            if let Some(client) = &self.rdcap_insecure_client {
+                return client;
+            }
+        }
+        &self.client
     }
 
     fn allowed(&self, url: &Url) -> bool {
@@ -126,7 +158,7 @@ impl HttpTransport {
                     .ok_or_else(|| CoreError::Transport("request URL has no host".into()))?;
                 let _host_permit = self.budget.acquire_host(host).await?;
                 let _permit = self.budget.acquire_request().await?;
-                let mut request = self.client.get(current.clone());
+                let mut request = self.client_for(&current).get(current.clone());
                 if current.origin().ascii_serialization() == original_origin {
                     for (name, value) in &request_headers {
                         request = request.header(name, value);
@@ -236,7 +268,7 @@ impl HttpTransport {
             let _host_permit = self.budget.acquire_host(host).await?;
             let _permit = self.budget.acquire_request().await?;
             let response = tokio::select! {
-                result = self.client
+                result = self.client_for(&url)
                     .post(url.clone())
                     .headers(request_headers.clone())
                     .body(body.clone())
@@ -335,7 +367,7 @@ impl HttpTransport {
             let _host_permit = self.budget.acquire_host(host).await?;
             let _permit = self.budget.acquire_request().await?;
             let request = self
-                .client
+                .client_for(&url)
                 .get(url.clone())
                 .header(reqwest::header::RANGE, format!("bytes={start}-{end}"))
                 .header(reqwest::header::IF_MATCH, etag_header.clone())
@@ -560,7 +592,7 @@ impl HttpTransport {
                     .ok_or_else(|| CoreError::Transport("request URL has no host".into()))?;
                 let host_permit = self.budget.acquire_host(host).await?;
                 let request_permit = self.budget.acquire_request().await?;
-                let mut request = self.client.get(current.clone());
+                let mut request = self.client_for(&current).get(current.clone());
                 if current.origin().ascii_serialization() == original_origin {
                     for (name, value) in &request_headers {
                         request = request.header(name, value);
@@ -682,7 +714,7 @@ impl HttpTransport {
                 let _host_permit = self.budget.acquire_host(host).await?;
                 let _permit = self.budget.acquire_request().await?;
                 let response = tokio::select! {
-                    result = self.client.head(current.clone()).send() => result.map_err(|_| CoreError::Transport("request failed".into()))?,
+                    result = self.client_for(&current).head(current.clone()).send() => result.map_err(|_| CoreError::Transport("request failed".into()))?,
                     _ = self.budget.cancellation.cancelled() => return Err(CoreError::Cancelled),
                 };
                 if response.status().is_redirection() {
@@ -826,5 +858,119 @@ mod range_tests {
         assert!(
             transport.get_range_bytes("http://127.0.0.1/grid", 0, 3, 8, "W/\"v1\"").await.is_err()
         );
+    }
+}
+
+#[cfg(test)]
+mod tls_tests {
+    use super::*;
+    use rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+    use tokio_rustls::{TlsAcceptor, rustls};
+
+    async fn tls_endpoint() -> (std::net::SocketAddr, tokio::task::JoinHandle<()>) {
+        let cert = CertificateDer::from_pem_slice(include_bytes!(
+            "../../../../tests/fixtures/protocols/ftp/server-cert.pem"
+        ))
+        .unwrap();
+        let key = PrivateKeyDer::from_pem_slice(include_bytes!(
+            "../../../../tests/fixtures/protocols/ftp/server-key.pem"
+        ))
+        .unwrap();
+        let provider = rustls::crypto::ring::default_provider();
+        let config = rustls::ServerConfig::builder_with_provider(Arc::new(provider))
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_no_client_auth()
+            .with_single_cert(vec![cert], key)
+            .unwrap();
+        let acceptor = TlsAcceptor::from(Arc::new(config));
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            if let Ok(mut socket) = acceptor.accept(socket).await {
+                let mut data = Vec::new();
+                let mut buffer = [0; 1024];
+                loop {
+                    let size = socket.read(&mut buffer).await.unwrap();
+                    if size == 0 {
+                        return;
+                    }
+                    data.extend_from_slice(&buffer[..size]);
+                    if data.windows(4).any(|part| part == b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                let _ = socket
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n[]",
+                    )
+                    .await;
+                let _ = socket.shutdown().await;
+            }
+        });
+        (address, server)
+    }
+
+    #[tokio::test]
+    async fn rdcap_insecure_tls_accepts_only_the_explicit_host_and_preserves_network_opt_in() {
+        for (enabled, host, post, succeeds) in [
+            (false, "rdcap.cwa.gov.tw", false, false),
+            (true, "rdcap.cwa.gov.tw", false, true),
+            (true, "rdcap.cwa.gov.tw", true, true),
+            (true, "localhost", false, false),
+        ] {
+            let (address, server) = tls_endpoint().await;
+            let limits = Limits::default();
+            let mut transport = HttpTransport::new(limits.clone(), true).unwrap();
+            if enabled {
+                transport = transport.with_rdcap_insecure_tls(&limits).unwrap();
+            }
+            let client = |insecure| {
+                Client::builder()
+                    .no_proxy()
+                    .resolve(host, address)
+                    .danger_accept_invalid_certs(insecure)
+                    .redirect(reqwest::redirect::Policy::none())
+                    .build()
+                    .unwrap()
+            };
+            transport.client = client(false);
+            if enabled {
+                transport.rdcap_insecure_client = Some(client(true));
+            }
+            let url = format!("https://{host}:{}/data_access/get_country_list", address.port());
+            let result = if post {
+                transport.post_form_bytes_with_headers(&url, &[], &[]).await
+            } else {
+                transport.get_bytes(&url).await
+            };
+            assert_eq!(result.is_ok(), succeeds, "enabled={enabled} host={host} post={post}");
+            if succeeds {
+                assert_eq!(result.unwrap(), b"[]");
+            }
+            server.await.unwrap();
+        }
+        let limits = Limits::default();
+        let transport = HttpTransport::new(limits.clone(), false)
+            .unwrap()
+            .with_rdcap_insecure_tls(&limits)
+            .unwrap();
+        assert!(matches!(
+            transport.get_bytes("https://rdcap.cwa.gov.tw/").await,
+            Err(CoreError::NetworkDisabled(_))
+        ));
+        for url in [
+            "https://rdcap.cwa.gov.tw.example.invalid/",
+            "https://example.invalid/",
+            "http://rdcap.cwa.gov.tw/",
+        ] {
+            assert!(std::ptr::eq(
+                transport.client_for(&Url::parse(url).unwrap()),
+                &transport.client
+            ));
+        }
     }
 }

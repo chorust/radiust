@@ -145,6 +145,15 @@ impl Default for OutputConfig {
 }
 
 impl CoreConfig {
+    /// Only an explicit boolean enables the RDCAP certificate exception.
+    pub fn rdcap_insecure_tls(&self) -> bool {
+        self.sources
+            .get("rdcap")
+            .and_then(|options| options.get("insecure_tls"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    }
+
     /// Merge defaults < YAML file < environment < explicit YAML/CLI overrides.
     pub fn layered(
         yaml_file: Option<&str>,
@@ -335,6 +344,14 @@ impl CoreConfig {
             != self.storage.secret_key.as_deref().is_some_and(|value| !value.is_empty())
         {
             return Err(ConfigError::IncompleteCredentials);
+        }
+        if self
+            .sources
+            .get("rdcap")
+            .and_then(|options| options.get("insecure_tls"))
+            .is_some_and(|value| !value.is_bool())
+        {
+            return Err(ConfigError::InvalidValue);
         }
         for values in self.sources.values() {
             let has_access = values.get("access_key").is_some_and(is_truthy);
@@ -833,6 +850,25 @@ pub enum ConfigError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rdcap_insecure_tls_requires_an_explicit_boolean() {
+        let env = BTreeMap::new();
+        assert!(!CoreConfig::default().rdcap_insecure_tls());
+        for (value, enabled) in [("true", true), ("false", false)] {
+            let yaml = format!("sources:\n  rdcap:\n    insecure_tls: {value}\n");
+            let config = CoreConfig::layered(Some(&yaml), &env, None).unwrap();
+            assert_eq!(config.rdcap_insecure_tls(), enabled);
+        }
+        for value in ["'true'", "1", "null"] {
+            let yaml = format!("sources:\n  rdcap:\n    insecure_tls: {value}\n");
+            assert!(CoreConfig::layered(Some(&yaml), &env, None).is_err());
+        }
+        let config =
+            CoreConfig::layered(Some("sources:\n  tw:\n    insecure_tls: true\n"), &env, None)
+                .unwrap();
+        assert!(!config.rdcap_insecure_tls());
+    }
 
     #[test]
     fn automatic_files_merge_user_project_environment_and_explicit_overrides() {

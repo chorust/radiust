@@ -19,6 +19,8 @@ cache:
   enabled: true
 
 sources: {}
+  # rdcap:
+  #   insecure_tls: true  # Optional: disable verification only for RDCAP HTTPS requests.
   # provider:
   #   endpoint: https://example.invalid
   #   access_key: set-through-your-secret-store

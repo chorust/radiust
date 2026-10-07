@@ -47,6 +47,7 @@ pub struct Engine {
     decode_workers: Arc<Semaphore>,
     commit_workers: Arc<Semaphore>,
     http_transport: Arc<HttpTransport>,
+    rdcap_http_transport: Option<Arc<HttpTransport>>,
     ftp_transport: Arc<FtpTransport>,
     runtime_events: RuntimeEvents,
     raw_cache: tokio::sync::OnceCell<Option<Arc<Mutex<crate::cache::Cache>>>>,
@@ -73,6 +74,22 @@ impl Engine {
             )
             .map_err(|_| EngineError::InvalidConfiguration)?,
         );
+        let rdcap_http_transport = if config.rdcap_insecure_tls() {
+            if config.runtime.allow_network {
+                eprintln!(
+                    "warning: RDCAP TLS certificate verification is disabled (sources.rdcap.insecure_tls=true)"
+                );
+            }
+            Some(Arc::new(
+                http_transport
+                    .as_ref()
+                    .clone()
+                    .with_rdcap_insecure_tls(&limits)
+                    .map_err(|_| EngineError::InvalidConfiguration)?,
+            ))
+        } else {
+            None
+        };
         let mut ftp_limits = limits.clone();
         ftp_limits.max_artifact_bytes =
             ftp_limits.max_artifact_bytes.min(ftp_limits.max_temp_bytes);
@@ -90,6 +107,7 @@ impl Engine {
             // commit issued by this Engine instance behind one shared permit.
             commit_workers: Arc::new(Semaphore::new(1)),
             http_transport,
+            rdcap_http_transport,
             ftp_transport,
             runtime_events: RuntimeEvents::default(),
             raw_cache: tokio::sync::OnceCell::const_new(),
@@ -2003,7 +2021,11 @@ impl Engine {
             source_options: Arc::new(source_options),
             request_budget: self.request_budget.clone(),
             limits: limits_from_config(&self.config.runtime),
-            http_transport: self.http_transport.clone(),
+            http_transport: if source_id == "rdcap" {
+                self.rdcap_http_transport.as_ref().unwrap_or(&self.http_transport).clone()
+            } else {
+                self.http_transport.clone()
+            },
             ftp_transport: self.ftp_transport.clone(),
             request_coalescer,
         }
@@ -2923,6 +2945,31 @@ mod tests {
         assert!(first.is_ok());
         assert!(second.is_ok());
         assert_eq!(maximum.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn rdcap_insecure_tls_transport_is_isolated_and_shares_the_budget() {
+        for enabled in [false, true] {
+            let mut config = CoreConfig::default();
+            config.sources.insert(
+                "rdcap".into(),
+                BTreeMap::from([("insecure_tls".into(), serde_yaml_ng::Value::Bool(enabled))]),
+            );
+            let engine = Engine::new(config, SourceRegistry::default()).unwrap();
+            for source in ["rdcap", "tw", "rainviewer"] {
+                let context = engine.source_context(
+                    Query::default(),
+                    source,
+                    Arc::new(HttpRequestCoalescer::default()),
+                );
+                assert_eq!(
+                    Arc::ptr_eq(&context.http_transport, &engine.http_transport),
+                    !(enabled && source == "rdcap")
+                );
+                assert!(Arc::ptr_eq(&context.request_budget, &engine.request_budget));
+                assert!(!context.allow_network);
+            }
+        }
     }
 
     #[test]

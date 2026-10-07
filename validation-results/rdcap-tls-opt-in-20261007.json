@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "run_at": "2026-10-07T07:48:04.614257+00:00",
+  "entrypoint": "installed Rust-backed radiust CLI",
+  "source": "rdcap",
+  "station": "TWN/RCHL",
+  "scope": "discovery only; no raw acquisition or science/readback validation",
+  "results": [
+    {
+      "insecure_tls": false,
+      "exit_code": 2,
+      "counts": {},
+      "warning_emitted": false,
+      "error_code": "catalog_unavailable",
+      "items": []
+    },
+    {
+      "insecure_tls": true,
+      "exit_code": 0,
+      "counts": {
+        "items": 1
+      },
+      "warning_emitted": true,
+      "error_code": null,
+      "items": [
+        {
+          "valid_time": "2026-10-07T07:43:28.000000Z",
+          "station": "TWN/RCHL"
+        }
+      ]
+    }
+  ]
+}
