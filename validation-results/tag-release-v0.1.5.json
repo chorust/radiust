@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-07T08:52:19.092491+00:00",
+  "status": "published_and_public_install_verified",
+  "version": "0.1.5",
+  "tag": "v0.1.5",
+  "source_commit": "1d57d078c0aea55d4ce386eb923e7bea2b852487",
+  "checkout_dirty_at_tag": false,
+  "github_workflow": {
+    "run_id": 37593168357,
+    "run_url": "https://github.com/chorust/radiust/actions/runs/37593168357",
+    "event": "push",
+    "head_branch": "v0.1.5",
+    "head_commit": "1d57d078c0aea55d4ce386eb923e7bea2b852487",
+    "conclusion": "success",
+    "jobs": {
+      "prepare": "success",
+      "checks": "success",
+      "crates (ubuntu-24.04)": "success",
+      "crates (macos-14)": "success",
+      "wheels (ubuntu-24.04, 3.11)": "success",
+      "wheels (ubuntu-24.04, 3.13)": "success",
+      "wheels (macos-14, 3.11)": "success",
+      "wheels (macos-14, 3.10)": "success",
+      "wheels (macos-14, 3.13)": "success",
+      "wheels (ubuntu-24.04, 3.12)": "success",
+      "wheels (macos-14, 3.12)": "success",
+      "wheels (ubuntu-24.04, 3.10)": "success",
+      "publish-crates": "success",
+      "publish-pypi": "success",
+      "verify-published (macos-14)": "success",
+      "verify-published (ubuntu-24.04)": "success"
+    }
+  },
+  "prepared_source": {
+    "embedded_resource_count": 38,
+    "embedded_resources": {
+      "resources/builtin/catalog.json": "95c9dace0704b42a37670488d5b2516919aa667187ccde5503f1efa387423ea2",
+      "resources/builtin/gray/au.json": "ae18ef4c2444f9e9b2fe9d29cb868413a4eec3d7125f4e380190a5a2f7929c7d",
+      "resources/builtin/gray/bmkg.json": "477906a5683e8f3ed09f0bf17c8963e225c7e4da29985243281e46499b5b3923",
+      "resources/builtin/gray/ca.json": "cb0f59f6dea984884173db36dcb54fa69c6a5d9dd4e40912692a5abf6b7a6b20",
+      "resources/builtin/gray/es.json": "47b3c91d8699291524d15a0ad588bfc9005e52ceab5c164d8c8f0e17f18f5134",
+      "resources/builtin/gray/evidence/au__composite.json": "faed39f983936f0a05fae796cfec3a5ee9ac5733c5e5e8640adcc4ad21a57b6a",
+      "resources/builtin/gray/evidence/ca__rain.json": "cdaed8314b71f80bb9deefee46eda2a2d053ef2d6d5adf4e1e2e4f5b2a9ede8b",
+      "resources/builtin/gray/evidence/es__composite.json": "32457c9962ff2674636d5deb923457d564349088b85f38c0d9ba2e568b974ef4",
+      "resources/builtin/gray/evidence/fr__composite.json": "e98bd5bb23d63a1b6e5648be82bacfc7efda362724a08f335907bc041902c329",
+      "resources/builtin/gray/evidence/id__composite.json": "b341f3e0438a845c9ed51ac2b4b00148286fb97566f00b15559e35bbe1b38b3a",
+      "resources/builtin/gray/evidence/kr__composite.json": "47958ee6319c4df039fbd8c83255a4b98dc1ce4f109eebfa5285c10c0e0dec6e",
+      "resources/builtin/gray/evidence/my__composite__east.json": "2e344db4c8a44ee244ad9bc0933d818e32a272dce4014a3581cf2fd15097f340",
+      "resources/builtin/gray/evidence/my__composite__peninsular.json": "fdcd9797e996529df2b7c9f9f79b644d9ea987fa9965bdb864355e508ef702a5",
+      "resources/builtin/gray/evidence/nz__rain.json": "2eed3a4d503a08200d4f129b7c84ace1a7ce34ac97822a341669248a955cef20",
+      "resources/builtin/gray/evidence/pt__composite.json": "fa002570e3f3bd61a70ad5ee4593ae339d21541f785844945e46a5d875c700c6",
+      "resources/builtin/gray/evidence/sg__composite.json": "f62d0c109c9b910caa412998c1e17129a116cf8e9eb3cc3b0de750ca6c7536c0",
+      "resources/builtin/gray/evidence/th__composite__kkn240Loop.json": "40e2e3d1ed24d3d122f060afbdd35765c342a25147f1684fd0243c43238826d2",
+      "resources/builtin/gray/evidence/th_royalrain__cappi.json": "dc582cc4e2333704e47c303b35cb8baa703320e9ca1e9a9db03bfa8d9f800bf1",
+      "resources/builtin/gray/evidence/tw__observation.json": "aa4846d4dee7a650f2fa330532fafd5e7e409ba11fddc067861dcc2fb5a0fdc6",
+      "resources/builtin/gray/evidence/vn__cmax.json": "fad5cdf5ed4dc9feabef3d30e476bc0febb37ab2c57e0c8e3834a5bf0713be1f",
+      "resources/builtin/gray/fr.json": "b500743a52f99610bfee873dc7316dca1d4dd103eb0d6955ed83ae9c96404be0",
+      "resources/builtin/gray/id.json": "420cad74f59662dbf479e86e12f0651661ccca13b58d55b2c2ad0c1f945e7d4f",
+      "resources/builtin/gray/index.json": "f8278fce8aa23b94a9c43c1bcba6f0b90ff7aede7d4bd253e4a4ce48f222c5e3",
+      "resources/builtin/gray/kr.json": "480d34ca13626595b09c5a21cdd2a50401af30f9b603465d3d2a3132a4dbf23f",
+      "resources/builtin/gray/my-east.json": "f145713d2fc99d8cb965ed9d269edc85927a96bc822ffda2a0ddb4e3cdf73d4b",
+      "resources/builtin/gray/my.json": "e4da282fb0ecba1abd582180ff8500e1942fcc0f12a0edb22604a61a4da2202b",
+      "resources/builtin/gray/nz.json": "a103af918cc482553239482d0a52d9595b49799dfbf574836225214885c78c9a",
+      "resources/builtin/gray/ph.json": "ee621b85e53a3bdcf5470118fb853526304e45ed22dbe5e6e4f6d9385ff45bb8",
+      "resources/builtin/gray/pt.json": "de9ffb10c61b6901cd45bba7a3ea5546184d48497e64c3f70e7f63a16e6efa53",
+      "resources/builtin/gray/rainviewer.json": "99d7e3172311f8e606bfab3c5d8ee1ff1e36fa21069c7209e157b886fb7435c0",
+      "resources/builtin/gray/sg.json": "6b55fad7d859ad0c284e98c027c36bce4e8e89e67b97bae5b8fccbf0e8cf52f4",
+      "resources/builtin/gray/th.json": "a4dcf5e4af868acb73150b853e5befc021fe3446e379c6bc90100535cf9992a8",
+      "resources/builtin/gray/th_royalrain.json": "ea766dba707c10510285dec9024feff29679cacc022e91c8b1c6d528c869be21",
+      "resources/builtin/gray/tw.json": "28f19e1808e43b66ab23f305a8b4034e678726aeaa571cc3bfa912c62ef8304c",
+      "resources/builtin/gray/vn.json": "010a69207943317ae2a5102c9c5cec728dd015d67460d369222beb44070f66a7",
+      "resources/builtin/gray/windy.json": "5bbefdf0226877c257cb0cb34e7e202bfd96ee6756fe5611ea71e2b533e57a4e",
+      "resources/builtin/sources/id.json": "08c42a3c26e9ab9900bf911c0ee14e48168d3fe30842a875336672988c8eab4f",
+      "resources/builtin/sources/id_sidarma.json": "77fd95a2a0fc25af2e8a106f3aa7337e2e4a827e12caf8ed716146b14361ec31"
+    }
+  },
+  "crates": {
+    "registry": "crates.io",
+    "publication_method": "GitHub Actions publish-crates job",
+    "artifacts": {
+      "radiust-core-0.1.5.crate": "176742f8cdccc42736dd1494bd64a962acf3612164b3be3067e15fdf2cc05cf7",
+      "radiust-cli-0.1.5.crate": "4ec9f567bc07ce395b5bbf7846398dea340777ddcfd40ba072fda09e2e27e586"
+    },
+    "two_platform_tested_archives_identical": true
+  },
+  "pypi": {
+    "project_url": "https://pypi.org/project/radiust/0.1.5/",
+    "publication_method": "GitHub Actions PyPI Trusted Publishing",
+    "wheels": [
+      {
+        "filename": "radiust-0.1.5-cp310-cp310-macosx_11_0_arm64.whl",
+        "sha256": "3867c84d7d78a221ee120acfd8b1ce1f53a9de465dcb99973cd3dba5852a57f6",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      },
+      {
+        "filename": "radiust-0.1.5-cp310-cp310-manylinux_2_28_x86_64.whl",
+        "sha256": "100d6980b168029c01dc3214e86f92e69fa975e59160074c7248636bda2d94cb",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      },
+      {
+        "filename": "radiust-0.1.5-cp311-cp311-macosx_11_0_arm64.whl",
+        "sha256": "14ffcc83f2decd6fae537d1b7c5b06ba9c3b8c1394c8bc39bbbda323e1824aa4",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      },
+      {
+        "filename": "radiust-0.1.5-cp311-cp311-manylinux_2_28_x86_64.whl",
+        "sha256": "530368a371fe08c024855fe5f09216f6f2ce7f770872a60759959d16188fff66",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      },
+      {
+        "filename": "radiust-0.1.5-cp312-cp312-macosx_11_0_arm64.whl",
+        "sha256": "e6ebbce4edd723b35e4cb199fd4c99b4a8c703788677dd0b11e5b6b4f823001b",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      },
+      {
+        "filename": "radiust-0.1.5-cp312-cp312-manylinux_2_28_x86_64.whl",
+        "sha256": "459191c847285011e0f90e0952aa918c55f95a177fb420fca924120e33ad5288",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      },
+      {
+        "filename": "radiust-0.1.5-cp313-cp313-macosx_11_0_arm64.whl",
+        "sha256": "4914ed94058a21d6db6e504b550abeb8caba352075d9b17119dab5c02e965f04",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      },
+      {
+        "filename": "radiust-0.1.5-cp313-cp313-manylinux_2_28_x86_64.whl",
+        "sha256": "3ae944a996af5176e636114cf6c41551d7a96b1f9fe25487e9456c7e72a465d2",
+        "public_digest_matches_ci_artifact": true,
+        "ci_clean_install": {
+          "version": "0.1.5",
+          "sdk": "passed",
+          "cli": "passed",
+          "provider_network": false
+        }
+      }
+    ]
+  },
+  "public_registry_install": {
+    "linux": {
+      "cargo_cli_install": "passed",
+      "pypi": {
+        "version": "0.1.5",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "python": "3.12"
+    },
+    "macos": {
+      "cargo_cli_install": "passed",
+      "pypi": {
+        "version": "0.1.5",
+        "sdk": "passed",
+        "cli": "passed",
+        "provider_network": false
+      },
+      "python": "3.12"
+    }
+  },
+  "rdcap_public_package_live": {
+    "schema_version": 1,
+    "run_at": "2026-10-07T08:44:00.541236+00:00",
+    "package_version": "0.1.5",
+    "installed_from_public_pypi": true,
+    "station": "JPN/MAKI",
+    "mode": "decoded",
+    "cache_enabled": false,
+    "insecure_tls": true,
+    "exit_code": 0,
+    "stderr_empty": true,
+    "results": [
+      {
+        "source": "rdcap",
+        "product": "reflectivity",
+        "station": "JPN/MAKI",
+        "valid_time": "2026-10-07T08:28:05.000000Z",
+        "variable": "reflectivity",
+        "units": "dBZ",
+        "width": 900,
+        "height": 900,
+        "display_mode": "decoded"
+      }
+    ]
+  },
+  "offline_workflows": {
+    "37593168487": "success",
+    "37593168342": "success"
+  },
+  "scope": "Public registry package and CLI/SDK installation verified; cache-disabled JPN/MAKI decoded preview verified with explicit RDCAP TLS exception and empty stderr. This is not all-country or full scientific/output acceptance.",
+  "skipped_versions": {
+    "0.1.3": "workflow canceled before registry upload; immutable tag retained",
+    "0.1.4": "workflow canceled before registry upload; immutable tag retained"
+  }
+}

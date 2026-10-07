@@ -8,13 +8,13 @@
 
 [MAKI 在线验证](../validation-results/rdcap-session-live-20261007.json)在禁用缓存后成功获取原始数据并完成 `--decoded` / `--dbz` 数值预览；[去掉 warning 后的对照](../validation-results/rdcap-no-warning-live-20261007.json)确认预览成功且 stderr 为空。RDCAP 返回数值网格，`--gray` 来源图像模式不适用。当前单站证据不代表三国科学能力或独立输出读回全部验收。
 
-`v0.1.3` 与 `v0.1.4` 的构建发布均在 registry 上传之前取消，tag 保留不改写，包未上传。本版本的 registry 发布与安装结果将在完成后记录。
+`v0.1.3` 与 `v0.1.4` 的构建发布均在 registry 上传之前取消，tag 保留不改写，包未上传。[发布工作流](https://github.com/chorust/radiust/actions/runs/37593168357)已全部通过，两个 crate 和八个 wheel 已由工作流发布；PyPI Trusted Publishing 成功。Linux x86_64 与 macOS arm64 均从公开 crates.io 安装 CLI，并从公开 PyPI 安装 CPython 3.12 wheel，SDK 与 CLI 检查通过。八个公开 wheel 的 SHA-256 均与 CI 验证产物一致；另从公开 PyPI 安装的包完成 MAKI 无缓存数值预览，stderr 为空。详见 [`tag-release-v0.1.5.json`](../validation-results/tag-release-v0.1.5.json)。
 
 ## v0.1.2 发布结果（2026-10-06）
 
 [GitHub Actions run 37466179486](https://github.com/chorust/radiust/actions/runs/37466179486) 已通过源码准备、发布检查、Linux/macOS crate 打包与独立安装、八个 wheel 构建与隔离安装；`radiust-core` 和 `radiust-cli` 已由工作流发布到 crates.io。Python 发布 job 的 OIDC 交换返回 `invalid-publisher`，所以八个经 CI 验证的同一 wheel 改用本地 PyPI 凭据上传。公开 PyPI 摘要与 CI 产物一致，CPython 3.10–3.13 的 macOS arm64 和 Linux x86_64 环境均从公开索引安装并通过 SDK/CLI 检查。详细摘要见 [`tag-release-v0.1.2.json`](../validation-results/tag-release-v0.1.2.json)。
 
-失败 token 的 claims 是 owner `chorust`、repository `radiust`、workflow `.github/workflows/release.yml`、environment `pypi`。请在 PyPI 的 `radiust` 项目 Publishing 设置核对这四项；当前版本的 wheel 已发布，不能用同一版本重传来验证 OIDC。修正后，新版本 tag会实际验证 Trusted Publishing。
+失败 token 的 claims 是 owner `chorust`、repository `radiust`、workflow `.github/workflows/release.yml`、environment `pypi`。首次失败后需在 PyPI 的 `radiust` 项目 Publishing 设置核对这四项；已发布的 wheel 不能用同一版本重传来验证 OIDC。此记录保留首次发布的失败与回退经过；`v0.1.5` 已由新版本 tag 成功验证 Trusted Publishing。
 
 ## 首次配置
 
