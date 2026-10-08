@@ -1576,22 +1576,11 @@ fn write_provenance(
         "has_encoding_adjustment": field.encoding_adjustment.is_some(),
         "alpha_bit_depth": field.alpha.map(AlphaPlane::bit_depth),
     });
-    sort_json_keys(&mut document);
+    document.sort_all_objects();
     let bytes = serde_json::to_vec_pretty(&document)
         .map_err(|_| storage_error("GeoTIFF provenance could not be serialized"))?;
     fs::write(path, bytes).map_err(|_| storage_error("GeoTIFF provenance could not be written"))?;
     sync_file(path)
-}
-
-fn sort_json_keys(value: &mut Value) {
-    match value {
-        Value::Array(values) => values.iter_mut().for_each(sort_json_keys),
-        Value::Object(values) => {
-            values.values_mut().for_each(sort_json_keys);
-            values.sort_keys();
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
-    }
 }
 
 fn sync_file(path: &Path) -> CoreResult<()> {

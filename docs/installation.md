@@ -94,7 +94,6 @@ python -m venv .venv
 .venv/bin/python -m pip install ".[geotiff]"   # rasterio
 .venv/bin/python -m pip install ".[zarr]"      # zarr v2 + numcodecs
 .venv/bin/python -m pip install ".[playwright]"
-.venv/bin/python -m pip install ".[recovery,scraping]"
 .venv/bin/python -m pip install ".[all]"
 ```
 

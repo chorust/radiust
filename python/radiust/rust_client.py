@@ -453,6 +453,7 @@ async def _resolve_batch_inputs(
     query_or_refs: Any,
     *,
     progress: ProgressCallback | None,
+    strict: bool = False,
 ) -> tuple[list[Any], DiscoveryReport | None]:
     frames: list[Any] = []
     reports: list[DiscoveryReport] = []
@@ -460,7 +461,9 @@ async def _resolve_batch_inputs(
     if progress is not None:
         progress("resolve", 0, None)
     for value in values:
-        if _is_query(value):
+        if _is_query(value) and strict:
+            frames.extend(await _discover_frames(session, value))
+        elif _is_query(value):
             report = await _typed_discovery_report(session, value)
             reports.append(report)
             frames.extend(
@@ -488,36 +491,9 @@ async def _resolve_frames(
     *,
     progress: ProgressCallback | None = None,
 ) -> list[Any]:
-    if _is_query(query_or_refs):
-        values: Iterable[Any] = (query_or_refs,)
-    elif _is_frame(query_or_refs):
-        values = (query_or_refs,)
-    else:
-        if isinstance(query_or_refs, (str, bytes, bytearray)):
-            raise TypeError("batch input must contain Query or FrameRef values")
-        try:
-            values = iter(query_or_refs)
-        except TypeError as exc:
-            raise TypeError("batch input must contain Query or FrameRef values") from exc
-
-    if progress is not None:
-        progress("resolve", 0, None)
-    frames: list[Any] = []
-    for value in values:
-        if _is_query(value):
-            frames.extend(await _discover_frames(session, value))
-        elif _is_frame(value):
-            frames.extend(_bridge._native_frames([value]))
-        else:
-            raise TypeError("batch input must contain Query or FrameRef values")
-        if progress is not None:
-            progress("resolve", len(frames), None)
-
+    frames, _ = await _resolve_batch_inputs(session, query_or_refs, progress=progress, strict=True)
     if not frames:
         raise NoDataError("batch input returned no frames")
-    keys = [_frame_key(frame) for frame in frames]
-    if len(keys) != len(set(keys)):
-        raise ValueError("duplicate frame identity in batch")
     return frames
 
 
@@ -1120,14 +1096,9 @@ class Client:
                 output_root=output_text,
             )
         else:
-            method = {
-                "png": self._session.download_png,
-                "netcdf": self._session.download_netcdf,
-                "geotiff": self._session.download_geotiff,
-                "zarr": self._session.download_zarr,
-            }[format]
-            native = await method(
+            native = await self._session.download_decoded(
                 frames,
+                format=format,
                 on_error=policy,
                 overwrite=overwrite,
                 output_root=output_text,

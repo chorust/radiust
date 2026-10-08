@@ -237,6 +237,10 @@ mod tests {
         assert_eq!(fs::read(&raw.artifacts[0].path).unwrap(), payload);
         assert_eq!(fs::read(root.path().join("raw/frame.json")).unwrap(), payload);
         assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+        fs::write(&manifest, encode(&raw).unwrap()).unwrap();
+        let replay = load(&manifest, temp.path(), &Limits::default()).unwrap();
+        assert_eq!(replay.public_receipt(), raw.public_receipt());
+        drop(replay);
         drop(raw);
         assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 0);
         assert_eq!(fs::read(root.path().join("raw/frame.json")).unwrap(), payload);
@@ -263,4 +267,31 @@ mod tests {
             Err(CoreError::Integrity(_))
         ));
     }
+}
+
+pub(crate) fn encode(raw: &RawFrame) -> CoreResult<Vec<u8>> {
+    let mut raw_artifacts = raw
+        .artifacts
+        .iter()
+        .map(|artifact| {
+            serde_json::json!({
+                "name": artifact.receipt.name,
+                "role": "data",
+                "media_type": artifact.receipt.media_type,
+                "size_bytes": artifact.receipt.size_bytes,
+                "sha256": artifact.receipt.sha256,
+                "source_revision": null,
+            })
+        })
+        .collect::<Vec<_>>();
+    raw_artifacts.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
+    let raw_manifest = serde_json::json!({
+        "schema_version": 1,
+        "ref": crate::identity::safe_ref(&raw.frame).map_err(|error| CoreError::Storage(error.to_string()))?,
+        "artifacts": raw_artifacts,
+        "metadata": {},
+        "raw_complete": true,
+    });
+    serde_json::to_vec_pretty(&raw_manifest)
+        .map_err(|_| CoreError::Storage("raw manifest could not be serialized".into()))
 }

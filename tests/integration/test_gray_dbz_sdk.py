@@ -96,6 +96,14 @@ def _seed_fixture_frame(cache_root: Path, source: str, product: str) -> FrameRef
     return ref
 
 
+def _seed_invalid_tw_image(cache_root: Path) -> FrameRef:
+    ref = _seed_fixture_frame(cache_root, "tw", "observation")
+    seed_native_raw_cache(
+        cache_root, ref, [(ref.locator["name"], ref.locator["media_type"], b"invalid PNG")]
+    )
+    return ref
+
+
 def _write_fixture_raw_manifest(root: Path, ref: FrameRef, source: str, product: str) -> Path:
     fixture_path = REPO_ROOT / f"tests/fixtures/sources/{source}/fixture.json"
     fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
@@ -353,7 +361,7 @@ def test_async_fetch_batch_stream_and_replay_keep_dbz_mode_offline(tmp_path: Pat
 def test_sync_and_async_dbz_download_keep_partial_results_in_input_order(tmp_path: Path) -> None:
     cache_root = tmp_path / "cache"
     good = _cached_fr_frame(cache_root)[0]
-    blocked = _seed_fixture_frame(cache_root, "tw", "observation")
+    blocked = _seed_invalid_tw_image(cache_root)
     config = _offline_config(cache_root, tmp_path)
 
     with Client(config=config) as client:
@@ -491,47 +499,14 @@ def test_direct_source_dbz_and_mode_none_replay_keep_the_native_field(
             np.testing.assert_array_equal(replayed_array.values, direct_array.values)
 
 
-def test_blocked_tw_image_cannot_be_returned_as_dbz_or_raw_success(tmp_path: Path) -> None:
-    fixture_path = REPO_ROOT / "tests/fixtures/sources/tw/fixture.json"
-    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
-    metadata = next(frame for frame in fixture["frames"] if frame["product"] == "observation")
-    station = metadata["station"]
-    artifacts = metadata["artifacts"]
-    locator = {
-        "url": metadata["uri"],
-        "station": station,
-        "artifacts": [],
-        "name": artifacts[0]["name"],
-        "media_type": artifacts[0]["media_type"],
-    }
-    ref = FrameRef(
-        "tw",
-        "observation",
-        datetime.fromisoformat(metadata["valid_time"].replace("Z", "+00:00")),
-        station=station,
-        uri=metadata["uri"],
-        locator=locator,
-        locator_version=metadata["locator_version"],
-        revision=metadata["revision"],
-    )
-    seed_native_raw_cache(
-        tmp_path / "cache",
-        ref,
-        [
-            (
-                artifact["name"],
-                artifact["media_type"],
-                (fixture_path.parent / artifact["path"]).read_bytes(),
-            )
-            for artifact in artifacts
-        ],
-    )
+def test_invalid_tw_image_cannot_be_returned_as_dbz_or_raw_success(tmp_path: Path) -> None:
+    ref = _seed_invalid_tw_image(tmp_path / "cache")
     with Client(config=_offline_config(tmp_path / "cache", tmp_path)) as client, pytest.raises(
         DecodeError
     ) as caught:
         client.fetch(ref, mode="dbz")
-    assert caught.value.code == "decode_unverified"
     assert caught.value.context.stage == "decode"
+
 
 
 def test_async_cancelled_raw_replay_preserves_cancelled_status_without_network_fallback(

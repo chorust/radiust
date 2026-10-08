@@ -48,27 +48,12 @@ def test_replay_mode_none_preserves_one_argument_call_and_dbz_is_keyword_mode():
     assert engine.calls[-1] == ("raw-manifest.json", "dbz")
 
 
-def test_old_extension_allows_none_but_reports_missing_replay_mode_capability():
-    class OldEngine:
-        async def replay_raw_manifest(self, _path: str) -> object:
-            return "legacy-science-result"
-
-    session = _session(OldEngine())
-    assert asyncio.run(session.replay_raw_manifest("raw-manifest.json")) == "legacy-science-result"
-    with pytest.raises(UnsupportedQueryError, match="does not support replay mode=dbz"):
-        asyncio.run(session.replay_raw_manifest("raw-manifest.json", mode="dbz"))
-
-
-def test_missing_direct_dbz_method_can_fallback_only_after_unit_check():
+def test_missing_direct_dbz_method_never_substitutes_science():
     engine = _SessionEngine()
     session = _session(engine)
-    frame = SimpleNamespace(source="tw", product="grid")
-    raw = SimpleNamespace(frame=lambda: frame)
-
-    value = asyncio.run(session.decode_dbz(raw))
-    assert value.name == "reflectivity"
-    assert value.units == "dBZ"
-    assert engine.science_calls == 1
+    with pytest.raises(UnsupportedQueryError, match="does not support source dBZ"):
+        asyncio.run(session.decode_dbz(object()))
+    assert engine.science_calls == 0
 
 
 def test_failure_from_present_dbz_method_never_falls_back():

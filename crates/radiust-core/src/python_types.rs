@@ -2016,11 +2016,12 @@ impl PyEngine {
         })
     }
 
-    #[pyo3(signature = (frames, on_error, dry_run, overwrite, output_root=None, output_template=None, include_raw=false, processing_json=None))]
-    fn download_png<'py>(
+    #[pyo3(signature = (frames, format, on_error, dry_run, overwrite, output_root=None, output_template=None, include_raw=false, processing_json=None))]
+    fn download_decoded<'py>(
         &self,
         py: Python<'py>,
         frames: Vec<Py<PyFrameRef>>,
+        format: String,
         on_error: &str,
         dry_run: bool,
         overwrite: bool,
@@ -2048,136 +2049,7 @@ impl PyEngine {
                     dry_run,
                     overwrite,
                     output_root,
-                    "png",
-                    output_template,
-                    processing,
-                    include_raw,
-                )
-                .await
-                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
-            Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
-        })
-    }
-
-    #[pyo3(signature = (frames, on_error, dry_run, overwrite, output_root=None, output_template=None, include_raw=false, processing_json=None))]
-    fn download_netcdf<'py>(
-        &self,
-        py: Python<'py>,
-        frames: Vec<Py<PyFrameRef>>,
-        on_error: &str,
-        dry_run: bool,
-        overwrite: bool,
-        output_root: Option<String>,
-        output_template: Option<String>,
-        include_raw: bool,
-        processing_json: Option<String>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let policy = FetchErrorPolicy::parse(on_error).ok_or_else(|| {
-            PyValueError::new_err("on_error must be collect/continue or stop/raise")
-        })?;
-        let frames = Python::attach(|py| {
-            frames.into_iter().map(|frame| frame.borrow(py).inner.clone()).collect::<Vec<_>>()
-        });
-        let processing = parse_decoded_processing(processing_json.as_deref())?;
-        let engine = self.inner.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let output_root = output_root
-                .map(PathBuf::from)
-                .unwrap_or_else(|| engine.config().storage.output.clone());
-            let report = engine
-                .download_decoded_to_with_processing_and_raw(
-                    frames,
-                    policy,
-                    dry_run,
-                    overwrite,
-                    output_root,
-                    "netcdf",
-                    output_template,
-                    processing,
-                    include_raw,
-                )
-                .await
-                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
-            Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
-        })
-    }
-
-    #[pyo3(signature = (frames, on_error, dry_run, overwrite, output_root=None, output_template=None, include_raw=false, processing_json=None))]
-    fn download_geotiff<'py>(
-        &self,
-        py: Python<'py>,
-        frames: Vec<Py<PyFrameRef>>,
-        on_error: &str,
-        dry_run: bool,
-        overwrite: bool,
-        output_root: Option<String>,
-        output_template: Option<String>,
-        include_raw: bool,
-        processing_json: Option<String>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let policy = FetchErrorPolicy::parse(on_error).ok_or_else(|| {
-            PyValueError::new_err("on_error must be collect/continue or stop/raise")
-        })?;
-        let frames = Python::attach(|py| {
-            frames.into_iter().map(|frame| frame.borrow(py).inner.clone()).collect::<Vec<_>>()
-        });
-        let processing = parse_decoded_processing(processing_json.as_deref())?;
-        let engine = self.inner.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let output_root = output_root
-                .map(PathBuf::from)
-                .unwrap_or_else(|| engine.config().storage.output.clone());
-            let report = engine
-                .download_decoded_to_with_processing_and_raw(
-                    frames,
-                    policy,
-                    dry_run,
-                    overwrite,
-                    output_root,
-                    "geotiff",
-                    output_template,
-                    processing,
-                    include_raw,
-                )
-                .await
-                .map_err(|error| engine_error_to_py(error, ErrorStage::Acquire))?;
-            Python::attach(|py| Py::new(py, PyDownloadBatchReport::new(report)))
-        })
-    }
-
-    #[pyo3(signature = (frames, on_error, dry_run, overwrite, output_root=None, output_template=None, include_raw=false, processing_json=None))]
-    fn download_zarr<'py>(
-        &self,
-        py: Python<'py>,
-        frames: Vec<Py<PyFrameRef>>,
-        on_error: &str,
-        dry_run: bool,
-        overwrite: bool,
-        output_root: Option<String>,
-        output_template: Option<String>,
-        include_raw: bool,
-        processing_json: Option<String>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let policy = FetchErrorPolicy::parse(on_error).ok_or_else(|| {
-            PyValueError::new_err("on_error must be collect/continue or stop/raise")
-        })?;
-        let frames = Python::attach(|py| {
-            frames.into_iter().map(|frame| frame.borrow(py).inner.clone()).collect::<Vec<_>>()
-        });
-        let processing = parse_decoded_processing(processing_json.as_deref())?;
-        let engine = self.inner.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            let output_root = output_root
-                .map(PathBuf::from)
-                .unwrap_or_else(|| engine.config().storage.output.clone());
-            let report = engine
-                .download_decoded_to_with_processing_and_raw(
-                    frames,
-                    policy,
-                    dry_run,
-                    overwrite,
-                    output_root,
-                    "zarr",
+                    &format,
                     output_template,
                     processing,
                     include_raw,

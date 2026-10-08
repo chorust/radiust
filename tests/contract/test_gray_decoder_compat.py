@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from radiust import _bridge
 from radiust.decoders.gray_dbz import GrayDbzDecoder, LegacyGrayDbzDecoder
 from radiust.errors import DecodeError, UnknownColorError
 
@@ -38,22 +37,3 @@ def test_transparent_pixels_remain_missing_in_both_profiles():
         assert np.isnan(values[0, 0])
         assert values[0, 1] == pytest.approx(5.0)
         assert quality[0, 0] != 0
-
-
-def test_old_extension_fallback_is_limited_to_missing_direct_dbz_capabilities():
-    class OldExtension:
-        pass
-
-    class CurrentExtension:
-        def decode_dbz(self):
-            raise RuntimeError("a present method failure must not trigger fallback")
-
-    assert _bridge._legacy_direct_dbz_fallback_allowed(
-        "rainviewer", "composite", extension=OldExtension()
-    )
-    assert not _bridge._legacy_direct_dbz_fallback_allowed(
-        "rainviewer", "composite", extension=CurrentExtension()
-    )
-    assert not _bridge._legacy_direct_dbz_fallback_allowed(
-        "windy", "reflectivity", extension=OldExtension()
-    )

@@ -123,10 +123,9 @@ async def test_range_frames_reach_sdk_download_and_fetch_reports(monkeypatch, tm
         async def fetch_many_decoded(self, refs, **kwargs):
             return await self.engine.fetch_many_decoded(refs, "collect", False, None)
 
-        async def download_netcdf(self, refs, **kwargs):
-            return await self.engine.download_netcdf(refs, "collect", True, False)
+        async def download_decoded(self, refs, **kwargs):
+            return await self.engine.download_decoded(refs, kwargs["format"], "collect", True, False)
 
-        download_png = download_geotiff = download_zarr = download_netcdf
 
     monkeypatch.setattr(rust_client._bridge, "CoreEngineSession", Session)
     async with AsyncClient() as client:
@@ -177,7 +176,7 @@ async def test_async_close_cancels_and_drains_ordinary_operations(monkeypatch, m
                 await release_cleanup.wait()
 
         discover_report = fetch_raw = fetch_many_decoded = decode_science = block
-        download_png = download_netcdf = download_geotiff = download_zarr = block
+        download_decoded = block
 
     monkeypatch.setattr(rust_client._bridge, "CoreEngineSession", Session)
     client = AsyncClient()
@@ -262,7 +261,7 @@ async def test_async_close_drains_sessions_replaced_by_download_config(monkeypat
                 both_started.set()
             await asyncio.Future()
 
-        fetch_raw = download_png = download_netcdf = download_geotiff = download_zarr = block
+        fetch_raw = download_decoded = block
 
     monkeypatch.setattr(rust_client._bridge, "CoreEngineSession", Session)
     client = AsyncClient()

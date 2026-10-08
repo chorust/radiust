@@ -49,7 +49,7 @@ pub fn write_png(
 
     let sidecar = sidecar_path(&output);
     let mut sidecar_document = sidecar_document(field, width, height, vmin, vmax, options.palette);
-    sort_json_keys(&mut sidecar_document);
+    sidecar_document.sort_all_objects();
     let sidecar_json = serde_json::to_string_pretty(&sidecar_document)
         .map_err(|error| storage_error(format!("render sidecar serialization failed: {error}")))?;
     std::fs::write(&sidecar, sidecar_json)
@@ -95,24 +95,13 @@ pub fn write_pixel_dbz_png(
         "processing_record": field.processing,
         "limitations": field.processing.limitations,
     });
-    sort_json_keys(&mut sidecar_document);
+    sidecar_document.sort_all_objects();
     let sidecar = sidecar_path(&output);
     let document = serde_json::to_string_pretty(&sidecar_document)
         .map_err(|_| storage_error("render sidecar serialization failed"))?;
     std::fs::write(&sidecar, document)
         .map_err(|_| storage_error("render sidecar could not be written"))?;
     Ok(vec![output, sidecar])
-}
-
-fn sort_json_keys(value: &mut Value) {
-    match value {
-        Value::Array(values) => values.iter_mut().for_each(sort_json_keys),
-        Value::Object(values) => {
-            values.values_mut().for_each(sort_json_keys);
-            values.sort_keys();
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
-    }
 }
 
 /// Render an in-memory field into the same decoded RGBA preview used by PNG

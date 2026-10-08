@@ -5,7 +5,6 @@
 pub mod cache;
 pub mod config;
 pub mod dbz;
-pub mod digest;
 pub mod discovery;
 pub mod download;
 pub mod engine;
@@ -27,7 +26,6 @@ pub mod safety;
 pub mod science;
 pub mod source;
 pub mod storage;
-pub mod temp;
 pub mod tiles;
 pub mod transport;
 

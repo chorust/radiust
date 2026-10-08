@@ -79,6 +79,22 @@ def test_rust_client_writes_memory_field_with_manifest_identity(tmp_path, format
         assert (output_root / artifact["relative_uri"]).is_file()
 
 
+def test_memory_png_write_retains_render_options_and_identity(tmp_path):
+    frame = _write_frame()
+    with Client() as client:
+        first = client.write(_write_field(), output=tmp_path, format="png", ref=frame,
+                             vmin=0.0, vmax=10.0)
+        repeated = client.write(_write_field(), output=tmp_path, format="png", ref=frame,
+                                vmin=0.0, vmax=10.0)
+    assert first.counts["written"] == repeated.counts["skipped"] == 1
+    output = Path(first.items[0].output_uri)
+    manifest = json.loads(Path(str(output) + ".manifest.json").read_text())
+    assert manifest["processing_spec"]["options"]["vmax"] == 10.0
+    sidecar = json.loads(output.with_suffix(".render.json").read_text())
+    assert sidecar["vmin"] == 0.0
+    assert sidecar["vmax"] == 10.0
+
+
 def test_rust_client_write_requires_frame_identity() -> None:
     with Client() as client, pytest.raises(ValueError, match="requires the source FrameRef"):
         client.write(_write_field())
@@ -520,21 +536,21 @@ async def test_native_download_bindings_return_ordered_plans_without_writing(tmp
     raw_report = await _bridge.native_download_raw_only(
         config, frames, on_error="continue", dry_run=True
     )
-    png_report = await _bridge.native_download_png(
-        config, frames, on_error="collect", dry_run=True
+    session = _bridge.CoreEngineSession(config)
+    png_report = await session.download_decoded(
+        frames, format="png", on_error="collect", dry_run=True
     )
-    netcdf_report = await _bridge.native_download_netcdf(
-        config, frames, on_error="stop", dry_run=True
+    netcdf_report = await session.download_decoded(
+        frames, format="netcdf", on_error="stop", dry_run=True
     )
-    geotiff_report = await _bridge.native_download_geotiff(
-        config, frames, on_error="collect", dry_run=True
+    geotiff_report = await session.download_decoded(
+        frames, format="geotiff", on_error="collect", dry_run=True
     )
-    zarr_report = await _bridge.native_download_zarr(
-        config, frames, on_error="continue", dry_run=True
+    zarr_report = await session.download_decoded(
+        frames, format="zarr", on_error="continue", dry_run=True
     )
-    processed_report = await _bridge.native_download_netcdf(
-        config,
-        frames,
+    processed_report = await session.download_decoded(
+        frames, format="netcdf",
         dry_run=True,
         processing={
             "variable": "reflectivity",
@@ -565,9 +581,9 @@ async def test_native_download_bindings_return_ordered_plans_without_writing(tmp
             "tw",
         ]
 
-    session = _bridge.CoreEngineSession(config)
-    templated = await session.download_png(
+    templated = await session.download_decoded(
         frames,
+        format="png",
         on_error="continue",
         dry_run=True,
         output_template="{source}/{date}/{product}_{hour}.{ext}",
@@ -576,23 +592,22 @@ async def test_native_download_bindings_return_ordered_plans_without_writing(tmp
     assert not output.exists()
 
     with pytest.raises(UnsupportedQueryError, match="on_error"):
-        await _bridge.native_download_png(config, frames, on_error="invalid", dry_run=True)
+        await session.download_decoded(frames, format="png", on_error="invalid", dry_run=True)
     with pytest.raises(UnsupportedQueryError, match="on_error"):
-        await _bridge.native_download_netcdf(
-            config, frames, on_error="invalid", dry_run=True
+        await session.download_decoded(
+            frames, format="netcdf", on_error="invalid", dry_run=True
         )
     with pytest.raises(UnsupportedQueryError, match="on_error"):
-        await _bridge.native_download_geotiff(
-            config, frames, on_error="invalid", dry_run=True
+        await session.download_decoded(
+            frames, format="geotiff", on_error="invalid", dry_run=True
         )
     with pytest.raises(UnsupportedQueryError, match="on_error"):
-        await _bridge.native_download_zarr(
-            config, frames, on_error="invalid", dry_run=True
+        await session.download_decoded(
+            frames, format="zarr", on_error="invalid", dry_run=True
         )
     with pytest.raises(ConfigError, match="bbox and resolution require grid=geographic"):
-        await _bridge.native_download_netcdf(
-            config,
-            frames,
+        await session.download_decoded(
+            frames, format="netcdf",
             dry_run=True,
             processing={"bbox": [-1.0, -1.0, 1.0, 1.0]},
         )

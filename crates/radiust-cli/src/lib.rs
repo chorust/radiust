@@ -1,3 +1,5 @@
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64;
 mod commands;
 mod human;
 mod progress;
@@ -2186,7 +2188,7 @@ fn render_preview_ansi(
 }
 
 fn render_preview_kitty(preview: &radiust_core::model::Preview) -> Result<String, String> {
-    let encoded = base64_encode(&encode_preview_png(preview)?);
+    let encoded = BASE64.encode(&encode_preview_png(preview)?);
     let chunks = encoded.as_bytes().chunks(4096).collect::<Vec<_>>();
     let mut output = String::new();
     for (index, chunk) in chunks.iter().enumerate() {
@@ -2206,7 +2208,7 @@ fn render_preview_iterm2(
     width: Option<usize>,
     height: Option<usize>,
 ) -> Result<String, String> {
-    let encoded = base64_encode(&encode_preview_png(preview)?);
+    let encoded = BASE64.encode(&encode_preview_png(preview)?);
     let mut attributes = vec!["inline=1".to_owned()];
     if let Some(width) = width {
         attributes.push(format!("width={width}"));
@@ -2218,89 +2220,15 @@ fn render_preview_iterm2(
 }
 
 fn encode_preview_png(preview: &radiust_core::model::Preview) -> Result<Vec<u8>, String> {
+    use image::ImageEncoder;
     preview.validate().map_err(|_| "preview pixels are invalid".to_owned())?;
-    let width = usize::try_from(preview.width).map_err(|_| "preview width is too large")?;
-    let height = usize::try_from(preview.height).map_err(|_| "preview height is too large")?;
-    let row_bytes = width.checked_mul(4).ok_or_else(|| "preview row size overflows".to_owned())?;
-    let scanline_bytes = row_bytes
-        .checked_add(1)
-        .and_then(|size| size.checked_mul(height))
-        .ok_or_else(|| "preview PNG size overflows".to_owned())?;
-    let mut scanlines = Vec::new();
-    scanlines
-        .try_reserve_exact(scanline_bytes)
-        .map_err(|_| "preview PNG exceeds available memory".to_owned())?;
-    let mut adler_a = 1_u32;
-    let mut adler_b = 0_u32;
-    for row in preview.rgba.chunks_exact(row_bytes) {
-        scanlines.push(0);
-        scanlines.extend_from_slice(row);
-    }
-    for byte in &scanlines {
-        adler_a = (adler_a + u32::from(*byte)) % 65_521;
-        adler_b = (adler_b + adler_a) % 65_521;
-    }
-
-    let mut deflate = Vec::new();
-    deflate
-        .try_reserve(scanlines.len().saturating_add(16))
-        .map_err(|_| "preview PNG exceeds available memory".to_owned())?;
-    deflate.extend_from_slice(&[0x78, 0x01]);
-    let block_count = scanlines.len().div_ceil(65_535);
-    for (index, block) in scanlines.chunks(65_535).enumerate() {
-        deflate.push(u8::from(index + 1 == block_count));
-        let length = u16::try_from(block.len()).expect("stored DEFLATE blocks fit in u16");
-        deflate.extend_from_slice(&length.to_le_bytes());
-        deflate.extend_from_slice(&(!length).to_le_bytes());
-        deflate.extend_from_slice(block);
-    }
-    deflate.extend_from_slice(&((adler_b << 16) | adler_a).to_be_bytes());
-
     let mut png = Vec::new();
-    png.extend_from_slice(b"\x89PNG\r\n\x1a\n");
-    let mut header = Vec::with_capacity(13);
-    header.extend_from_slice(&preview.width.to_be_bytes());
-    header.extend_from_slice(&preview.height.to_be_bytes());
-    header.extend_from_slice(&[8, 6, 0, 0, 0]);
-    append_png_chunk(&mut png, *b"IHDR", &header)?;
-    append_png_chunk(&mut png, *b"IDAT", &deflate)?;
-    append_png_chunk(&mut png, *b"IEND", &[])?;
+    png.try_reserve(preview.rgba.len())
+        .map_err(|_| "preview PNG exceeds available memory".to_owned())?;
+    image::codecs::png::PngEncoder::new(&mut png)
+        .write_image(&preview.rgba, preview.width, preview.height, image::ExtendedColorType::Rgba8)
+        .map_err(|error| format!("preview PNG encoding failed: {error}"))?;
     Ok(png)
-}
-
-fn append_png_chunk(output: &mut Vec<u8>, kind: [u8; 4], data: &[u8]) -> Result<(), String> {
-    let length = u32::try_from(data.len()).map_err(|_| "preview PNG chunk is too large")?;
-    output.extend_from_slice(&length.to_be_bytes());
-    output.extend_from_slice(&kind);
-    output.extend_from_slice(data);
-    let mut crc = !0_u32;
-    for byte in kind.iter().chain(data) {
-        crc ^= u32::from(*byte);
-        for _ in 0..8 {
-            crc = if crc & 1 == 0 { crc >> 1 } else { (crc >> 1) ^ 0xedb8_8320 };
-        }
-    }
-    output.extend_from_slice(&(!crc).to_be_bytes());
-    Ok(())
-}
-
-fn base64_encode(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let first = chunk[0];
-        let second = chunk.get(1).copied();
-        let third = chunk.get(2).copied();
-        encoded.push(char::from(ALPHABET[usize::from(first >> 2)]));
-        encoded.push(char::from(
-            ALPHABET[usize::from(((first & 0x03) << 4) | (second.unwrap_or(0) >> 4))],
-        ));
-        encoded.push(second.map_or('=', |value| {
-            char::from(ALPHABET[usize::from(((value & 0x0f) << 2) | (third.unwrap_or(0) >> 6))])
-        }));
-        encoded.push(third.map_or('=', |value| char::from(ALPHABET[usize::from(value & 0x3f)])));
-    }
-    encoded
 }
 
 fn safe_summary_text(value: &str) -> String {
@@ -3208,10 +3136,46 @@ mod tests {
         let encoded = encode_preview_png(&preview).unwrap();
         let decoded = radiust_core::preview::preview_bytes(&encoded, &Limits::default()).unwrap();
         assert_eq!(decoded.preview.rgba, preview.rgba);
-        assert_eq!(base64_encode(b""), "");
-        assert_eq!(base64_encode(b"f"), "Zg==");
-        assert_eq!(base64_encode(b"fo"), "Zm8=");
-        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(BASE64.encode(b""), "");
+        assert_eq!(BASE64.encode(b"f"), "Zg==");
+        assert_eq!(BASE64.encode(b"fo"), "Zm8=");
+        assert_eq!(BASE64.encode(b"foo"), "Zm9v");
+    }
+
+    #[test]
+    fn kitty_chunks_reassemble_to_the_original_rgba() {
+        let mut value = 1_u32;
+        let preview = radiust_core::model::Preview {
+            width: 128,
+            height: 128,
+            rgba: (0..128 * 128 * 4)
+                .map(|_| {
+                    value ^= value << 13;
+                    value ^= value >> 17;
+                    value ^= value << 5;
+                    value as u8
+                })
+                .collect(),
+            frame: None,
+            mode: PreviewMode::Raw,
+            rule_version: None,
+        };
+        let rendered = render_preview_kitty(&preview).unwrap();
+        let chunks = rendered.split("\x1b\\").filter(|chunk| !chunk.is_empty()).collect::<Vec<_>>();
+        assert!(chunks.len() > 1);
+        let mut encoded = String::new();
+        for (index, chunk) in chunks.iter().enumerate() {
+            let (header, payload) = chunk.split_once(';').unwrap();
+            assert_eq!(
+                header,
+                format!("\x1b_Ga=T,f=100,m={}", usize::from(index + 1 < chunks.len()))
+            );
+            assert!(payload.len() <= 4096);
+            encoded.push_str(payload);
+        }
+        let bytes = BASE64.decode(encoded).unwrap();
+        let restored = radiust_core::preview::preview_bytes(&bytes, &Limits::default()).unwrap();
+        assert_eq!(restored.preview.rgba, preview.rgba);
     }
 
     #[test]
