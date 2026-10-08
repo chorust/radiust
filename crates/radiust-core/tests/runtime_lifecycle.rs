@@ -2,7 +2,6 @@ use radiust_core::cache::Cache;
 use radiust_core::errors::CoreError;
 use radiust_core::limits::Limits;
 use radiust_core::runtime::RuntimeManager;
-use radiust_core::temp::TempOwner;
 use radiust_core::transport::HttpTransport;
 use std::io::Read;
 
@@ -46,15 +45,16 @@ fn host_budget_is_shared_and_case_insensitive() {
 #[test]
 fn temp_owner_keeps_data_until_drop_and_cache_has_index() {
     let directory = tempfile::tempdir().expect("directory");
-    let mut owner = TempOwner::new(directory.path()).expect("owner");
-    let receipt = owner.write_all(b"radar").expect("write");
-    assert_eq!(receipt.size_bytes, 5);
+    let mut owner = tempfile::NamedTempFile::new_in(directory.path()).expect("owner");
+    std::io::Write::write_all(&mut owner, b"radar").expect("write");
+    let (size, digest) = radiust_core::storage::manifest::hash_file(owner.path(), 5).unwrap();
+    assert_eq!(size, 5);
     let mut file = std::fs::File::open(owner.path()).expect("file");
     let mut content = Vec::new();
     file.read_to_end(&mut content).expect("read");
     assert_eq!(content, b"radar");
     let cache = Cache::open(directory.path().join("cache")).expect("cache");
-    cache.index.put("key", "object", 5, &receipt.sha256, None).expect("index");
+    cache.index.put("key", "object", 5, &digest, None).expect("index");
     assert!(cache.index.get("key").expect("lookup").is_some());
 }
 

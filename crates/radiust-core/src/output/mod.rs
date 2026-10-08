@@ -562,7 +562,7 @@ fn write_raster_result_inner(
         }
         (RasterResultData::Pixel(field), "zarr") => {
             zarr::write_pixel_dbz(field, &encoded_path, limits)?;
-            collect_output_files(&encoded_path)?
+            zarr::collect_output_files(&encoded_path)?.into_iter().map(|(_, path)| path).collect()
         }
         (RasterResultData::Pixel(field), "geotiff") => {
             geotiff::write_pixel_dbz(field, &encoded_path, limits)?
@@ -576,7 +576,7 @@ fn write_raster_result_inner(
         }
         (RasterResultData::Native(field), "zarr") => {
             zarr::write_field(field, &encoded_path, limits)?;
-            collect_output_files(&encoded_path)?
+            zarr::collect_output_files(&encoded_path)?.into_iter().map(|(_, path)| path).collect()
         }
         (RasterResultData::NativeDataset { owner, index }, "png") => png::write_png(
             owner
@@ -610,7 +610,7 @@ fn write_raster_result_inner(
                 &encoded_path,
                 limits,
             )?;
-            collect_output_files(&encoded_path)?
+            zarr::collect_output_files(&encoded_path)?.into_iter().map(|(_, path)| path).collect()
         }
         (RasterResultData::Pixel(_), _) => {
             return Err(CoreError::Provider(ProviderError::InvalidGrid));
@@ -754,7 +754,6 @@ fn append_raster_raw_artifacts(
         Some(group) => format!("{group}/{name}"),
         None => name.to_owned(),
     };
-    let mut raw_entries = Vec::with_capacity(raw.artifacts.len());
     for artifact in &raw.artifacts {
         if !crate::storage::manifest::is_safe_relative_path(&artifact.receipt.name) {
             return Err(CoreError::Storage("raw artifact name is unsafe".into()));
@@ -768,14 +767,6 @@ fn append_raster_raw_artifacts(
             .checked_add(size)
             .ok_or_else(|| CoreError::ResourceLimit("raw output size overflow".into()))?;
         limits.validate_bytes(size, *total_size)?;
-        raw_entries.push(json!({
-            "name": artifact.receipt.name,
-            "role": "data",
-            "media_type": artifact.receipt.media_type,
-            "size_bytes": artifact.receipt.size_bytes,
-            "sha256": artifact.receipt.sha256,
-            "source_revision": null,
-        }));
         artifacts.push(StagedArtifact {
             name: format!("raw/{}", artifact.receipt.name),
             relative_uri: relative(&format!("raw/{}", artifact.receipt.name)),
@@ -784,22 +775,9 @@ fn append_raster_raw_artifacts(
             source: artifact.path.to_path_buf(),
         });
     }
-    raw_entries.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
-    let raw_manifest = json!({
-        "schema_version": 1,
-        "ref": crate::identity::safe_ref(&raw.frame)
-            .map_err(|error| CoreError::Storage(error.to_string()))?,
-        "artifacts": raw_entries,
-        "metadata": {},
-        "raw_complete": true,
-    });
     let manifest_path = workspace.join("raw-manifest.json");
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec_pretty(&raw_manifest)
-            .map_err(|_| CoreError::Storage("raw manifest could not be serialized".into()))?,
-    )
-    .map_err(|error| CoreError::Temporary(format!("raw manifest staging failed: {error}")))?;
+    fs::write(&manifest_path, crate::raw_manifest::encode(raw)?)
+        .map_err(|error| CoreError::Temporary(format!("raw manifest staging failed: {error}")))?;
     let (size, _) = crate::storage::manifest::hash_file(&manifest_path, limits.max_artifact_bytes)?;
     *total_size = total_size
         .checked_add(size)
@@ -819,38 +797,6 @@ fn append_raster_raw_artifacts(
         ));
     }
     Ok(())
-}
-
-fn collect_output_files(root: &Path) -> CoreResult<Vec<PathBuf>> {
-    fn visit(root: &Path, directory: &Path, result: &mut Vec<PathBuf>) -> CoreResult<()> {
-        for entry in fs::read_dir(directory)
-            .map_err(|_| CoreError::Storage("output directory could not be read".into()))?
-        {
-            let entry =
-                entry.map_err(|_| CoreError::Storage("output entry could not be read".into()))?;
-            let path = entry.path();
-            let metadata = fs::symlink_metadata(&path)
-                .map_err(|_| CoreError::Storage("output entry could not be inspected".into()))?;
-            if metadata.file_type().is_symlink() {
-                return Err(CoreError::Storage("output contains a symbolic link".into()));
-            }
-            if metadata.is_dir() {
-                visit(root, &path, result)?;
-            } else if metadata.is_file() {
-                result.push(path);
-            } else {
-                return Err(CoreError::Storage(
-                    "output contains an unsupported filesystem entry".into(),
-                ));
-            }
-        }
-        let _ = root;
-        Ok(())
-    }
-    let mut files = Vec::new();
-    visit(root, root, &mut files)?;
-    files.sort();
-    Ok(files)
 }
 
 fn native_processing_record() -> ProcessingRecord {
@@ -928,7 +874,8 @@ struct HashedInput {
 fn numeric_file_receipt(path: &Path, format: &str, limits: &Limits) -> CoreResult<HashedInput> {
     match format {
         "netcdf" => {
-            let (size, digest) = hash_regular_file(path, limits.max_artifact_bytes)?;
+            let (size, digest) =
+                crate::storage::manifest::hash_file(path, limits.max_artifact_bytes)?;
             Ok(HashedInput { content_digest: digest, size_bytes: size, components: vec![] })
         }
         "geotiff" => {
@@ -936,8 +883,10 @@ fn numeric_file_receipt(path: &Path, format: &str, limits: &Limits) -> CoreResul
             let mut components = files
                 .iter()
                 .map(|(role, component_path)| {
-                    let (size_bytes, sha256) =
-                        hash_regular_file(component_path, limits.max_artifact_bytes)?;
+                    let (size_bytes, sha256) = crate::storage::manifest::hash_file(
+                        component_path,
+                        limits.max_artifact_bytes,
+                    )?;
                     let relative_key = component_path
                         .file_name()
                         .and_then(|value| value.to_str())
@@ -987,17 +936,6 @@ fn numeric_file_receipt(path: &Path, format: &str, limits: &Limits) -> CoreResul
     }
 }
 
-fn hash_regular_file(path: &Path, limit: u64) -> CoreResult<(u64, String)> {
-    let metadata = fs::symlink_metadata(path)
-        .map_err(|_| CoreError::Storage("numeric input component could not be inspected".into()))?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() {
-        return Err(CoreError::Storage(
-            "numeric input component must be a regular non-symlink file".into(),
-        ));
-    }
-    crate::storage::manifest::hash_file(path, limit)
-}
-
 fn collect_numeric_tree(
     root: &Path,
     directory: &Path,
@@ -1036,7 +974,8 @@ fn collect_numeric_tree(
         {
             return Err(CoreError::Storage("Zarr input contains an unsafe component path".into()));
         }
-        let (size_bytes, sha256) = hash_regular_file(&path, limits.max_artifact_bytes)?;
+        let (size_bytes, sha256) =
+            crate::storage::manifest::hash_file(&path, limits.max_artifact_bytes)?;
         output.push(FileComponentDigest {
             role: "zarr_component".into(),
             relative_key,
@@ -1183,4 +1122,41 @@ mod raster_preflight_tests {
             );
         }
     }
+}
+
+/// Encode only; callers own staging, identity, naming and transactional publication.
+pub(crate) fn encode_science_files(
+    field: &RadarField,
+    path: &Path,
+    format: &str,
+    options: &Value,
+    limits: &Limits,
+) -> CoreResult<Vec<(String, PathBuf)>> {
+    let paths = match format {
+        "png" => png::write_png(field, path, options)?,
+        "netcdf" => vec![netcdf::write_field(field, path, limits)?],
+        "geotiff" => geotiff::write_field(field, path, limits)?,
+        "zarr" => {
+            zarr::write_field(field, path, limits)?;
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| CoreError::Storage("Zarr artifact path is invalid".into()))?;
+            return Ok(zarr::collect_output_files(path)?
+                .into_iter()
+                .map(|(relative, path)| (format!("{name}/{relative}"), path))
+                .collect());
+        }
+        _ => return Err(CoreError::Storage("unsupported science output format".into())),
+    };
+    paths
+        .into_iter()
+        .map(|path| {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| CoreError::Storage("encoded artifact path is invalid".into()))?;
+            Ok((name.to_owned(), path))
+        })
+        .collect()
 }

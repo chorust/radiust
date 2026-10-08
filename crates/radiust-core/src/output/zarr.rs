@@ -1924,3 +1924,81 @@ fn publish_directory(staged: &Path, destination: &Path) -> CoreResult<()> {
         storage_error("Zarr output was published but its previous generation could not be removed")
     })
 }
+
+pub(crate) fn collect_output_files(
+    root: &Path,
+) -> crate::errors::CoreResult<Vec<(String, PathBuf)>> {
+    fn visit(
+        root: &Path,
+        directory: &Path,
+        files: &mut Vec<(String, PathBuf)>,
+    ) -> crate::errors::CoreResult<()> {
+        let entries = fs::read_dir(directory)
+            .map_err(|_| CoreError::Storage("Zarr store could not be enumerated".into()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| CoreError::Storage("Zarr store could not be enumerated".into()))?;
+        for entry in entries {
+            let path = entry.path();
+            let metadata = fs::symlink_metadata(&path)
+                .map_err(|_| CoreError::Storage("Zarr artifact could not be inspected".into()))?;
+            if metadata.file_type().is_symlink() {
+                return Err(CoreError::Storage("Zarr store contains a symbolic link".into()));
+            }
+            if metadata.is_dir() {
+                visit(root, &path, files)?;
+            } else if metadata.is_file() {
+                let relative = path
+                    .strip_prefix(root)
+                    .map_err(|_| CoreError::Storage("Zarr artifact escaped its store".into()))?
+                    .components()
+                    .map(|component| match component {
+                        std::path::Component::Normal(value) => {
+                            value.to_str().map(str::to_owned).ok_or_else(|| {
+                                CoreError::Storage("Zarr artifact path is invalid".into())
+                            })
+                        }
+                        _ => Err(CoreError::Storage("Zarr artifact path is invalid".into())),
+                    })
+                    .collect::<crate::errors::CoreResult<Vec<_>>>()?
+                    .join("/");
+                files.push((relative, path));
+            } else {
+                return Err(CoreError::Storage("Zarr store contains a non-file artifact".into()));
+            }
+        }
+        Ok(())
+    }
+
+    let mut files = Vec::new();
+    visit(root, root, &mut files)?;
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    if files.is_empty() {
+        return Err(CoreError::Storage("Zarr writer produced an empty store".into()));
+    }
+    Ok(files)
+}
+
+#[cfg(test)]
+mod output_file_tests {
+    use super::*;
+
+    #[test]
+    fn output_files_are_sorted_nonempty_and_never_follow_symlinks() {
+        let root = tempfile::tempdir().unwrap();
+        assert!(collect_output_files(root.path()).is_err());
+        fs::create_dir(root.path().join("values")).unwrap();
+        fs::write(root.path().join("values/0"), b"chunk").unwrap();
+        fs::write(root.path().join(".zgroup"), b"{}").unwrap();
+        let files = collect_output_files(root.path()).unwrap();
+        assert_eq!(
+            files.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>(),
+            [".zgroup", "values/0"]
+        );
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(root.path().join(".zgroup"), root.path().join("link"))
+                .unwrap();
+            assert!(collect_output_files(root.path()).is_err());
+        }
+    }
+}

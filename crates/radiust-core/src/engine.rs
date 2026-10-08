@@ -32,7 +32,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
@@ -2235,40 +2235,13 @@ fn prepare_science_output(
         .tempdir_in(store.root())
         .map_err(|error| CoreError::Temporary(format!("{format_name} staging failed: {error}")))?;
     let encoded_path = workspace.path().join(&output_leaf);
-    let encoded = match format {
-        "png" => crate::output::png::write_png(&field, &encoded_path, &processing_spec.options)?
-            .into_iter()
-            .map(|path| {
-                let name = path
-                    .file_name()
-                    .and_then(|value| value.to_str())
-                    .ok_or_else(|| CoreError::Storage("PNG artifact path is invalid".into()))?;
-                Ok((name.to_owned(), path))
-            })
-            .collect::<crate::errors::CoreResult<Vec<_>>>()?,
-        "netcdf" => vec![(
-            output_leaf.clone(),
-            crate::output::netcdf::write_field(&field, &encoded_path, &limits)?,
-        )],
-        "geotiff" => crate::output::geotiff::write_field(&field, &encoded_path, &limits)?
-            .into_iter()
-            .map(|path| {
-                let name = path
-                    .file_name()
-                    .and_then(|value| value.to_str())
-                    .ok_or_else(|| CoreError::Storage("GeoTIFF artifact path is invalid".into()))?;
-                Ok((name.to_owned(), path))
-            })
-            .collect::<crate::errors::CoreResult<Vec<_>>>()?,
-        "zarr" => {
-            crate::output::zarr::write_field(&field, &encoded_path, &limits)?;
-            collect_science_zarr_files(&encoded_path)?
-                .into_iter()
-                .map(|(relative, path)| (format!("{output_leaf}/{relative}"), path))
-                .collect()
-        }
-        _ => unreachable!("output format was validated above"),
-    };
+    let encoded = crate::output::encode_science_files(
+        &field,
+        &encoded_path,
+        format,
+        &processing_spec.options,
+        &limits,
+    )?;
 
     let mut total_bytes = 0_u64;
     let mut artifacts = Vec::with_capacity(encoded.len());
@@ -2324,57 +2297,6 @@ fn prepare_science_output(
         store,
         request,
     })
-}
-
-fn collect_science_zarr_files(root: &Path) -> crate::errors::CoreResult<Vec<(String, PathBuf)>> {
-    fn visit(
-        root: &Path,
-        directory: &Path,
-        files: &mut Vec<(String, PathBuf)>,
-    ) -> crate::errors::CoreResult<()> {
-        let entries = fs::read_dir(directory)
-            .map_err(|_| CoreError::Storage("Zarr store could not be enumerated".into()))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| CoreError::Storage("Zarr store could not be enumerated".into()))?;
-        for entry in entries {
-            let path = entry.path();
-            let metadata = fs::symlink_metadata(&path)
-                .map_err(|_| CoreError::Storage("Zarr artifact could not be inspected".into()))?;
-            if metadata.file_type().is_symlink() {
-                return Err(CoreError::Storage("Zarr store contains a symbolic link".into()));
-            }
-            if metadata.is_dir() {
-                visit(root, &path, files)?;
-            } else if metadata.is_file() {
-                let relative = path
-                    .strip_prefix(root)
-                    .map_err(|_| CoreError::Storage("Zarr artifact escaped its store".into()))?
-                    .components()
-                    .map(|component| match component {
-                        std::path::Component::Normal(value) => {
-                            value.to_str().map(str::to_owned).ok_or_else(|| {
-                                CoreError::Storage("Zarr artifact path is invalid".into())
-                            })
-                        }
-                        _ => Err(CoreError::Storage("Zarr artifact path is invalid".into())),
-                    })
-                    .collect::<crate::errors::CoreResult<Vec<_>>>()?
-                    .join("/");
-                files.push((relative, path));
-            } else {
-                return Err(CoreError::Storage("Zarr store contains a non-file artifact".into()));
-            }
-        }
-        Ok(())
-    }
-
-    let mut files = Vec::new();
-    visit(root, root, &mut files)?;
-    files.sort_by(|left, right| left.0.cmp(&right.0));
-    if files.is_empty() {
-        return Err(CoreError::Storage("Zarr writer produced an empty store".into()));
-    }
-    Ok(files)
 }
 
 fn finish_engine_operation<T>(

@@ -57,31 +57,6 @@ def sha256(data: bytes) -> str:
     return _core.sha256(data) if _core is not None else hashlib.sha256(data).hexdigest()
 
 
-_DIRECT_DBZ_PATHS = {
-    ("rainviewer", "composite"),
-    ("tw", "grid"),
-    ("rdcap", "reflectivity"),
-}
-
-
-def _legacy_direct_dbz_fallback_allowed(
-    source: str,
-    product: str,
-    *,
-    extension: Any = None,
-    required_method: str = "decode_dbz",
-) -> bool:
-    """Allow an older extension only when a direct native mode is absent.
-
-    This predicate never invokes the missing capability, so a runtime failure
-    from an available method cannot be mistaken for a compatibility fallback.
-    """
-    target = _core if extension is None else extension
-    return (source, product) in _DIRECT_DBZ_PATHS and not callable(
-        getattr(target, required_method, None)
-    )
-
-
 def _decode_gray_array_native(
     width: int,
     height: int,
@@ -451,22 +426,9 @@ class CoreEngineSession:
                     raise IntegrityError(str(exc), context=context, cause=exc) from exc
                 raise DecodeError(str(exc), context=context, cause=exc) from exc
 
-        frame = raw_frame.frame()
-        source = str(frame.source)
-        product = str(frame.product)
-        if _legacy_direct_dbz_fallback_allowed(
-            source, product, extension=type(self._engine), required_method="decode_dbz"
-        ):
-            native = await self.decode_science(raw_frame)
-            if getattr(native, "name", None) == "reflectivity" and getattr(native, "units", None) == "dBZ":
-                return native
-            raise DecodeError(
-                "legacy native decoder did not return reflectivity in dBZ",
-                context=ErrorContext(stage="decode", code="unit_mismatch", source=source),
-            )
         raise UnsupportedQueryError(
             "the installed Rust extension does not support source dBZ decoding",
-            context=ErrorContext(stage="validate", code="unsupported", source=source),
+            context=ErrorContext(stage="validate", code="unsupported"),
         )
 
     async def decode_gray_file(
@@ -600,14 +562,7 @@ class CoreEngineSession:
                 return await method(os.fspath(manifest_path))
             if mode not in {"gray", "dbz"}:
                 raise ValueError("mode must be gray or dbz")
-            try:
-                return await method(os.fspath(manifest_path), mode)
-            except TypeError as exc:
-                raise UnsupportedQueryError(
-                    f"the installed Rust extension does not support replay mode={mode}",
-                    context=ErrorContext(stage="validate", code="unsupported"),
-                    cause=exc,
-                ) from exc
+            return await method(os.fspath(manifest_path), mode)
         except (OSError, ValueError) as exc:
             _raise_if_cancelled(exc, "decode" if mode else "validate")
             context = _native_error_context(exc, "decode" if mode else "validate")
@@ -796,10 +751,11 @@ class CoreEngineSession:
                 ) from exc
             raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
 
-    async def download_png(
+    async def download_decoded(
         self,
         frames: list[Any],
         *,
+        format: str,
         on_error: str = "collect",
         dry_run: bool = False,
         overwrite: bool = False,
@@ -810,8 +766,9 @@ class CoreEngineSession:
     ) -> Any:
         native_frames = _native_frames(frames)
         try:
-            return await self._engine.download_png(
+            return await self._engine.download_decoded(
                 native_frames,
+                format,
                 on_error,
                 bool(dry_run),
                 bool(overwrite),
@@ -826,125 +783,11 @@ class CoreEngineSession:
                     str(exc), context=ErrorContext(stage="validate"), cause=exc
                 ) from exc
             raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
-
-    async def download_netcdf(
-        self,
-        frames: list[Any],
-        *,
-        on_error: str = "collect",
-        dry_run: bool = False,
-        overwrite: bool = False,
-        output_root: str | os.PathLike[str] | None = None,
-        output_template: str | None = None,
-        include_raw: bool = False,
-        processing: Mapping[str, Any] | None = None,
-    ) -> Any:
-        native_frames = _native_frames(frames)
-        try:
-            return await self._engine.download_netcdf(
-                native_frames,
-                on_error,
-                bool(dry_run),
-                bool(overwrite),
-                os.fspath(output_root) if output_root is not None else None,
-                output_template,
-                bool(include_raw),
-                json.dumps(processing or {}),
-            )
-        except ValueError as exc:
-            if "on_error" in str(exc):
-                raise UnsupportedQueryError(
-                    str(exc), context=ErrorContext(stage="validate"), cause=exc
-                ) from exc
-            raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
-
-    async def download_geotiff(
-        self,
-        frames: list[Any],
-        *,
-        on_error: str = "collect",
-        dry_run: bool = False,
-        overwrite: bool = False,
-        output_root: str | os.PathLike[str] | None = None,
-        output_template: str | None = None,
-        include_raw: bool = False,
-        processing: Mapping[str, Any] | None = None,
-    ) -> Any:
-        native_frames = _native_frames(frames)
-        try:
-            return await self._engine.download_geotiff(
-                native_frames,
-                on_error,
-                bool(dry_run),
-                bool(overwrite),
-                os.fspath(output_root) if output_root is not None else None,
-                output_template,
-                bool(include_raw),
-                json.dumps(processing or {}),
-            )
-        except ValueError as exc:
-            if "on_error" in str(exc):
-                raise UnsupportedQueryError(
-                    str(exc), context=ErrorContext(stage="validate"), cause=exc
-                ) from exc
-            raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
-
-    async def download_zarr(
-        self,
-        frames: list[Any],
-        *,
-        on_error: str = "collect",
-        dry_run: bool = False,
-        overwrite: bool = False,
-        output_root: str | os.PathLike[str] | None = None,
-        output_template: str | None = None,
-        include_raw: bool = False,
-        processing: Mapping[str, Any] | None = None,
-    ) -> Any:
-        native_frames = _native_frames(frames)
-        try:
-            return await self._engine.download_zarr(
-                native_frames,
-                on_error,
-                bool(dry_run),
-                bool(overwrite),
-                os.fspath(output_root) if output_root is not None else None,
-                output_template,
-                bool(include_raw),
-                json.dumps(processing or {}),
-            )
-        except ValueError as exc:
-            if "on_error" in str(exc):
-                raise UnsupportedQueryError(
-                    str(exc), context=ErrorContext(stage="validate"), cause=exc
-                ) from exc
-            raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
-
 
 async def native_discover(config: Mapping[str, Any], query: Mapping[str, Any]) -> dict[str, Any]:
     """Run the Rust Engine discovery API and decode its stable JSON report."""
-    if _core is None or not hasattr(_core, "discover_json"):
-        raise StorageError(
-            "the compiled Rust discovery engine is unavailable",
-            context=ErrorContext(stage="validate"),
-        )
-    if hasattr(_core, "Engine") and hasattr(_core, "Query"):
-        report = await native_discover_report(config, query)
-        return json.loads(report.to_json())
-
-    config_json = json.dumps(dict(config), ensure_ascii=False)
-    query_json = json.dumps(dict(query), ensure_ascii=False)
-    try:
-        if hasattr(_core, "query_validate_json"):
-            _core.query_validate_json(query_json)
-    except ValueError as exc:
-        raise UnsupportedQueryError(
-            str(exc), context=ErrorContext(stage="validate"), cause=exc
-        ) from exc
-    try:
-        return json.loads(await _core.discover_json(config_json, query_json))
-    except ValueError as exc:
-        raise ConfigError(str(exc), context=ErrorContext(stage="validate"), cause=exc) from exc
+    report = await native_discover_report(config, query)
+    return json.loads(report.to_json())
 
 
 async def native_discover_report(config: Mapping[str, Any], query: Mapping[str, Any]) -> Any:
@@ -1073,118 +916,6 @@ async def native_download_raw_only(
         )
     return await CoreEngineSession(config).download_raw_only(
         frames, on_error=on_error, dry_run=dry_run, overwrite=overwrite
-    )
-
-
-async def native_download_png(
-    config: Mapping[str, Any],
-    frames: list[Any],
-    *,
-    on_error: str = "collect",
-    dry_run: bool = False,
-    overwrite: bool = False,
-    include_raw: bool = False,
-    processing: Mapping[str, Any] | None = None,
-) -> Any:
-    """Decode only validated science and commit PNG artifacts in Rust."""
-    if _core is None or not hasattr(_core, "Engine") or not hasattr(_core.Engine, "download_png"):
-        raise StorageError(
-            "the Rust PNG download engine is unavailable",
-            context=ErrorContext(stage="validate"),
-        )
-    return await CoreEngineSession(config).download_png(
-        frames,
-        on_error=on_error,
-        dry_run=dry_run,
-        overwrite=overwrite,
-        include_raw=include_raw,
-        processing=processing,
-    )
-
-
-async def native_download_netcdf(
-    config: Mapping[str, Any],
-    frames: list[Any],
-    *,
-    on_error: str = "collect",
-    dry_run: bool = False,
-    overwrite: bool = False,
-    include_raw: bool = False,
-    processing: Mapping[str, Any] | None = None,
-) -> Any:
-    """Decode validated science and commit NetCDF4 artifacts in Rust."""
-    if (
-        _core is None
-        or not hasattr(_core, "Engine")
-        or not hasattr(_core.Engine, "download_netcdf")
-    ):
-        raise StorageError(
-            "the Rust NetCDF download engine is unavailable",
-            context=ErrorContext(stage="validate"),
-        )
-    return await CoreEngineSession(config).download_netcdf(
-        frames,
-        on_error=on_error,
-        dry_run=dry_run,
-        overwrite=overwrite,
-        include_raw=include_raw,
-        processing=processing,
-    )
-
-
-async def native_download_geotiff(
-    config: Mapping[str, Any],
-    frames: list[Any],
-    *,
-    on_error: str = "collect",
-    dry_run: bool = False,
-    overwrite: bool = False,
-    include_raw: bool = False,
-    processing: Mapping[str, Any] | None = None,
-) -> Any:
-    """Decode validated science and commit GeoTIFF artifact groups in Rust."""
-    if (
-        _core is None
-        or not hasattr(_core, "Engine")
-        or not hasattr(_core.Engine, "download_geotiff")
-    ):
-        raise StorageError(
-            "the Rust GeoTIFF download engine is unavailable",
-            context=ErrorContext(stage="validate"),
-        )
-    return await CoreEngineSession(config).download_geotiff(
-        frames,
-        on_error=on_error,
-        dry_run=dry_run,
-        overwrite=overwrite,
-        include_raw=include_raw,
-        processing=processing,
-    )
-
-
-async def native_download_zarr(
-    config: Mapping[str, Any],
-    frames: list[Any],
-    *,
-    on_error: str = "collect",
-    dry_run: bool = False,
-    overwrite: bool = False,
-    include_raw: bool = False,
-    processing: Mapping[str, Any] | None = None,
-) -> Any:
-    """Decode validated science and commit Zarr v2 stores in Rust."""
-    if _core is None or not hasattr(_core, "Engine") or not hasattr(_core.Engine, "download_zarr"):
-        raise StorageError(
-            "the Rust Zarr download engine is unavailable",
-            context=ErrorContext(stage="validate"),
-        )
-    return await CoreEngineSession(config).download_zarr(
-        frames,
-        on_error=on_error,
-        dry_run=dry_run,
-        overwrite=overwrite,
-        include_raw=include_raw,
-        processing=processing,
     )
 
 

@@ -5,7 +5,7 @@ use crate::error_contract::{ErrorCode, ErrorReport, ErrorStage};
 use crate::errors::CoreError;
 use crate::grid::Resampling;
 use crate::identity::{
-    ProcessingSpec, apply_science_versions, digest, logical_id, output_id, safe_ref, variant_id,
+    ProcessingSpec, apply_science_versions, digest, logical_id, output_id, variant_id,
 };
 use crate::limits::Limits;
 use crate::model::{FrameRef, Grid, RadarField, RawFrame, parse_utc_time};
@@ -17,7 +17,6 @@ use crate::storage::{
 };
 use futures_util::StreamExt;
 use futures_util::future::BoxFuture;
-use futures_util::future::join_all;
 use futures_util::stream::FuturesUnordered;
 use serde::Serialize;
 use serde_json::json;
@@ -647,65 +646,6 @@ fn decoded_item_summary(item: &DecodedFetchItem) -> DecodedFetchItem {
         error: item.error.clone(),
         error_details: item.error_details.clone(),
     }
-}
-
-/// Decode successful acquisitions concurrently under the Engine's shared CPU
-/// worker limit while preserving their original input order and per-frame errors.
-pub async fn decode_fetch_batch(
-    engine: &Engine,
-    report: FetchBatchReport,
-) -> DecodedFetchBatchReport {
-    let items = join_all(report.items.into_iter().map(|item| async move {
-        let FetchItem { input_index, frame, status, raw, error, error_details } = item;
-        if status != FetchStatus::Success {
-            return DecodedFetchItem {
-                input_index,
-                frame,
-                status,
-                data: None,
-                error,
-                error_details,
-            };
-        }
-        let Some(raw) = raw else {
-            return DecodedFetchItem {
-                input_index,
-                frame,
-                status: FetchStatus::Failed,
-                data: None,
-                error: Some("native fetch report omitted a successful raw frame".into()),
-                error_details: Some(ErrorReport {
-                    code: ErrorCode::Internal,
-                    message: "native fetch report omitted a successful raw frame".into(),
-                    stage: ErrorStage::Decode,
-                    retryable: false,
-                }),
-            };
-        };
-        match engine.decode_science(Arc::new(raw)).await {
-            Ok(data) => DecodedFetchItem {
-                input_index,
-                frame,
-                status: FetchStatus::Success,
-                data: Some(data),
-                error: None,
-                error_details: None,
-            },
-            Err(error) => {
-                let error_details = engine_error_report(&error, ErrorStage::Decode);
-                DecodedFetchItem {
-                    input_index,
-                    frame,
-                    status: FetchStatus::Failed,
-                    data: None,
-                    error: Some(error_details.message.clone()),
-                    error_details: Some(error_details),
-                }
-            }
-        }
-    }))
-    .await;
-    DecodedFetchBatchReport::from_items(items)
 }
 
 fn schedule_decoded_fetch<'a>(
@@ -3208,45 +3148,13 @@ fn prepare_decoded_output_files(
             CoreError::Temporary(format!("{encoder} staging failed: {error}"))
         })?;
     let primary_path = workspace.path().join(format.file_name());
-    let paths = match format {
-        DecodedOutputFormat::Png => {
-            crate::output::png::write_png(field, &primary_path, &json!({}))?
-                .into_iter()
-                .map(|path| {
-                    let name = path
-                        .file_name()
-                        .and_then(|value| value.to_str())
-                        .ok_or_else(|| CoreError::Storage("PNG artifact path is invalid".into()))?;
-                    Ok((name.to_owned(), path))
-                })
-                .collect::<crate::errors::CoreResult<Vec<_>>>()?
-        }
-        DecodedOutputFormat::Netcdf => vec![(
-            format.file_name().to_owned(),
-            crate::output::netcdf::write_field(field, &primary_path, limits)?,
-        )],
-        DecodedOutputFormat::Geotiff => {
-            crate::output::geotiff::write_field(field, &primary_path, limits)?
-                .into_iter()
-                .map(|path| {
-                    let name =
-                        path.file_name().and_then(|value| value.to_str()).ok_or_else(|| {
-                            CoreError::Storage("GeoTIFF artifact path is invalid".into())
-                        })?;
-                    Ok((name.to_owned(), path))
-                })
-                .collect::<crate::errors::CoreResult<Vec<_>>>()?
-        }
-        DecodedOutputFormat::Zarr => {
-            crate::output::zarr::write_field(field, &primary_path, limits)?;
-            collect_zarr_files(&primary_path)?
-                .into_iter()
-                .map(|(relative_name, path)| {
-                    (format!("{}/{}", format.file_name(), relative_name), path)
-                })
-                .collect()
-        }
-    };
+    let paths = crate::output::encode_science_files(
+        field,
+        &primary_path,
+        format.format_name(),
+        &json!({}),
+        limits,
+    )?;
     let mut artifacts = Vec::with_capacity(paths.len());
     let mut total_bytes = 0_u64;
     for (source_name, path) in paths {
@@ -3374,34 +3282,8 @@ fn append_raw_artifacts(
     total_bytes: &mut u64,
 ) -> crate::errors::CoreResult<()> {
     let raw_manifest_path = workspace.join("raw-manifest.json");
-    let mut raw_artifacts = raw
-        .artifacts
-        .iter()
-        .map(|artifact| {
-            json!({
-                "name": artifact.receipt.name,
-                "role": "data",
-                "media_type": artifact.receipt.media_type,
-                "size_bytes": artifact.receipt.size_bytes,
-                "sha256": artifact.receipt.sha256,
-                "source_revision": null,
-            })
-        })
-        .collect::<Vec<_>>();
-    raw_artifacts.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
-    let raw_manifest = json!({
-        "schema_version": 1,
-        "ref": safe_ref(&raw.frame).map_err(|error| CoreError::Storage(error.to_string()))?,
-        "artifacts": raw_artifacts,
-        "metadata": {},
-        "raw_complete": true,
-    });
-    fs::write(
-        &raw_manifest_path,
-        serde_json::to_vec_pretty(&raw_manifest)
-            .map_err(|_| CoreError::Storage("raw manifest could not be serialized".into()))?,
-    )
-    .map_err(|error| CoreError::Temporary(format!("raw manifest staging failed: {error}")))?;
+    fs::write(&raw_manifest_path, crate::raw_manifest::encode(raw)?)
+        .map_err(|error| CoreError::Temporary(format!("raw manifest staging failed: {error}")))?;
     let manifest_metadata = fs::symlink_metadata(&raw_manifest_path)
         .map_err(|_| CoreError::Temporary("raw manifest staging could not be inspected".into()))?;
     if !manifest_metadata.is_file() || manifest_metadata.file_type().is_symlink() {
@@ -3463,55 +3345,6 @@ async fn commit_prepared_decoded_output_remote(
     let result = store.commit_cancellable(request, cancellation.clone()).await?;
     drop((_workspace, _raw));
     Ok((result.status, output_uri))
-}
-
-fn collect_zarr_files(
-    root: &std::path::Path,
-) -> crate::errors::CoreResult<Vec<(String, std::path::PathBuf)>> {
-    fn visit(
-        root: &std::path::Path,
-        directory: &std::path::Path,
-        files: &mut Vec<(String, std::path::PathBuf)>,
-    ) -> crate::errors::CoreResult<()> {
-        let entries = fs::read_dir(directory)
-            .map_err(|_| CoreError::Storage("Zarr store could not be enumerated".into()))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| CoreError::Storage("Zarr store could not be enumerated".into()))?;
-        for entry in entries {
-            let path = entry.path();
-            let metadata = fs::symlink_metadata(&path)
-                .map_err(|_| CoreError::Storage("Zarr artifact could not be inspected".into()))?;
-            if metadata.file_type().is_symlink() {
-                return Err(CoreError::Storage("Zarr store contains a symbolic link".into()));
-            }
-            if metadata.is_dir() {
-                visit(root, &path, files)?;
-            } else if metadata.is_file() {
-                let relative = path
-                    .strip_prefix(root)
-                    .map_err(|_| CoreError::Storage("Zarr artifact is outside its store".into()))?;
-                let name = relative
-                    .components()
-                    .map(|component| component.as_os_str().to_str())
-                    .collect::<Option<Vec<_>>>()
-                    .filter(|components| !components.is_empty())
-                    .map(|components| components.join("/"))
-                    .ok_or_else(|| CoreError::Storage("Zarr artifact path is invalid".into()))?;
-                files.push((name, path));
-            } else {
-                return Err(CoreError::Storage("Zarr store contains a non-file artifact".into()));
-            }
-        }
-        Ok(())
-    }
-
-    let mut files = Vec::new();
-    visit(root, root, &mut files)?;
-    files.sort_by(|left, right| left.0.cmp(&right.0));
-    if files.is_empty() {
-        return Err(CoreError::Storage("Zarr writer produced an empty store".into()));
-    }
-    Ok(files)
 }
 
 fn engine_error_report(error: &EngineError, stage: ErrorStage) -> ErrorReport {
@@ -3601,36 +3434,9 @@ fn prepare_raw_commit(
     let output_name = format!("{group}/raw-manifest.json");
     let workspace = tempfile::tempdir()
         .map_err(|error| CoreError::Temporary(format!("raw manifest staging failed: {error}")))?;
-    let reference = safe_ref(&raw.frame).map_err(|error| CoreError::Storage(error.to_string()))?;
-    let mut raw_artifacts = raw
-        .artifacts
-        .iter()
-        .map(|artifact| {
-            json!({
-                "name": artifact.receipt.name,
-                "role": "data",
-                "media_type": artifact.receipt.media_type,
-                "size_bytes": artifact.receipt.size_bytes,
-                "sha256": artifact.receipt.sha256,
-                "source_revision": null,
-            })
-        })
-        .collect::<Vec<_>>();
-    raw_artifacts.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
-    let raw_manifest = json!({
-        "schema_version": 1,
-        "ref": reference,
-        "artifacts": raw_artifacts,
-        "metadata": {},
-        "raw_complete": true,
-    });
     let raw_manifest_path = workspace.path().join("raw-manifest.json");
-    fs::write(
-        &raw_manifest_path,
-        serde_json::to_vec_pretty(&raw_manifest)
-            .map_err(|_| CoreError::Storage("raw manifest could not be serialized".into()))?,
-    )
-    .map_err(|error| CoreError::Temporary(format!("raw manifest staging failed: {error}")))?;
+    fs::write(&raw_manifest_path, crate::raw_manifest::encode(&raw)?)
+        .map_err(|error| CoreError::Temporary(format!("raw manifest staging failed: {error}")))?;
 
     let mut artifacts = vec![StagedArtifact {
         name: "raw-manifest.json".into(),

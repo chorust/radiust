@@ -133,7 +133,7 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.10", "3.11", "3.12", "3.13"]
-        extra: [geotiff, zarr, playwright, recovery, scraping, storage, all]
+        extra: [geotiff, zarr, playwright, storage, all]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

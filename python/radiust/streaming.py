@@ -8,8 +8,9 @@ from collections.abc import AsyncIterator, Iterable, Iterator
 from typing import Any
 
 from .errors import BatchError
-from .models import BatchResult, FrameRef, FrameResult
-from .sdk_inputs import BatchInput, resolve_refs
+from .models import BatchResult, FrameRef, FrameResult, Query
+
+BatchInput = Query | FrameRef
 
 
 def _fetch_item_result(item: Any) -> FrameResult:
@@ -80,7 +81,9 @@ class AsyncFetchStream(AsyncIterator[FrameResult]):
     async def _start(self) -> None:
         if self._native is not None:
             return
-        self._refs = await resolve_refs(self.client, self.query_or_refs)
+        from .rust_client import _resolve_frames
+
+        self._refs = await _resolve_frames(self.client._session, self.query_or_refs)
         limit = self.max_prefetch or int(
             self.client.config.values["runtime"].get("frame_concurrency", 2)
         )

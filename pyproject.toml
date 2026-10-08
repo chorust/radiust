@@ -42,12 +42,6 @@ zarr = [
   "numcodecs>=0.13,<0.16",
 ]
 playwright = ["playwright>=1.45,<2"]
-recovery = ["scipy>=1.11,<2", "opencv-python-headless>=4.9,<5"]
-scraping = [
-  "beautifulsoup4>=4.12,<5",
-  "brotli>=1.1,<2",
-  "python-dateutil>=2.9,<3",
-]
 storage = []
 all = [
   "numpy>=1.24,<3",
@@ -61,11 +55,6 @@ all = [
   "zarr>=2.18,<3",
   "numcodecs>=0.13,<0.16",
   "playwright>=1.45,<2",
-  "scipy>=1.11,<2",
-  "opencv-python-headless>=4.9,<5",
-  "beautifulsoup4>=4.12,<5",
-  "brotli>=1.1,<2",
-  "python-dateutil>=2.9,<3",
 ]
 
 [dependency-groups]
@@ -114,17 +103,10 @@ include = [
 ]
 exclude = [
   "python/radiust/cache.py",
-  "python/radiust/context.py",
-  "python/radiust/decoders/exact.py",
-  "python/radiust/decoders/nearest.py",
-  "python/radiust/decoders/recovery.py",
   "python/radiust/discovery.py",
   "python/radiust/discovery_limits.py",
   "python/radiust/discovery_worker.py",
   "python/radiust/display/**",
-  "python/radiust/field.py",
-  "python/radiust/query.py",
-  "python/radiust/raw.py",
   "python/radiust/raw_replay.py",
   "python/radiust/rendering/**",
   "python/radiust/terminal/**",

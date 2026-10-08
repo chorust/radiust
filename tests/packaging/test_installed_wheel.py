@@ -20,8 +20,6 @@ EXTRA_MODULES = {
     "geotiff": {"rasterio"},
     "zarr": {"zarr", "numcodecs"},
     "playwright": {"playwright"},
-    "recovery": {"scipy", "cv2"},
-    "scraping": {"bs4", "brotli", "dateutil"},
     "storage": set(),
 }
 EXTRA_MODULES["all"] = set().union(*EXTRA_MODULES.values())
@@ -44,11 +42,6 @@ modules = {
     "zarr": "zarr",
     "numcodecs": "zarr",
     "playwright": "playwright",
-    "scipy": "recovery",
-    "cv2": "recovery",
-    "bs4": "scraping",
-    "brotli": "scraping",
-    "dateutil": "scraping",
 }
 enabled = set() if extra == "core" else (set(modules) if extra == "all" else {
     module for module, group in modules.items() if group == extra
@@ -60,8 +53,6 @@ elif mode == "science":
     assert importlib.util.find_spec("numpy") is not None, "science extra did not install NumPy"
     assert importlib.util.find_spec("xarray") is not None, "science extra did not install xarray"
 for module in modules:
-    if module == "dateutil" and (extra == "core" or mode == "science"):
-        continue  # PyYAML or xarray may pull it in transitively.
     assert (importlib.util.find_spec(module) is not None) == (module in enabled), (extra, module)
 
 import radiust
@@ -105,6 +96,9 @@ for module in (
     "radiust.discovery",
     "radiust.display",
     "radiust.field",
+    "radiust.context",
+    "radiust.query",
+    "radiust.decoders.recovery",
     "radiust.outputs.base",
     "radiust.outputs.geotiff",
     "radiust.outputs.netcdf",
