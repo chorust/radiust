@@ -2,6 +2,12 @@
 
 `.github/workflows/release.yml` 在推送 `vMAJOR.MINOR.PATCH` tag 时执行。tag 必须包含这套发布代码；仅接受三段稳定版本号，不接受前导零、预发布或任意分支名。版本 `0.x` 仍可作为明确标注能力范围的预览版，不代表所有来源或迁移规格已经验收。
 
+## v0.1.7 下载与输出路径收敛
+
+相较 `v0.1.6`，本版本清理 Rust 迁移后不再使用的 Python 模块、recovery/scraping 可选依赖、旧扩展回退和未使用的 Rust helper。Python/PyO3 科学下载统一经过格式感知的 Rust 方法，并复用输入解析、科学输出编码、raw manifest 序列化和 Zarr 输出枚举逻辑。来源时间选择和取消策略保持原有行为；本次没有新增来源在线能力。
+
+PR #1 的 48 项 GitHub 检查全部通过。PR 验证记录报告：离线 Rust workspace 712 项通过、4 项忽略；Python suite 384 项通过、26 项跳过；最终 review 修复另有 27 项 Rust 检查和 43 项 Python 测试通过。live 上游与凭据型 provider 验证未运行。tag 发布工作流还会独立构建并验证两个 crate 和 CPython 3.10–3.13 wheel，再发布到 crates.io 和 PyPI。
+
 ## v0.1.6 RDCAP 站点 ID
 
 本版本将 RDCAP 对外站点 ID 统一为两字母国家前缀加上游站码，例如 `TWN/RCHL` → `TWRCHL`、`JPN/MAKI` → `JPMAKI`、`PHL/SUBI` → `PHSUBI`。CLI、SDK、目录、帧身份和输出路径使用新格式；上游请求及元数据中的三字母国家代码保持不变。旧的含斜杠 ID 不再接受，短站码仍只在目录中唯一时解析。该变化不代表新增在线来源能力。

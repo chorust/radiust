@@ -13,8 +13,8 @@ flowchart TB
     CLI --> Config[CoreConfig / config show]
     CLI --> Cache[Cache<br/>cache status]
     Engine --> Query[Query / DiscoveryReport]
-    Engine --> Catalog[SourceCatalog<br/>24 个登记 ID]
-    Engine --> Registry[SourceRegistry<br/>当前 23 个 adapter]
+    Engine --> Catalog[SourceCatalog<br/>25 个登记 ID]
+    Engine --> Registry[SourceRegistry<br/>当前 25 个 adapter]
     Engine --> Budget[请求预算 / 网络许可 / 取消 / 限额]
     Budget --> HTTP[共享 HTTP transport]
     Budget --> FTP[FTP transport]
@@ -27,7 +27,7 @@ flowchart TB
 
 原生 CLI 的 `Engine` 由 [`crates/radiust-core/src/engine.rs`](../crates/radiust-core/src/engine.rs) 提供，命令解析与终端报告在 [`crates/radiust-cli/src/main.rs`](../crates/radiust-cli/src/main.rs)。Engine 当前可以校验配置、展开目录目标、运行有界且可取消的发现、获取单帧或批量原始 artifacts，并返回结构化 Rust 报告。`cat SOURCE` 将发现和 raw 获取接到原图预览；`cat --file` 直接调用图片预览器。`download --raw-only` 可正式提交原始输出；RainViewer composite 和 TW grid 支持 PNG+sidecar、NetCDF4、GeoTIFF 与 Zarr v2 正式提交。科学能力仍只对有保留样本验证的来源开放。
 
-目录包含 24 个 source ID、当前展开为 26 个 discovery target；编译进 `SourceRegistry` 的 24 个 adapter 包含 `au`、`bmkg`、`ca`、`cam`、`es`、`fr`、`id`、`id_sidarma`、`kr`、`my`、`nz`、`opensnow`、`ph`、`pt`、`rainviewer`、`sg`、`th`、`th_royalrain`、`tw`、`tw-http`、`uk`、`vn`、`windy` 和 `wunderground`。普通 `id` 与 `id_sidarma` 是独立来源。Windy 已有 latest HTTP 发现和四张原始 PNG 获取，时间为 5 分钟 cadence 假设，科学数值未验证；选择 `sources.windy.use_playwright` 时会以隔离 Chromium/CDP 捕获原始 tile 响应字节。PH 使用隔离 Chromium 的自动 CSRF 会话和站点签名模块获取 Hybrid Reflectivity timeline 与原始 data-image PNG；不再要求外部 timeline token，并拒绝 1×1 占位图。浏览器功能要求系统 Chromium 和显式网络 opt-in；它不会把浏览器路径升级成科学能力。RainViewer 的 Rust Universal Blue 科学解码已和保留 Python fixture 的整幅数值、质量摘要对齐，并可通过受并发/资源限额约束的 `Engine.decode_science()` 与 PyO3 异步绑定调用；TW grid 的 Rust 科学解码已按官方样本与 Python 值/质量数组精确对齐；`Engine.regrid()`/PyO3 提供受 worker 与像素预算约束的同 CRS 规则网格 nearest/bilinear（dBZ 按线性功率插值），并支持 EPSG:4326↔EPSG:3857 Web Mercator 坐标变换；其他 datum/projection 转换仍拒绝。TW observation 几何仍未验证。OpenSnow 在证据补齐前 fail-closed，UK 已退役，Weather Underground 需要外部 API key 且 raw 获取关闭。adapter 的发现、raw 获取和科学能力各有差异，不能把这些 ID 数量当作完整来源支持声明。实现见 [`source/mod.rs`](../crates/radiust-core/src/source/mod.rs) 和 [`source/catalog.rs`](../crates/radiust-core/src/source/catalog.rs)。
+目录包含 25 个 source ID、当前展开为 74 个 discovery target；编译进 `SourceRegistry` 的 25 个 adapter 包含 `au`、`bmkg`、`ca`、`cam`、`es`、`fr`、`id`、`id_sidarma`、`kr`、`my`、`nz`、`opensnow`、`ph`、`pt`、`rdcap`、`rainviewer`、`sg`、`th`、`th_royalrain`、`tw`、`tw-http`、`uk`、`vn`、`windy` 和 `wunderground`。普通 `id` 与 `id_sidarma` 是独立来源。Windy 已有 latest HTTP 发现和四张原始 PNG 获取，时间为 5 分钟 cadence 假设，科学数值未验证；选择 `sources.windy.use_playwright` 时会以隔离 Chromium/CDP 捕获原始 tile 响应字节。PH 使用隔离 Chromium 的自动 CSRF 会话和站点签名模块获取 Hybrid Reflectivity timeline 与原始 data-image PNG；不再要求外部 timeline token，并拒绝 1×1 占位图。浏览器功能要求系统 Chromium 和显式网络 opt-in；它不会把浏览器路径升级成科学能力。RainViewer 的 Rust Universal Blue 科学解码已和保留 Python fixture 的整幅数值、质量摘要对齐，并可通过受并发/资源限额约束的 `Engine.decode_science()` 与 PyO3 异步绑定调用；TW grid 的 Rust 科学解码已按官方样本与 Python 值/质量数组精确对齐；`Engine.regrid()`/PyO3 提供受 worker 与像素预算约束的同 CRS 规则网格 nearest/bilinear（dBZ 按线性功率插值），并支持 EPSG:4326↔EPSG:3857 Web Mercator 坐标变换；其他 datum/projection 转换仍拒绝。TW observation 几何仍未验证。OpenSnow 在证据补齐前 fail-closed，UK 已退役，Weather Underground 需要外部 API key 且 raw 获取关闭。adapter 的发现、raw 获取和科学能力各有差异，不能把这些 ID 数量当作完整来源支持声明。实现见 [`source/mod.rs`](../crates/radiust-core/src/source/mod.rs) 和 [`source/catalog.rs`](../crates/radiust-core/src/source/catalog.rs)。
 
 ### 可复用的 Rust Core 边界
 
