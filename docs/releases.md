@@ -6,7 +6,9 @@
 
 相较 `v0.1.6`，本版本清理 Rust 迁移后不再使用的 Python 模块、recovery/scraping 可选依赖、旧扩展回退和未使用的 Rust helper。Python/PyO3 科学下载统一经过格式感知的 Rust 方法，并复用输入解析、科学输出编码、raw manifest 序列化和 Zarr 输出枚举逻辑。来源时间选择和取消策略保持原有行为；本次没有新增来源在线能力。
 
-PR #1 的 48 项 GitHub 检查全部通过。PR 验证记录报告：离线 Rust workspace 712 项通过、4 项忽略；Python suite 384 项通过、26 项跳过；最终 review 修复另有 27 项 Rust 检查和 43 项 Python 测试通过。live 上游与凭据型 provider 验证未运行。tag 发布工作流还会独立构建并验证两个 crate 和 CPython 3.10–3.13 wheel，再发布到 crates.io 和 PyPI。
+PR #1 的 48 项 GitHub 检查全部通过。PR 验证记录报告：离线 Rust workspace 712 项通过、4 项忽略；Python suite 384 项通过、26 项跳过；最终 review 修复另有 27 项 Rust 检查和 43 项 Python 测试通过。live 上游与凭据型 provider 验证未运行。
+
+[`v0.1.7 发布工作流`](https://github.com/chorust/radiust/actions/runs/37755554132)全部通过：Linux/macOS crate 打包与公开安装验证、CPython 3.10–3.13 的 Linux x86_64/macOS arm64 wheel 构建和隔离安装均成功；`radiust-core`、`radiust-cli` 已发布到 crates.io，8 个 wheel 已发布到 PyPI。工作流随后在 Linux 与 macOS 上从公开 registry 安装 crate 和 Python wheel，检查通过。
 
 ## v0.1.6 RDCAP 站点 ID
 
