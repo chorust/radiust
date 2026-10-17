@@ -17,8 +17,17 @@ final class DesktopSessionStore: ObservableObject {
     @Published var selectedCountry: String = "jp"
     @Published var selectedStation: String = ""
     @Published var networkDisclosureAcknowledged: Bool = false
+    @Published private(set) var lastPreview: RadarPreview?
 
     private var bridge: RadiustFFIBridge?
+
+    struct RadarPreview: Equatable {
+        let sourceId: String
+        let product: String
+        let station: String?
+        let validTime: String
+        let pngPath: String
+    }
 
     func openIfNeeded() {
         guard bridge == nil else { return }
@@ -72,6 +81,45 @@ final class DesktopSessionStore: ObservableObject {
         applyLocationSelection()
         statusMessage =
             "已切换到系统定位模式。请在系统设置中允许定位；亦可改用国家／站名选择。"
+    }
+
+    func fetchLatestRadar() {
+        guard let bridge else {
+            statusMessage = "会话未打开，无法拉取。"
+            return
+        }
+        statusMessage = "正在通过同进程 Engine 拉取最新观测…"
+        do {
+            let json = try bridge.fetchLatestPreviewJSON()
+            refreshFromBridge()
+            if let parsed = Self.parsePreview(json) {
+                lastPreview = parsed
+                statusMessage =
+                    "已显示 \(parsed.sourceId)／\(parsed.station ?? "?") @ \(parsed.validTime)"
+            } else {
+                statusMessage = "已拉取，但预览 JSON 解析失败：\(json)"
+            }
+        } catch {
+            statusMessage = "拉取失败：\(error.localizedDescription)"
+        }
+    }
+
+    private static func parsePreview(_ json: String) -> RadarPreview? {
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        guard let sourceId = obj["source_id"] as? String,
+              let product = obj["product"] as? String,
+              let validTime = obj["valid_time"] as? String,
+              let pngPath = obj["png_path"] as? String
+        else { return nil }
+        return RadarPreview(
+            sourceId: sourceId,
+            product: product,
+            station: obj["station"] as? String,
+            validTime: validTime,
+            pngPath: pngPath
+        )
     }
 
     private func refreshFromBridge() {

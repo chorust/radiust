@@ -1,9 +1,12 @@
 //! Desktop session policy held in-process with the SwiftUI app.
 
 use radiust_core::config::CoreConfig;
+use radiust_core::download::{DownloadStatus, FetchErrorPolicy};
 use radiust_core::engine::Engine;
+use radiust_core::model::{DiscoveryStatus, Query, TimeSelector};
 use radiust_core::source::SourceRegistry;
 use serde::Serialize;
+use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -13,12 +16,21 @@ pub const MVP_REGION: &str = "jp";
 /// Catalog source used for Japan MVP when no independent `jp` source ID exists.
 pub const JP_DEFAULT_SOURCE_ID: &str = "rdcap";
 
+/// Default Japan station for first paint when the user has not picked one yet.
+pub const JP_DEFAULT_STATION_ID: &str = "JPMAKI";
+
 #[derive(Debug, Error)]
 pub enum SessionError {
     #[error("invalid argument: {0}")]
     InvalidArgument(String),
     #[error("engine configuration error")]
     EngineConfig,
+    #[error("network disabled; enable outbound to fetch live observations")]
+    NetworkDisabled,
+    #[error("discovery failed: {0}")]
+    Discovery(String),
+    #[error("download failed: {0}")]
+    Download(String),
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -113,6 +125,18 @@ pub struct SessionSnapshot {
     pub daemon: bool,
     pub shell: &'static str,
     pub notes: String,
+    pub last_preview: Option<PreviewFrame>,
+}
+
+/// One displayable observation frame (PNG path + public provenance).
+#[derive(Clone, Debug, Serialize)]
+pub struct PreviewFrame {
+    pub source_id: String,
+    pub product: String,
+    pub station: Option<String>,
+    pub valid_time: String,
+    pub png_path: String,
+    pub mode: &'static str,
 }
 
 /// In-process desktop session. Dropping this value ends Engine work with the app.
@@ -122,6 +146,8 @@ pub struct DesktopSession {
     location_mode: LocationMode,
     selected_country: Option<String>,
     selected_station: Option<String>,
+    last_preview: Option<PreviewFrame>,
+    preview_output_root: PathBuf,
 }
 
 impl DesktopSession {
@@ -137,6 +163,7 @@ impl DesktopSession {
         }
         // Otherwise keep CoreConfig default: ~/.cache/radiust-rust (CLI shared root).
 
+        let preview_output_root = config.cache.dir.join("desktop-preview");
         let engine = Engine::new(config, SourceRegistry::default())
             .map_err(|_| SessionError::EngineConfig)?;
         Ok(Self {
@@ -144,7 +171,9 @@ impl DesktopSession {
             policy: RegionPolicy::japan_mvp(),
             location_mode: LocationMode::Country,
             selected_country: Some("jp".to_owned()),
-            selected_station: None,
+            selected_station: Some(JP_DEFAULT_STATION_ID.to_owned()),
+            last_preview: None,
+            preview_output_root,
         })
     }
 
@@ -162,6 +191,7 @@ impl DesktopSession {
         config.runtime.allow_network = allow;
         self.engine = Engine::new(config, SourceRegistry::default())
             .map_err(|_| SessionError::EngineConfig)?;
+        // Keep last_preview / preview_output_root; only transport policy changes.
         Ok(())
     }
 
@@ -208,6 +238,7 @@ impl DesktopSession {
             daemon: defaults.daemon,
             shell: "swiftui",
             notes: self.policy.notes.clone(),
+            last_preview: self.last_preview.clone(),
         }
     }
 
@@ -215,6 +246,116 @@ impl DesktopSession {
         serde_json::to_string(&self.snapshot())
             .map_err(|err| SessionError::Internal(err.to_string()))
     }
+
+    pub fn last_preview(&self) -> Option<&PreviewFrame> {
+        self.last_preview.as_ref()
+    }
+
+    /// Discover + download a PNG for the current Japan / station selection.
+    ///
+    /// Uses only `radiust-core` Engine (no parallel fetch). Network must be on.
+    pub fn fetch_latest_preview(&mut self) -> Result<PreviewFrame, SessionError> {
+        if !self.allow_network() {
+            return Err(SessionError::NetworkDisabled);
+        }
+        let station = self
+            .selected_station
+            .clone()
+            .unwrap_or_else(|| JP_DEFAULT_STATION_ID.to_owned());
+        let source = self.default_source_id().to_owned();
+        let query = Query {
+            source: Some(source.clone()),
+            sources: Vec::new(),
+            product: None,
+            stations: vec![station.clone()],
+            selector: TimeSelector::Latest,
+            base_time: None,
+            max_age_secs: None,
+        };
+
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .map_err(|err| SessionError::Internal(err.to_string()))?;
+
+        let preview = runtime.block_on(async {
+            let report = self
+                .engine
+                .discover(query)
+                .await
+                .map_err(|err| SessionError::Discovery(err.to_string()))?;
+            let frame = report
+                .items
+                .iter()
+                .find(|item| item.status == DiscoveryStatus::Success)
+                .and_then(|item| item.frame.clone())
+                .ok_or_else(|| {
+                    let detail = report
+                        .items
+                        .first()
+                        .and_then(|item| item.error.as_ref().map(|e| e.message.clone()))
+                        .unwrap_or_else(|| format!("no successful frame for {station}"));
+                    SessionError::Discovery(detail)
+                })?;
+
+            fs::create_dir_all(&self.preview_output_root).map_err(|err| {
+                SessionError::Internal(format!("create preview dir: {err}"))
+            })?;
+
+            let batch = self
+                .engine
+                .download_png_to(
+                    vec![frame.clone()],
+                    FetchErrorPolicy::Collect,
+                    false,
+                    true,
+                    self.preview_output_root.clone(),
+                )
+                .await;
+            let item = batch
+                .items
+                .into_iter()
+                .find(|item| item.status == DownloadStatus::Written)
+                .ok_or_else(|| SessionError::Download("PNG write did not succeed".into()))?;
+            let output_uri = item
+                .output_uri
+                .ok_or_else(|| SessionError::Download("missing output uri".into()))?;
+            let png_path = resolve_preview_png(&output_uri)?;
+
+            Ok(PreviewFrame {
+                source_id: frame.source,
+                product: frame.product,
+                station: frame.station,
+                valid_time: frame.valid_time,
+                png_path,
+                mode: "science_png",
+            })
+        })?;
+
+        self.last_preview = Some(preview.clone());
+        Ok(preview)
+    }
+}
+
+fn resolve_preview_png(output_uri: &str) -> Result<String, SessionError> {
+    let path = PathBuf::from(output_uri);
+    if path.extension().and_then(|e| e.to_str()) == Some("png") && path.is_file() {
+        return Ok(path.to_string_lossy().into_owned());
+    }
+    // Some commits report the manifest path; look for sibling decoded.png.
+    let candidate = path.with_file_name("decoded.png");
+    if candidate.is_file() {
+        return Ok(candidate.to_string_lossy().into_owned());
+    }
+    if let Some(parent) = path.parent() {
+        let sibling = parent.join("decoded.png");
+        if sibling.is_file() {
+            return Ok(sibling.to_string_lossy().into_owned());
+        }
+    }
+    Err(SessionError::Download(format!(
+        "could not locate PNG near {output_uri}"
+    )))
 }
 
 fn normalize_country_key(raw: &str) -> String {

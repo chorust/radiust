@@ -12,7 +12,8 @@
 mod session;
 
 pub use session::{
-    DesktopDefaults, DesktopSession, LocationMode, RegionPolicy, SessionError, SessionSnapshot,
+    DesktopDefaults, DesktopSession, LocationMode, PreviewFrame, RegionPolicy, SessionError,
+    SessionSnapshot, JP_DEFAULT_SOURCE_ID, JP_DEFAULT_STATION_ID, MVP_REGION,
 };
 
 use session::DesktopSession as Session;
@@ -264,6 +265,27 @@ pub unsafe extern "C" fn radiust_session_default_source_id(
         }
         let session = unsafe { &(*handle).inner };
         unsafe { write_cstring(out, session.default_source_id()) };
+        Ok(0)
+    })
+    .unwrap_or(-1)
+}
+
+/// Discover + download latest PNG for the session station (in-process Engine only).
+/// Writes PreviewFrame JSON (includes `png_path`) into `out`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn radiust_session_fetch_latest_preview(
+    handle: *mut RadiustSessionHandle,
+    out: *mut *mut c_char,
+) -> c_int {
+    catch_unwind_result(|| {
+        if handle.is_null() {
+            return Err(SessionError::InvalidArgument("null handle".into()));
+        }
+        let session = unsafe { &mut (*handle).inner };
+        let preview = session.fetch_latest_preview()?;
+        let json = serde_json::to_string(&preview)
+            .map_err(|err| SessionError::Internal(err.to_string()))?;
+        unsafe { write_cstring(out, &json) };
         Ok(0)
     })
     .unwrap_or(-1)

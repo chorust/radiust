@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Temporary MVP shell — brand polish is explicitly non-blocking.
@@ -54,11 +55,48 @@ struct RootView: View {
     }
 
     private var detail: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("打开即看（脚手架）")
-                .font(.largeTitle.weight(.semibold))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("打开即看")
+                    .font(.largeTitle.weight(.semibold))
+                Spacer()
+                Button("拉取最新雷达") {
+                    session.fetchLatestRadar()
+                }
+                .disabled(!session.allowNetwork)
+            }
             Text(session.statusMessage)
                 .foregroundStyle(.secondary)
+            if let preview = session.lastPreview {
+                GroupBox("观测") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("来源 \(preview.sourceId) · 产品 \(preview.product)")
+                        Text("站点 \(preview.station ?? "—") · 观测时间 \(preview.validTime)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let image = NSImage(contentsOfFile: preview.pngPath) {
+                            Image(nsImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 420)
+                                .background(Color.black)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            Text("已拉取但无法打开 PNG：\(preview.pngPath)")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        Text("回波稀疏时画面偏暗属正常；无底图时只有回波层。")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            } else {
+                GroupBox("雷达图") {
+                    Text("尚未拉取。点「拉取最新雷达」（默认 jp → rdcap／JPMAKI）。")
+                        .foregroundStyle(.secondary)
+                }
+            }
             GroupBox("会话快照") {
                 ScrollView {
                     Text(session.snapshotJSON)
@@ -66,21 +104,14 @@ struct RootView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                 }
-                .frame(minHeight: 180)
+                .frame(minHeight: 120)
             }
-            GroupBox("缓存") {
-                Text(session.cacheDir.isEmpty ? "（未打开会话）" : session.cacheDir)
-                    .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                Text("与 CLI 共用 radiust-rust 缓存根；Desktop 不另起拉取权威。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Text("退出应用后引擎随进程结束，无常驻后台。")
+            Text("退出应用后引擎随进程结束，无常驻后台。缓存与 CLI 共用。")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+            Spacer(minLength: 0)
         }
         .padding(24)
     }
 }
+

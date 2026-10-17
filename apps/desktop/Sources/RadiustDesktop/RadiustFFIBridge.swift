@@ -95,6 +95,12 @@ final class RadiustFFIBridge {
         }
     }
 
+    func fetchLatestPreviewJSON() throws -> String {
+        try readString { out in
+            radiust_session_fetch_latest_preview(requireHandle(), out)
+        }
+    }
+
     func setManualSelection(country: String?, station: String?) throws {
         let code: Int32
         if let country, let station {

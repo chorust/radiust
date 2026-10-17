@@ -39,6 +39,9 @@ int radiust_session_set_manual_selection(RadiustSessionHandle *handle,
                                          const char *station);
 int radiust_session_default_source_id(const RadiustSessionHandle *handle, char **out);
 
+/** Discover+download latest PNG via Engine; out = PreviewFrame JSON (png_path, times). */
+int radiust_session_fetch_latest_preview(RadiustSessionHandle *handle, char **out);
+
 #ifdef __cplusplus
 }
 #endif

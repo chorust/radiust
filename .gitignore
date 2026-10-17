@@ -61,3 +61,7 @@ Thumbs.db
 *.whl
 
 #
+
+# Generated cloud preview radar (do not commit upstream images)
+apps/desktop/preview/radar.png
+apps/desktop/preview/meta.json
