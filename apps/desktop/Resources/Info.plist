@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Radiust</string>
+	<key>CFBundleDisplayName</key>
+	<string>Radiust</string>
+	<key>CFBundleIdentifier</key>
+	<string>app.radiust.desktop</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.0.1</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSRequiresNativeExecution</key>
+	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Radiust 可使用当前位置建议附近雷达站；也可改为按国家或站名选择。定位仅在本机使用，不会上传到 Radiust 账号服务。</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Radiust 可使用当前位置建议附近雷达站；也可改为按国家或站名选择。</string>
+</dict>
+</plist>
