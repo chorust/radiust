@@ -44,6 +44,21 @@ crates/radiust-ffi/             # Same-process C ABI (no daemon)
 
 Linux CI cannot compile SwiftUI; Rust `radiust-ffi` tests cover the session contract offline.
 
+### Cloud review (this environment)
+
+1. In-process session demo (no daemon):
+
+   ```bash
+   CXX=g++ cargo run -p radiust-ffi --example desktop_session_demo
+   ```
+
+2. Temporary UI layout preview (browser mock, **not** the macOS `.app`):
+
+   ```bash
+   cd apps/desktop/preview && python3 -m http.server 8765 --bind 127.0.0.1
+   # open http://127.0.0.1:8765/
+   ```
+
 ## Process model
 
 ```text

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Radiust Desktop — 临时 UI 预览（非 Mac 真机）</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #171d25;
+      --line: #2a3441;
+      --text: #e8eef5;
+      --muted: #93a0b0;
+      --accent: #3d9cf0;
+      --ok: #3cb371;
+      --warn: #d4a017;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1a2740, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .banner {
+      background: #3a2a12;
+      color: #f3d9a4;
+      padding: 10px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid #5a4520;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: calc(100vh - 42px);
+    }
+    aside {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 20px 16px;
+    }
+    h1 { font-size: 22px; margin: 0 0 4px; font-weight: 650; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    section { margin-bottom: 22px; }
+    section h2 {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+    .row span:last-child { color: var(--muted); text-align: right; }
+    label.field {
+      display: block;
+      font-size: 13px;
+      margin: 8px 0 4px;
+      color: var(--muted);
+    }
+    select, input[type="text"] {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    button {
+      width: 100%;
+      margin-top: 8px;
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: var(--accent);
+      color: #041018;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary { background: #243041; color: var(--text); }
+    main { padding: 28px 32px; }
+    .hero { font-size: 34px; font-weight: 650; margin: 0 0 8px; }
+    .status { color: var(--muted); margin-bottom: 20px; }
+    .box {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .box h3 { margin: 0 0 8px; font-size: 14px; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #c7d2e0;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #1d3a2a;
+      color: var(--ok);
+      font-size: 12px;
+      margin-right: 6px;
+    }
+    .pill.warn { background: #3a3218; color: var(--warn); }
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    预览页跑在 Linux 云环境浏览器里，<strong>不是</strong> macOS SwiftUI 真机。用于评审布局与锁定决策文案；真机 `.app` 仍需 Apple Silicon。
+  </div>
+  <div class="app">
+    <aside>
+      <h1>Radiust</h1>
+      <div class="sub">打开即看 · 退出即停</div>
+
+      <section>
+        <h2>MVP</h2>
+        <div class="row"><span>地区</span><span>日本 (jp)</span></div>
+        <div class="row"><span>默认来源</span><span id="source">rdcap</span></div>
+        <div class="row"><span>进程</span><span>同进程 / 无 daemon</span></div>
+      </section>
+
+      <section>
+        <h2>位置</h2>
+        <label class="field" for="mode">模式</label>
+        <select id="mode">
+          <option value="system">系统定位</option>
+          <option value="country" selected>按国家</option>
+          <option value="station">按站名</option>
+        </select>
+        <label class="field" for="country">国家代码</label>
+        <input id="country" type="text" value="jp" />
+        <label class="field" for="station">站名 / 站 ID</label>
+        <input id="station" type="text" placeholder="例如 JPMAKI" />
+        <button type="button" id="apply">应用位置选择</button>
+        <button type="button" class="secondary" id="locate">请求系统定位权限</button>
+      </section>
+
+      <section>
+        <h2>网络</h2>
+        <div class="toggle">
+          <span>允许出站获取观测</span>
+          <input id="net" type="checkbox" checked />
+        </div>
+        <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">
+          安装后默认允许联网。可随时关闭；关闭后仅使用本地缓存语义。
+        </p>
+      </section>
+    </aside>
+
+    <main>
+      <div class="hero">打开即看（脚手架）</div>
+      <p class="status" id="status">
+        浏览器预览：会话策略文案与 SwiftUI 临时壳对齐。引擎绑定见云机 FFI demo。
+      </p>
+      <div>
+        <span class="pill">Apple Silicon only</span>
+        <span class="pill">共享 CLI 缓存</span>
+        <span class="pill warn">临时 UI · 品牌不挡路</span>
+      </div>
+      <div class="box" style="margin-top:16px;">
+        <h3>会话快照（示意）</h3>
+        <pre id="snap"></pre>
+      </div>
+      <div class="box">
+        <h3>缓存</h3>
+        <pre>~/.cache/radiust-rust</pre>
+        <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">
+          与 CLI 共用 radiust-rust 缓存根；Desktop 不另起拉取权威。
+        </p>
+      </div>
+      <footer>退出应用后引擎随进程结束，无常驻后台。本页关闭不会留下 daemon。</footer>
+    </main>
+  </div>
+  <script>
+    const snap = document.getElementById("snap");
+    const status = document.getElementById("status");
+    function render() {
+      const payload = {
+        region: "jp",
+        default_source_id: "rdcap",
+        country_filter: "JPN",
+        allow_network: document.getElementById("net").checked,
+        cache_dir: "~/.cache/radiust-rust",
+        location_mode: document.getElementById("mode").value,
+        selected_country: document.getElementById("country").value || null,
+        selected_station: document.getElementById("station").value || null,
+        process_model: "in_process",
+        daemon: false,
+        shell: "swiftui",
+        preview: "linux-browser-mock-not-macos-app"
+      };
+      snap.textContent = JSON.stringify(payload, null, 2);
+    }
+    document.getElementById("apply").onclick = () => {
+      status.textContent = "位置选择已写入预览会话（系统定位／国家／站名钩子；观测拉取后续接线）。";
+      render();
+    };
+    document.getElementById("locate").onclick = () => {
+      document.getElementById("mode").value = "system";
+      status.textContent = "已切换到系统定位模式（预览）。真机将走 CoreLocation 权限。";
+      render();
+    };
+    document.getElementById("net").onchange = () => {
+      status.textContent = document.getElementById("net").checked
+        ? "出站已开启（默认；须向用户披露）。"
+        : "出站已关闭；仅缓存／离线语义。";
+      render();
+    };
+    render();
+  </script>
+</body>
+</html>
