@@ -77,7 +77,9 @@ async fn reviewed_metadata_redirects_strip_cross_origin_headers_and_reject_other
 async fn network_disabled_errors_never_contain_credentials() {
     let transport = HttpTransport::new(Limits::default(), false).unwrap();
     let error = transport
-        .get_bytes("https://user:pw-secret@example.com/fileapi?Authorization=query-secret#frag-secret")
+        .get_bytes(
+            "https://user:pw-secret@example.com/fileapi?Authorization=query-secret#frag-secret",
+        )
         .await
         .unwrap_err();
     assert!(matches!(error, CoreError::NetworkDisabled(_)));
@@ -98,21 +100,24 @@ async fn serve_redirects(listener: TcpListener, locations: Vec<String>, final_bo
     }
     let (mut socket, _) = listener.accept().await.unwrap();
     read_request(&mut socket).await;
-    socket.write_all(format!(
-        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{final_body}",
-        final_body.len()
-    ).as_bytes()).await.unwrap();
+    socket
+        .write_all(
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{final_body}",
+                final_body.len()
+            )
+            .as_bytes(),
+        )
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
 async fn relative_and_multi_hop_redirects_are_followed() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
-    let server = tokio::spawn(serve_redirects(
-        listener,
-        vec!["/second".into(), "third?x=1".into()],
-        "done",
-    ));
+    let server =
+        tokio::spawn(serve_redirects(listener, vec!["/second".into(), "third?x=1".into()], "done"));
     let transport = HttpTransport::new(Limits::default(), false).unwrap();
     assert_eq!(transport.get_bytes(&format!("{base}/first")).await.unwrap(), b"done");
     server.await.unwrap();

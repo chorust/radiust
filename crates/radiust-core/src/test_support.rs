@@ -69,7 +69,9 @@ impl SourceAdapter for LocalViewFixtureAdapter {
     ) -> BoxFuture<'static, CoreResult<Vec<FrameRef>>> {
         // Replay bytes stay fixed, while the synthetic frame uses one captured
         // time shared by CLI and SDK calls so production freshness still runs.
-        let valid_time = context.source_options.get("fixture_valid_time")
+        let valid_time = context
+            .source_options
+            .get("fixture_valid_time")
             .and_then(serde_yaml_ng::Value::as_str)
             .map(str::to_owned)
             .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());

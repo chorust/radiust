@@ -7,8 +7,8 @@ import os
 import shutil
 import subprocess
 from collections.abc import Mapping
-from functools import lru_cache
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 import pytest

@@ -71,9 +71,8 @@ def test_local_view_request_rejects_malformed_center(center):
 def test_client_local_view_wraps_malformed_center_as_validation_error():
     from radiust.errors import UnsupportedQueryError
 
-    with Client(config=_offline_config()) as client:
-        with pytest.raises(UnsupportedQueryError) as caught:
-            client.local_view(center=(121.6, 24.0, 5.0))
+    with Client(config=_offline_config()) as client, pytest.raises(UnsupportedQueryError) as caught:
+        client.local_view(center=(121.6, 24.0, 5.0))
     assert caught.value.context.stage == "validate"
 
 
@@ -251,6 +250,7 @@ def test_native_result_conversion_preserves_grid_masks_and_data_owner(raw, monke
 
 def test_native_result_conversion_failure_is_decode_error(monkeypatch):
     from types import SimpleNamespace
+
     from radiust.errors import DecodeError
 
     class NativeRequest:
