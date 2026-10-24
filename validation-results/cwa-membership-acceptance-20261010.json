@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-10T06:32:16.513364+00:00",
+  "source": "tw",
+  "product": "observation-wide",
+  "dataset_id": "O-A0058-001",
+  "metadata_endpoint": "https://opendata.cwa.gov.tw/fileapi/v1/opendataapi/O-A0058-001",
+  "evidence_kind": "agent_executed_live_native_cli_sdk_and_independent_pillow_readback",
+  "duration_seconds": 8.712,
+  "entries": {
+    "cli": {
+      "status": "passed",
+      "logical_id": "d3b772a12bc4e44e6927e93ab64e43075ad5ac051ee334a43d9551e07d84055c",
+      "valid_time": "2026-10-10T06:10:00.000000Z",
+      "shape": [
+        3600,
+        3600
+      ],
+      "artifacts": [
+        {
+          "name": "O-A0058-001.json",
+          "role": "data",
+          "media_type": "application/json",
+          "size_bytes": 962,
+          "sha256": "3a8749fe5adb4acae927a707c7f5a94ffb65bf067e9463c57c6189b37eabd753",
+          "source_revision": null
+        },
+        {
+          "name": "O-A0058-001.png",
+          "role": "data",
+          "media_type": "image/png",
+          "size_bytes": 638975,
+          "sha256": "171204979776acdbf5773791dfb9c1ff57863e19df537d2031f537a1e73f10a5",
+          "source_revision": null
+        }
+      ],
+      "full_png_decode_and_receipts": "passed",
+      "geometry_status": "unverified"
+    },
+    "sync_sdk": {
+      "status": "passed",
+      "logical_id": "d3b772a12bc4e44e6927e93ab64e43075ad5ac051ee334a43d9551e07d84055c",
+      "valid_time": "2026-10-10T06:10:00.000000Z",
+      "shape": [
+        3600,
+        3600
+      ],
+      "artifacts": [
+        {
+          "name": "O-A0058-001.json",
+          "role": "data",
+          "media_type": "application/json",
+          "size_bytes": 962,
+          "sha256": "3a8749fe5adb4acae927a707c7f5a94ffb65bf067e9463c57c6189b37eabd753",
+          "source_revision": null
+        },
+        {
+          "name": "O-A0058-001.png",
+          "role": "data",
+          "media_type": "image/png",
+          "size_bytes": 638975,
+          "sha256": "171204979776acdbf5773791dfb9c1ff57863e19df537d2031f537a1e73f10a5",
+          "source_revision": null
+        }
+      ],
+      "full_png_decode_and_receipts": "passed",
+      "geometry_status": "unverified"
+    },
+    "async_sdk": {
+      "status": "passed",
+      "logical_id": "d3b772a12bc4e44e6927e93ab64e43075ad5ac051ee334a43d9551e07d84055c",
+      "valid_time": "2026-10-10T06:10:00.000000Z",
+      "shape": [
+        3600,
+        3600
+      ],
+      "artifacts": [
+        {
+          "name": "O-A0058-001.json",
+          "role": "data",
+          "media_type": "application/json",
+          "size_bytes": 962,
+          "sha256": "3a8749fe5adb4acae927a707c7f5a94ffb65bf067e9463c57c6189b37eabd753",
+          "source_revision": null
+        },
+        {
+          "name": "O-A0058-001.png",
+          "role": "data",
+          "media_type": "image/png",
+          "size_bytes": 638975,
+          "sha256": "171204979776acdbf5773791dfb9c1ff57863e19df537d2031f537a1e73f10a5",
+          "source_revision": null
+        }
+      ],
+      "full_png_decode_and_receipts": "passed",
+      "geometry_status": "unverified"
+    }
+  },
+  "same_frame": true,
+  "receipts_equal": true,
+  "same_frame_three_entry_acceptance": "passed",
+  "scientific_admission": false,
+  "unverified": [
+    "pixel registration/datum",
+    "exact RGB-to-dBZ mapping and annotation masks",
+    "mutable PNG/metadata same-version binding",
+    "real coverage",
+    "default source admission"
+  ],
+  "raw_data_distribution": false,
+  "acquisition_time_status": "Per-entry fetch timestamps were not retained; recorded_at is report completion time, distinct from provider valid_time."
+}

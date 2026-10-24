@@ -24,6 +24,9 @@ use url::Url;
 const SOURCE: &str = "tw";
 const STATION: &str = "CV1_3600";
 const PRODUCT_OBSERVATION: &str = "observation";
+const PRODUCT_WIDE: &str = "observation-wide";
+const WIDE_KEY: &str = "O-A0058-001";
+const FILE_API_BASE: &str = "https://opendata.cwa.gov.tw/fileapi/v1/opendataapi";
 const PRODUCT_GRID: &str = "grid";
 const OBSERVATION_KEY: &str = "O-A0058-005";
 const GRID_KEY: &str = "O-A0059-001";
@@ -51,30 +54,20 @@ pub(crate) struct GridMetadata {
 }
 
 enum FramePlan {
-    Observation { metadata: ObservationMetadata },
+    Observation { metadata: ObservationMetadata, key: &'static str },
     Grid { metadata: GridMetadata },
 }
 
 impl FramePlan {
-    fn urls(&self) -> Vec<(&'static str, &'static str, &'static str)> {
+    fn urls(&self) -> Vec<(&'static str, &'static str, String)> {
         match self {
-            Self::Observation { .. } => vec![
-                (
-                    "data",
-                    "image/png",
-                    "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0058-005.png",
-                ),
-                (
-                    "metadata",
-                    "application/json",
-                    "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0058-005.json",
-                ),
+            Self::Observation { key, .. } => vec![
+                ("data", "image/png", format!("{BUCKET_BASE}/{key}.png")),
+                ("metadata", "application/json", format!("{BUCKET_BASE}/{key}.json")),
             ],
-            Self::Grid { .. } => vec![(
-                "data",
-                "application/json",
-                "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0059-001.json",
-            )],
+            Self::Grid { .. } => {
+                vec![("data", "application/json", format!("{BUCKET_BASE}/{GRID_KEY}.json"))]
+            }
         }
     }
 }
@@ -92,7 +85,7 @@ impl SourceAdapter for TwSourceAdapter {
 
     fn allows_artifact_url(&self, frame: &FrameRef, url: &Url) -> bool {
         frame_plan(frame).is_some_and(|plan| {
-            plan.urls().iter().any(|(_, _, expected)| *expected == url.as_str())
+            plan.urls().iter().any(|(_, _, expected)| expected == url.as_str())
                 && url.scheme() == "https"
                 && url.host_str().is_some_and(|host| host.eq_ignore_ascii_case(HOST))
         })
@@ -128,6 +121,12 @@ impl SourceAdapter for TwSourceAdapter {
                     validate_observation_limits(&metadata, &context)?;
                     observation_frame(&metadata)?
                 }
+                PRODUCT_WIDE => {
+                    let payload = get_member_metadata(&context).await?;
+                    let metadata = parse_image_metadata(&payload, WIDE_KEY)?;
+                    validate_observation_limits(&metadata, &context)?;
+                    image_frame(&metadata, PRODUCT_WIDE, WIDE_KEY)?
+                }
                 PRODUCT_GRID => {
                     let url = format!("{BUCKET_BASE}/{GRID_KEY}.json");
                     let (size, etag) = grid_object_metadata(&context, &url).await?;
@@ -161,36 +160,49 @@ impl SourceAdapter for TwSourceAdapter {
             let plan = frame_plan(&frame)
                 .ok_or_else(|| CoreError::Transport("source tw frame locator is invalid".into()))?;
             let raw_artifacts = match &plan {
-                FramePlan::Observation { metadata: expected } => {
-                    let metadata_url = format!("{BUCKET_BASE}/{OBSERVATION_KEY}.json");
-                    let metadata_artifact = download_artifact(
-                        &context,
-                        &temp_root,
-                        &metadata_url,
-                        "O-A0058-005.json",
-                        "application/json",
-                        0,
-                    )
-                    .await?;
+                FramePlan::Observation { metadata: expected, key } => {
+                    let metadata_url = format!("{BUCKET_BASE}/{key}.json");
+                    let metadata_artifact = if *key == WIDE_KEY {
+                        let payload = get_member_metadata(&context).await?;
+                        stage_metadata(&context, &temp_root, &payload)?
+                    } else {
+                        download_artifact(
+                            &context,
+                            &temp_root,
+                            &metadata_url,
+                            &format!("{key}.json"),
+                            "application/json",
+                            0,
+                        )
+                        .await?
+                    };
                     let metadata_bytes = read_artifact(&metadata_artifact)?;
-                    let current = parse_observation_metadata(&metadata_bytes)?;
+                    let current = parse_image_metadata(&metadata_bytes, key)?;
                     validate_observation_limits(&current, &context)?;
                     if &current != expected {
                         return Err(CoreError::Transport(
                             "source tw observation metadata changed after discovery; rediscover latest".into(),
                         ));
                     }
-                    let image_url = format!("{BUCKET_BASE}/{OBSERVATION_KEY}.png");
+                    let image_url = format!("{BUCKET_BASE}/{key}.png");
                     let image_artifact = download_artifact(
                         &context,
                         &temp_root,
                         &image_url,
-                        "O-A0058-005.png",
+                        &format!("{key}.png"),
                         "image/png",
                         metadata_artifact.receipt.size_bytes,
                     )
                     .await?;
                     validate_png_file(&image_artifact, current.shape, &context)?;
+                    if *key == WIDE_KEY {
+                        let after = get_member_metadata(&context).await?;
+                        if parse_image_metadata(&after, WIDE_KEY)? != current {
+                            return Err(CoreError::Transport(
+                                "source tw image metadata changed during acquisition; rediscover latest".into(),
+                            ));
+                        }
+                    }
                     vec![image_artifact, metadata_artifact]
                 }
                 FramePlan::Grid { metadata: expected } => {
@@ -219,15 +231,11 @@ fn validate_target_and_query(target: &DiscoveryTarget, query: &Query) -> CoreRes
     {
         return Err(CoreError::Transport("source tw received a mismatched source query".into()));
     }
-    if target
-        .product
-        .as_deref()
-        .is_some_and(|product| product != PRODUCT_OBSERVATION && product != PRODUCT_GRID)
-        || query
-            .product
-            .as_deref()
-            .is_some_and(|product| product != PRODUCT_OBSERVATION && product != PRODUCT_GRID)
-    {
+    if target.product.as_deref().is_some_and(|product| {
+        !matches!(product, PRODUCT_OBSERVATION | PRODUCT_WIDE | PRODUCT_GRID)
+    }) || query.product.as_deref().is_some_and(|product| {
+        !matches!(product, PRODUCT_OBSERVATION | PRODUCT_WIDE | PRODUCT_GRID)
+    }) {
         return Err(CoreError::Transport("source tw product is unsupported".into()));
     }
     if query.base_time.is_some() {
@@ -244,6 +252,63 @@ async fn get_discovery_payload(context: &SourceContext, url: &str) -> CoreResult
         .map_err(|error| sanitize_request_error(error, "discovery"))?;
     context.limits.validate_bytes(payload.len() as u64, payload.len() as u64)?;
     Ok(payload)
+}
+
+fn member_metadata_url(context: &SourceContext) -> CoreResult<Url> {
+    let key = context
+        .source_options
+        .get("api_key")
+        .and_then(serde_yaml_ng::Value::as_str)
+        .map(str::trim)
+        .filter(|key| !key.is_empty())
+        .ok_or_else(|| {
+            CoreError::Transport("source tw observation-wide requires sources.tw.api_key".into())
+        })?;
+    let mut url = Url::parse(&format!("{FILE_API_BASE}/{WIDE_KEY}"))
+        .map_err(|_| invalid_metadata(PRODUCT_WIDE))?;
+    url.query_pairs_mut().append_pair("Authorization", key).append_pair("format", "JSON");
+    Ok(url)
+}
+
+async fn get_member_metadata(context: &SourceContext) -> CoreResult<Vec<u8>> {
+    let url = member_metadata_url(context)?;
+    let object_url = format!("{BUCKET_BASE}/{WIDE_KEY}.json");
+    let payload = context
+        .http_transport
+        .get_bytes_with_redirect_urls(url.as_str(), &[], Some(&[url.as_str(), &object_url]))
+        .await
+        .map_err(|error| sanitize_request_error(error, "member metadata"))?;
+    context.limits.validate_bytes(payload.len() as u64, payload.len() as u64)?;
+    if payload.len() as u64 > context.limits.max_temp_bytes {
+        return Err(CoreError::ResourceLimit(
+            "source tw metadata exceeds temporary storage limit".into(),
+        ));
+    }
+    Ok(payload)
+}
+
+fn stage_metadata(
+    context: &SourceContext,
+    temp_root: &Path,
+    payload: &[u8],
+) -> CoreResult<RawArtifact> {
+    context.limits.validate_bytes(payload.len() as u64, payload.len() as u64)?;
+    std::fs::create_dir_all(temp_root).map_err(|_| {
+        CoreError::Temporary("source tw temporary directory could not be prepared".into())
+    })?;
+    let staging = tempfile::NamedTempFile::new_in(temp_root)
+        .map_err(|_| CoreError::Temporary("source tw metadata staging failed".into()))?;
+    std::fs::write(staging.path(), payload)
+        .map_err(|_| CoreError::Temporary("source tw metadata staging write failed".into()))?;
+    Ok(RawArtifact {
+        receipt: ArtifactReceipt {
+            name: format!("{WIDE_KEY}.json"),
+            media_type: "application/json".into(),
+            size_bytes: payload.len() as u64,
+            sha256: hex::encode(Sha256::digest(payload)),
+        },
+        path: staging.into_temp_path(),
+    })
 }
 
 async fn grid_object_metadata(context: &SourceContext, url: &str) -> CoreResult<(u64, String)> {
@@ -460,14 +525,18 @@ fn validate_grid_limits(metadata: &GridMetadata, context: &SourceContext) -> Cor
 }
 
 fn parse_observation_metadata(payload: &[u8]) -> CoreResult<ObservationMetadata> {
+    parse_image_metadata(payload, OBSERVATION_KEY)
+}
+
+fn parse_image_metadata(payload: &[u8], key: &str) -> CoreResult<ObservationMetadata> {
     let document = parse_json(payload, "observation")?;
     let provider = document.get("cwaopendata").ok_or_else(|| invalid_metadata("observation"))?;
-    if provider.get("dataid").and_then(Value::as_str) != Some(OBSERVATION_KEY) {
+    if provider.get("dataid").and_then(Value::as_str) != Some(key) {
         return Err(invalid_metadata("observation"));
     }
     let dataset = provider.get("dataset").ok_or_else(|| invalid_metadata("observation"))?;
     let resource = dataset.get("resource").ok_or_else(|| invalid_metadata("observation"))?;
-    let expected_url = format!("{BUCKET_BASE}/{OBSERVATION_KEY}.png");
+    let expected_url = format!("{BUCKET_BASE}/{key}.png");
     if resource.get("ProductURL").and_then(Value::as_str) != Some(expected_url.as_str())
         || resource.get("mimeType").and_then(Value::as_str) != Some("image/png")
     {
@@ -661,20 +730,24 @@ fn parameter_f64(parameters: &Value, key: &str) -> Option<f64> {
 }
 
 fn observation_frame(metadata: &ObservationMetadata) -> CoreResult<FrameRef> {
-    let revision = format!("{OBSERVATION_KEY}-{}", metadata.valid_time.timestamp());
-    let image_url = format!("{BUCKET_BASE}/{OBSERVATION_KEY}.png");
-    let metadata_url = format!("{BUCKET_BASE}/{OBSERVATION_KEY}.json");
-    build_frame(
-        PRODUCT_OBSERVATION,
+    image_frame(metadata, PRODUCT_OBSERVATION, OBSERVATION_KEY)
+}
+
+fn image_frame(metadata: &ObservationMetadata, product: &str, key: &str) -> CoreResult<FrameRef> {
+    let revision = format!("{key}-{}", metadata.valid_time.timestamp());
+    let image_url = format!("{BUCKET_BASE}/{key}.png");
+    let metadata_url = format!("{BUCKET_BASE}/{key}.json");
+    let mut frame = build_frame(
+        product,
         &revision,
         metadata.valid_time,
         json!({
             "url": image_url,
-            "name": "O-A0058-005.png",
+            "name": format!("{key}.png"),
             "media_type": "image/png",
             "artifacts": [{
                 "url": metadata_url,
-                "name": "O-A0058-005.json",
+                "name": format!("{key}.json"),
                 "role": "metadata",
                 "media_type": "application/json",
             }],
@@ -684,9 +757,14 @@ fn observation_frame(metadata: &ObservationMetadata) -> CoreResult<FrameRef> {
             "geometry_status": "unverified",
             "provider_declared_extent": metadata.extent,
             "provider_image_shape": metadata.shape,
-            "object_transport": "anonymous_s3_https",
+            "object_transport": if key == WIDE_KEY { "cwa_membership_fileapi_v1" } else { "anonymous_s3_https" },
         }),
-    )
+    )?;
+    if key == WIDE_KEY {
+        frame.locator["metadata_endpoint"] = json!(format!("{FILE_API_BASE}/{key}"));
+        frame.logical_id = logical_id(&frame).map_err(|_| invalid_metadata(product))?;
+    }
+    Ok(frame)
 }
 
 fn grid_frame(metadata: &GridMetadata) -> CoreResult<FrameRef> {
@@ -752,7 +830,16 @@ fn frame_plan(frame: &FrameRef) -> Option<FramePlan> {
         return None;
     }
     match frame.product.as_str() {
-        PRODUCT_OBSERVATION => {
+        PRODUCT_OBSERVATION | PRODUCT_WIDE => {
+            let key = if frame.product == PRODUCT_WIDE { WIDE_KEY } else { OBSERVATION_KEY };
+            let transport =
+                if key == WIDE_KEY { "cwa_membership_fileapi_v1" } else { "anonymous_s3_https" };
+            if key == WIDE_KEY
+                && frame.locator.get("metadata_endpoint").and_then(Value::as_str)
+                    != Some(format!("{FILE_API_BASE}/{key}").as_str())
+            {
+                return None;
+            }
             let extent = frame.locator.get("provider_declared_extent")?.as_array()?;
             let extent: [f64; 4] =
                 extent.iter().map(Value::as_f64).collect::<Option<Vec<_>>>()?.try_into().ok()?;
@@ -765,13 +852,13 @@ fn frame_plan(frame: &FrameRef) -> Option<FramePlan> {
                 != Some("provider_metadata_time")
                 || frame.locator.get("geometry_status").and_then(Value::as_str)
                     != Some("unverified")
-                || frame.locator.get("object_transport").and_then(Value::as_str)
-                    != Some("anonymous_s3_https")
+                || frame.locator.get("object_transport").and_then(Value::as_str) != Some(transport)
                 || frame.locator.get("url").and_then(Value::as_str)
-                    != Some(format!("{BUCKET_BASE}/{OBSERVATION_KEY}.png").as_str())
-                || frame.locator.get("name").and_then(Value::as_str) != Some("O-A0058-005.png")
+                    != Some(format!("{BUCKET_BASE}/{key}.png").as_str())
+                || frame.locator.get("name").and_then(Value::as_str)
+                    != Some(format!("{key}.png").as_str())
                 || frame.locator.get("media_type").and_then(Value::as_str) != Some("image/png")
-                || revision != format!("{OBSERVATION_KEY}-{}", expected_time.timestamp())
+                || revision != format!("{key}-{}", expected_time.timestamp())
                 || ![west, south, east, north].iter().all(|value| value.is_finite())
                 || shape.contains(&0)
             {
@@ -780,15 +867,16 @@ fn frame_plan(frame: &FrameRef) -> Option<FramePlan> {
             let artifacts = frame.locator.get("artifacts")?.as_array()?;
             if artifacts.len() != 1
                 || artifacts[0].get("url").and_then(Value::as_str)
-                    != Some(format!("{BUCKET_BASE}/{OBSERVATION_KEY}.json").as_str())
-                || artifacts[0].get("name").and_then(Value::as_str) != Some("O-A0058-005.json")
+                    != Some(format!("{BUCKET_BASE}/{key}.json").as_str())
+                || artifacts[0].get("name").and_then(Value::as_str)
+                    != Some(format!("{key}.json").as_str())
                 || artifacts[0].get("role").and_then(Value::as_str) != Some("metadata")
                 || artifacts[0].get("media_type").and_then(Value::as_str)
                     != Some("application/json")
             {
                 return None;
             }
-            Some(FramePlan::Observation { metadata })
+            Some(FramePlan::Observation { metadata, key })
         }
         PRODUCT_GRID => {
             let metadata = GridMetadata {
@@ -1177,6 +1265,93 @@ mod tests {
         let mut frame = observation_frame(&metadata).unwrap();
         frame.locator["artifacts"][0]["url"] = json!("https://evil.invalid/metadata.json");
         assert!(frame_plan(&frame).is_none());
+    }
+
+    fn wide_metadata() -> Vec<u8> {
+        // Synthetic protocol metadata, not scientific evidence for O-A0058-001.
+        String::from_utf8(OBSERVATION_JSON.to_vec())
+            .unwrap()
+            .replace(OBSERVATION_KEY, WIDE_KEY)
+            .into_bytes()
+    }
+
+    #[test]
+    fn membership_key_is_required_encoded_and_absent_from_frame_identity() {
+        let mut context = test_context();
+        assert!(member_metadata_url(&context).is_err());
+        context.source_options = Arc::new(std::collections::BTreeMap::from([(
+            "api_key".into(),
+            serde_yaml_ng::Value::String(" secret&+value ".into()),
+        )]));
+        let url = member_metadata_url(&context).unwrap();
+        assert_eq!(
+            url.query_pairs().find(|(name, _)| name == "Authorization").unwrap().1,
+            "secret&+value"
+        );
+        assert_eq!(url.path(), "/fileapi/v1/opendataapi/O-A0058-001");
+        let metadata = parse_image_metadata(&wide_metadata(), WIDE_KEY).unwrap();
+        let frame = image_frame(&metadata, PRODUCT_WIDE, WIDE_KEY).unwrap();
+        let public = serde_json::to_string(&frame).unwrap();
+        assert!(!public.contains("secret"));
+        assert!(!public.contains("Authorization"));
+        assert!(frame_plan(&frame).is_some());
+        assert_ne!(frame.logical_id, observation_frame(&metadata).unwrap().logical_id);
+        let mut altered = frame.clone();
+        altered.locator["metadata_endpoint"] = json!("https://evil.invalid/metadata");
+        altered.logical_id = logical_id(&altered).unwrap();
+        assert!(frame_plan(&altered).is_none());
+    }
+
+    #[test]
+    fn wide_product_rejects_other_products_urls_and_changed_time() {
+        assert!(parse_image_metadata(OBSERVATION_JSON, WIDE_KEY).is_err());
+        let payload = wide_metadata();
+        let expected = parse_image_metadata(&payload, WIDE_KEY).unwrap();
+        let mut document: Value = serde_json::from_slice(&payload).unwrap();
+        document["cwaopendata"]["dataset"]["resource"]["ProductURL"] =
+            json!(format!("{BUCKET_BASE}/{WIDE_KEY}.png?Authorization=secret"));
+        assert!(parse_image_metadata(&serde_json::to_vec(&document).unwrap(), WIDE_KEY).is_err());
+        document = serde_json::from_slice(&payload).unwrap();
+        document["cwaopendata"]["dataset"]["DateTime"] = json!("2026-10-10T13:50:00+08:00");
+        let changed =
+            parse_image_metadata(&serde_json::to_vec(&document).unwrap(), WIDE_KEY).unwrap();
+        assert_ne!(expected, changed);
+        let frame = image_frame(&changed, PRODUCT_WIDE, WIDE_KEY).unwrap();
+        assert_eq!(frame.valid_time, "2026-10-10T05:50:00.000000Z");
+        assert!(!TwSourceAdapter.allows_artifact_url(
+            &frame,
+            &Url::parse(&format!("{BUCKET_BASE}/{OBSERVATION_KEY}.png")).unwrap()
+        ));
+    }
+
+    #[tokio::test]
+    async fn wide_raw_receipt_preserves_metadata_without_inheriting_science_rules() {
+        let payload = wide_metadata();
+        let metadata = parse_image_metadata(&payload, WIDE_KEY).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let artifact = stage_metadata(&test_context(), root.path(), &payload).unwrap();
+        assert_eq!(artifact.receipt.name, "O-A0058-001.json");
+        assert_eq!(read_artifact(&artifact).unwrap(), payload);
+        assert_eq!(artifact.receipt.sha256, hex::encode(Sha256::digest(&payload)));
+        // A complete synthetic acquisition must still reject the other product's gray rule.
+        let mut image = raw_observation().artifacts.remove(0);
+        image.receipt.name = "O-A0058-001.png".into();
+        let raw = Arc::new(RawFrame {
+            frame: image_frame(&metadata, PRODUCT_WIDE, WIDE_KEY).unwrap(),
+            artifacts: vec![image, artifact],
+            private_locator: None,
+        });
+        let engine = crate::engine::Engine::new(
+            crate::config::CoreConfig::default(),
+            crate::source::SourceRegistry::with_builtins(),
+        )
+        .unwrap();
+        assert!(engine.decode_science(raw.clone()).await.is_err());
+        assert!(matches!(
+            engine.decode_gray(raw.clone()).await.unwrap(),
+            crate::raster::GrayDecision::Unavailable { .. }
+        ));
+        assert!(engine.decode_dbz(raw).await.is_err());
     }
 
     fn test_context() -> SourceContext {

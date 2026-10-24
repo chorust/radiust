@@ -8,7 +8,7 @@ import json
 import os
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 try:
     from . import _core
@@ -27,6 +27,9 @@ from .errors import (
     StorageError,
     UnsupportedQueryError,
 )
+
+if TYPE_CHECKING:
+    from .models import LocalViewResult
 
 
 def version() -> str:
@@ -348,6 +351,87 @@ class CoreEngineSession:
             raise error_type(
                 str(exc), context=_native_error_context(exc, "discover"), cause=exc
             ) from exc
+
+    async def local_view(self, request: Mapping[str, Any]) -> LocalViewResult:
+        if _core is None or not hasattr(_core, "LocalViewRequest") or not hasattr(self._engine, "local_view"):
+            raise UnsupportedQueryError(
+                "the installed Rust extension does not support local views",
+                context=ErrorContext(stage="validate", code="unsupported"),
+            )
+        try:
+            payload = json.dumps(_json_safe(dict(request)), ensure_ascii=False, allow_nan=False)
+            native_request = _core.LocalViewRequest(payload)
+        except (TypeError, ValueError) as exc:
+            raise UnsupportedQueryError(
+                str(exc), context=ErrorContext(stage="validate"), cause=exc
+            ) from exc
+        try:
+            native = await self._engine.local_view(native_request)
+        except (OSError, ValueError) as exc:
+            _raise_if_cancelled(exc, "local_view")
+            context = _native_error_context(exc, "local_view")
+            if context.code == "resource_limit":
+                raise ResourceLimitError(str(exc), context=context, cause=exc) from exc
+            if context.code == "unsupported":
+                raise UnsupportedQueryError(str(exc), context=context, cause=exc) from exc
+            error_type = RadiustError if context.code else ConfigError
+            raise error_type(str(exc), context=context, cause=exc) from exc
+        try:
+            return self._convert_local_view(native)
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            raise DecodeError(
+                "local-view result could not be converted",
+                context=ErrorContext(stage="decode", code="invalid_local_view_result"),
+                cause=exc,
+            ) from exc
+
+    @staticmethod
+    def _convert_local_view(native: Any) -> LocalViewResult:
+        from .models import LocalViewGrid, LocalViewResult
+
+        metadata = json.loads(native.metadata_json())
+        grid_document = metadata.get("grid")
+        grid = None
+        if grid_document is not None:
+            x = native.x_axis()
+            y = native.y_axis()
+            in_view = native.in_view_bytes()
+            if x is None or y is None or in_view is None:
+                raise ValueError("selected local-view grid omitted its axes or view mask")
+            source_domain = native.source_domain_bytes()
+            grid = LocalViewGrid(
+                center=grid_document["center"],
+                radius_m=grid_document["radius_m"],
+                requested_resolution_m=grid_document["requested_resolution_m"],
+                actual_resolution_m=grid_document["actual_resolution_m"],
+                shape=tuple(grid_document["shape"]),
+                x=tuple(x),
+                y=tuple(y),
+                crs=grid_document.get("crs"),
+                affine=tuple(grid_document["affine"]) if grid_document.get("affine") is not None else None,
+                in_view=bytes(in_view),
+                source_domain=bytes(source_domain) if source_domain is not None else None,
+                _native_owner=native,
+            )
+        frame = native.selected()
+        return LocalViewResult(
+            status=metadata["status"],
+            selected=metadata.get("selected"),
+            grid=grid,
+            fields=tuple(native.field(index) for index in range(native.field_count)),
+            processing=metadata.get("processing"),
+            raw_rgba=(
+                bytes(raw_rgba)
+                if (raw_rgba := getattr(native, "raw_image_rgba", lambda: None)()) is not None
+                else None
+            ),
+            selection=tuple(metadata.get("selection", ())),
+            candidate_limit_reached=bool(metadata.get("candidate_limit_reached", False)),
+            error=metadata.get("error"),
+            observation_coverage=metadata.get("observation_coverage"),
+            _native_result=native,
+            _selected_frame=frame,
+        )
 
     async def fetch_raw(self, frame: Any) -> Any:
         native_frame = _native_frames([frame])[0]

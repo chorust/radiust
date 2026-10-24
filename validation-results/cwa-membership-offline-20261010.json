@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-10T06:37:59.999869+00:00",
+  "source": "tw",
+  "product": "observation-wide",
+  "evidence_kind": "agent_executed_offline_regression",
+  "checks": {
+    "tw_unit_tests": {
+      "passed": 14,
+      "science_gate_strengthened_and_rerun": true
+    },
+    "http_metadata_tests": {
+      "passed": 18,
+      "network_scope": "loopback fixtures only"
+    },
+    "source_matrix_tests": {
+      "passed": 10,
+      "network_scope": "disabled"
+    },
+    "cli_unit_tests": {
+      "passed": 45,
+      "additional_public_metadata_redaction_test": 1,
+      "network_scope": "loopback fixtures only"
+    },
+    "python_config_discovery_contracts": {
+      "passed": 22,
+      "network_scope": "disabled"
+    },
+    "offline_all_source_preflight": {
+      "passed": 1,
+      "catalog_targets": 75,
+      "missing_credentials": 4,
+      "retired": 1,
+      "network_restricted": 70
+    },
+    "bounded_fixture_source_dispatch": {
+      "passed": 1
+    },
+    "catalog_unit_tests": {
+      "passed": 5,
+      "rust_python_catalogs_equal": true
+    },
+    "rust_format": "passed",
+    "python_ruff": "passed",
+    "git_diff_check": "passed",
+    "live_script_without_opt_in": {
+      "status": "passed",
+      "exit_code": 2,
+      "no_provider_requests": true
+    },
+    "json_files_parsed": 8,
+    "local_markdown_links_checked": 65
+  },
+  "resolved_validation_failures": [
+    "Loopback fixture tests could not bind sockets in the default sandbox; they passed after rerunning with permission for local fixture sockets.",
+    "Two Python preflight assertions initially exercised a stale native extension. Rebuilding and reinstalling the wheel in the workspace .venv yielded 22 passing contract tests.",
+    "The initial maturin develop invocation selected system Python and failed before installation; the final build/install explicitly targeted workspace .venv Python.",
+    "Rust formatting of the additional URL redaction test was corrected and rechecked."
+  ],
+  "limits": [
+    "Synthetic wide-image unit fixtures do not prove upstream geometry or physical mapping.",
+    "No CWA provider CI case, default-source admission, real coverage or full failure/cache/view matrix was accepted."
+  ],
+  "public_network_tests_in_this_record": false
+}

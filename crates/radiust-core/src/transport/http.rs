@@ -119,7 +119,13 @@ impl HttpTransport {
             return Err(CoreError::Transport("only http and https are supported".into()));
         }
         if !self.allowed(url) {
-            return Err(CoreError::NetworkDisabled(url.to_string()));
+            // Query strings, fragments and userinfo can carry credentials.
+            let mut redacted = url.clone();
+            let _ = redacted.set_username("");
+            let _ = redacted.set_password(None);
+            redacted.set_query(None);
+            redacted.set_fragment(None);
+            return Err(CoreError::NetworkDisabled(redacted.to_string()));
         }
         Ok(())
     }
@@ -139,6 +145,17 @@ impl HttpTransport {
         &self,
         address: &str,
         headers: &[(&str, &str)],
+    ) -> CoreResult<Vec<u8>> {
+        self.get_bytes_with_redirect_urls(address, headers, None).await
+    }
+
+    /// Restrict credentialed discovery redirects to reviewed, exact URLs.
+    /// Custom headers are still sent only to the original origin.
+    pub async fn get_bytes_with_redirect_urls(
+        &self,
+        address: &str,
+        headers: &[(&str, &str)],
+        allowed_redirect_urls: Option<&[&str]>,
     ) -> CoreResult<Vec<u8>> {
         let url = Url::parse(address).map_err(|e| CoreError::Transport(e.to_string()))?;
         self.validate_url(&url)?;
@@ -187,6 +204,13 @@ impl HttpTransport {
                     current =
                         current.join(location).map_err(|e| CoreError::Transport(e.to_string()))?;
                     self.validate_url(&current)?;
+                    if allowed_redirect_urls
+                        .is_some_and(|allowed| !allowed.contains(&current.as_str()))
+                    {
+                        return Err(CoreError::Transport(
+                            "discovery redirect is outside the reviewed URLs".into(),
+                        ));
+                    }
                     redirects += 1;
                     continue;
                 }

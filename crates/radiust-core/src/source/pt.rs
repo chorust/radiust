@@ -1,11 +1,16 @@
 //! Native discovery adapter for Portugal's IPMA Madeira radar timeline.
 
 use crate::errors::{CoreError, CoreResult};
+use crate::grid::web_mercator_affine_from_bounds;
 use crate::identity::logical_id;
-use crate::model::{DiscoveryTarget, FrameRef, Query, TimeSelector};
+use crate::model::{ArtifactReceipt, DiscoveryTarget, FrameRef, Query, TimeSelector};
+use crate::source::catalog::{
+    CatalogProvenance, PixelRegistration, RasterGeometryEvidence, SpatialEvidenceStatus,
+};
 use crate::source::{SourceAdapter, SourceContext};
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use futures_util::future::BoxFuture;
+use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use url::Url;
@@ -17,12 +22,99 @@ const REFERER: &str = "https://www.ipma.pt/pt/otempo/obs.remote/index-md.jsp";
 const PRODUCT: &str = "composite";
 const STATION: &str = "PTST2";
 const LOCATOR_VERSION: &str = "pt-legacy-v1";
+const GEOMETRY_RESOURCE: &str = include_str!("../../resources/builtin/sources/pt.json");
 
 /// Discovers image references from IPMA's public Madeira timeline.
 ///
 /// This adapter only migrates discovery. It does not provide a native image
 /// decoder or claim that the scientific decoding path has migrated.
 pub struct PtSourceAdapter;
+
+#[derive(Deserialize)]
+struct PtGeometryResource {
+    schema_version: u32,
+    source: String,
+    station: String,
+    geometry_status: String,
+    map_crs: String,
+    pixel_registration: String,
+    image_shape_hw: [u32; 2],
+    image_bounds_wsen: [f64; 4],
+    geometry_evidence: PtGeometryProvenance,
+}
+
+#[derive(Deserialize)]
+struct PtGeometryProvenance {
+    reference: String,
+    observed_at: String,
+    map_script_sha256: String,
+}
+
+pub(crate) fn local_view_geometry(
+    frame: &FrameRef,
+    artifact: &ArtifactReceipt,
+    width: u32,
+    height: u32,
+) -> CoreResult<RasterGeometryEvidence> {
+    if frame.source != "pt"
+        || frame.product != PRODUCT
+        || frame.station.as_deref() != Some(STATION)
+        || artifact.media_type != "image/png"
+        || !artifact.name.to_ascii_lowercase().ends_with(".png")
+        || artifact.size_bytes == 0
+        || artifact.sha256.len() != 64
+        || !artifact
+            .sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
+        return Err(CoreError::Integrity("PT image receipt or frame identity is invalid".into()));
+    }
+    frame
+        .validate_identity()
+        .map_err(|_| CoreError::Integrity("PT frame identity is invalid".into()))?;
+    let resource: PtGeometryResource = serde_json::from_str(GEOMETRY_RESOURCE)
+        .map_err(|_| CoreError::Transport("PT geometry resource is invalid".into()))?;
+    if resource.schema_version != 1
+        || resource.source != "pt"
+        || resource.station != STATION
+        || resource.geometry_status != "verified_ipma_leaflet_image_overlay"
+        || resource.map_crs != "EPSG:3857"
+        || resource.pixel_registration != "edge"
+        || resource.image_shape_hw != [height, width]
+        || resource.geometry_evidence.map_script_sha256.len() != 64
+    {
+        return Err(CoreError::Storage(
+            "PT image geometry does not match the verified overlay".into(),
+        ));
+    }
+    let affine = web_mercator_affine_from_bounds(resource.image_bounds_wsen, width, height)?;
+    let evidence_reference = format!(
+        "{}; mapbuilder-md.js sha256:{}",
+        resource.geometry_evidence.reference, resource.geometry_evidence.map_script_sha256
+    );
+    Ok(RasterGeometryEvidence {
+        status: SpatialEvidenceStatus::Verified,
+        crs: Some(resource.map_crs),
+        registration: PixelRegistration::Edge,
+        shape: Some([height, width]),
+        affine: Some(affine),
+        data_window: Some([0, 0, width, height]),
+        artifact_sha256: Some(artifact.sha256.clone()),
+        evidence: vec![
+            CatalogProvenance {
+                source: "IPMA Leaflet ImageOverlay geometry".into(),
+                reference: Some(evidence_reference),
+                observed_at: Some(resource.geometry_evidence.observed_at),
+            },
+            CatalogProvenance {
+                source: "receipt-bound PT image artifact".into(),
+                reference: Some(format!("sha256:{}", artifact.sha256)),
+                observed_at: None,
+            },
+        ],
+    })
+}
 
 impl SourceAdapter for PtSourceAdapter {
     fn source_id(&self) -> &'static str {
@@ -292,6 +384,27 @@ mod tests {
             "9db7673c68de6c0265af218af359e0d1fc6b83b7ef98b20670ea739b45fb73ff"
         );
         assert_eq!(frame.logical_id, logical_id(frame).unwrap());
+    }
+
+    #[test]
+    fn local_view_geometry_uses_receipt_bound_web_mercator_image_edges() {
+        let frame = parse_timeline(TIMELINE).unwrap().remove(0);
+        let artifact = ArtifactReceipt {
+            name: "pcr_pst-2026-09-18T0250.png".into(),
+            media_type: "image/png".into(),
+            size_bytes: include_bytes!("../../../../tests/fixtures/sources/pt/raw/PTST2.png").len()
+                as u64,
+            sha256: "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa".into(),
+        };
+        let geometry = local_view_geometry(&frame, &artifact, 1500, 1526).unwrap();
+        assert_eq!(geometry.status, SpatialEvidenceStatus::Verified);
+        assert_eq!(geometry.crs.as_deref(), Some("EPSG:3857"));
+        assert_eq!(geometry.registration, PixelRegistration::Edge);
+        assert_eq!(geometry.shape, Some([1526, 1500]));
+        assert_eq!(geometry.data_window, Some([0, 0, 1500, 1526]));
+        assert_eq!(geometry.artifact_sha256.as_deref(), Some(artifact.sha256.as_str()));
+        assert_eq!(geometry.evidence.len(), 2);
+        assert!(local_view_geometry(&frame, &artifact, 1501, 1526).is_err());
     }
 
     #[test]

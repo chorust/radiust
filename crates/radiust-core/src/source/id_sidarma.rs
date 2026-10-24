@@ -2,7 +2,11 @@
 
 use crate::errors::{CoreError, CoreResult};
 use crate::identity::logical_id;
-use crate::model::{DiscoveryTarget, FrameRef, Query, TimeSelector};
+use crate::model::{DiscoveryTarget, FrameRef, GeographicPoint, Query, TimeSelector};
+use crate::source::catalog::{
+    CatalogError, CatalogMetadata, CatalogSpatialTarget, SourceCatalog, SpatialEvidenceStatus,
+    SpatialTargetKind, coordinate_evidence_status,
+};
 use crate::source::{SourceAdapter, SourceContext};
 use chrono::{DateTime, Duration, NaiveDateTime, SecondsFormat, Utc};
 use futures_util::future::BoxFuture;
@@ -166,7 +170,11 @@ impl SourceAdapter for IdSidarmaSourceAdapter {
 #[derive(Clone, Debug, Deserialize)]
 struct Radar {
     id: String,
+    longitude: f64,
+    latitude: f64,
     bbox: [f64; 4],
+    #[serde(default)]
+    metadata: Option<CatalogMetadata>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -244,6 +252,10 @@ fn radar_inventory() -> CoreResult<BTreeMap<String, Radar>> {
     for radar in resource.radars {
         let [west, south, east, north] = radar.bbox;
         if !valid_radar_id(&radar.id)
+            || !radar.longitude.is_finite()
+            || !radar.latitude.is_finite()
+            || !(-180.0..=180.0).contains(&radar.longitude)
+            || !(-90.0..=90.0).contains(&radar.latitude)
             || ![west, south, east, north].iter().all(|value| value.is_finite())
             || west < -180.0
             || east > 180.0
@@ -257,6 +269,54 @@ fn radar_inventory() -> CoreResult<BTreeMap<String, Radar>> {
         }
     }
     Ok(radars)
+}
+
+pub(crate) fn legacy_spatial_targets(
+    catalog: &SourceCatalog,
+    source_ids: Option<&[String]>,
+) -> Result<Vec<CatalogSpatialTarget>, CatalogError> {
+    let Some(source_ids) = source_ids else {
+        return Ok(Vec::new());
+    };
+    let radars = radar_inventory()
+        .map_err(|_| CatalogError::InvalidSpatialMetadata { source_id: SOURCE.into() })?;
+    let mut targets = Vec::new();
+    for (source_id, product_id) in [("id", "composite"), (SOURCE, PRODUCT)] {
+        if !source_ids.iter().any(|source| source == source_id) {
+            continue;
+        }
+        let source = catalog
+            .source(source_id)
+            .ok_or_else(|| CatalogError::UnknownSource(source_id.into()))?;
+        if !source.products.iter().any(|product| product.id == product_id) {
+            return Err(CatalogError::InvalidProduct { source_id: source_id.into() });
+        }
+        for radar in radars.values() {
+            let spatial = radar.metadata.as_ref().and_then(|metadata| metadata.spatial.as_ref());
+            let site = GeographicPoint { longitude: radar.longitude, latitude: radar.latitude };
+            targets.push(CatalogSpatialTarget {
+                target: DiscoveryTarget {
+                    source: source_id.into(),
+                    product: Some(product_id.into()),
+                    station: Some(radar.id.clone()),
+                },
+                kind: spatial.map(|metadata| metadata.kind).unwrap_or(SpatialTargetKind::Unknown),
+                source_class: spatial.map(|metadata| metadata.source_class).unwrap_or_default(),
+                availability: source.availability.clone(),
+                required_extras: source.required_extras.clone(),
+                site: Some(site),
+                site_status: spatial.map_or(SpatialEvidenceStatus::Unknown, |metadata| {
+                    coordinate_evidence_status(&metadata.field_evidence, site)
+                }),
+                product_domain: spatial.and_then(|metadata| metadata.product_domain.clone()),
+                observation_coverage: spatial
+                    .and_then(|metadata| metadata.observation_coverage.clone()),
+                geometry: spatial.and_then(|metadata| metadata.geometry.clone()),
+                admission: spatial.and_then(|metadata| metadata.admission.clone()),
+            });
+        }
+    }
+    Ok(targets)
 }
 
 fn valid_radar_id(value: &str) -> bool {

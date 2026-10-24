@@ -1,8 +1,10 @@
 //! Shared, serialization-friendly domain types for the native core.
 
+use crate::limits::RasterBufferLease;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Query {
@@ -373,6 +375,554 @@ impl Preview {
     }
 }
 
+/// Largest local-view radius, in metres.
+const MAX_LOCAL_RADIUS_M: f64 = 500_000.0;
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct GeographicPoint {
+    pub longitude: f64,
+    pub latitude: f64,
+}
+
+impl GeographicPoint {
+    pub fn validate(self) -> Result<(), ModelError> {
+        if !self.longitude.is_finite()
+            || !self.latitude.is_finite()
+            || !(-180.0..=180.0).contains(&self.longitude)
+            || !(-90.0..=90.0).contains(&self.latitude)
+        {
+            return Err(ModelError::InvalidLocalView("center must be a valid WGS84 position"));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalViewMode {
+    #[default]
+    Auto,
+    Raw,
+    Decoded,
+    Dbz,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalViewResampling {
+    #[default]
+    Nearest,
+    Bilinear,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocalViewRequest {
+    #[serde(default)]
+    pub center: Option<GeographicPoint>,
+    #[serde(default)]
+    pub radius_km: Option<f64>,
+    #[serde(default)]
+    pub resolution_m: Option<f64>,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub product: Option<String>,
+    #[serde(default)]
+    pub station: Option<String>,
+    #[serde(default)]
+    pub mode: LocalViewMode,
+    #[serde(default)]
+    pub resampling: LocalViewResampling,
+}
+
+impl LocalViewRequest {
+    pub fn validate(&self) -> Result<(), ModelError> {
+        if self.center.is_some_and(|center| center.validate().is_err()) {
+            return Err(ModelError::InvalidLocalView("center must be a valid WGS84 position"));
+        }
+        if self.radius_km.is_some_and(|radius| {
+            !radius.is_finite() || radius <= 0.0 || radius > MAX_LOCAL_RADIUS_M / 1000.0
+        }) {
+            return Err(ModelError::InvalidLocalView(
+                "radius must be greater than 0 and at most 500 km",
+            ));
+        }
+        if self.resolution_m.is_some_and(|resolution| !resolution.is_finite() || resolution <= 0.0)
+        {
+            return Err(ModelError::InvalidLocalView("resolution must be finite and positive"));
+        }
+        if self.source.as_deref().is_some_and(|value| !valid_identifier(value))
+            || self.product.as_deref().is_some_and(|value| !valid_identifier(value))
+            || self.station.as_deref().is_some_and(|value| !valid_identifier(value))
+        {
+            return Err(ModelError::InvalidLocalView(
+                "source, product, or station identifier is invalid",
+            ));
+        }
+        if self.source.is_none() && (self.product.is_some() || self.station.is_some()) {
+            return Err(ModelError::InvalidLocalView(
+                "product and station require an explicit source",
+            ));
+        }
+        if self.mode == LocalViewMode::Raw && self.resampling == LocalViewResampling::Bilinear {
+            return Err(ModelError::InvalidLocalView(
+                "raw imagery supports nearest resampling only",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalViewStatus {
+    Selected,
+    NoCandidate,
+    Failed,
+    Interrupted,
+    TimedOut,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalViewCandidateState {
+    Excluded,
+    NotStarted,
+    Attempted,
+    Selected,
+    Failed,
+}
+
+/// Catalog evidence retained for one selection decision; it does not assert
+/// that the current frame observes every point in its published domain.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LocalViewSpatialEvidence {
+    pub target_kind: crate::source::catalog::SpatialTargetKind,
+    pub source_class: crate::source::catalog::SpatialSourceClass,
+    pub site_status: crate::source::catalog::SpatialEvidenceStatus,
+    pub site_distance_m: Option<f64>,
+    pub product_domain: Option<crate::source::catalog::SpatialDomain>,
+    pub geometry: Option<crate::source::catalog::RasterGeometryEvidence>,
+    pub admission: Option<crate::source::catalog::SpatialAdmission>,
+    pub rank_reason: String,
+}
+
+impl LocalViewSpatialEvidence {
+    pub fn from_target(
+        target: &crate::source::catalog::CatalogSpatialTarget,
+        site_distance_m: Option<f64>,
+        rank_reason: &str,
+    ) -> Self {
+        Self {
+            target_kind: target.kind,
+            source_class: target.source_class,
+            site_status: target.site_status,
+            site_distance_m,
+            product_domain: target.product_domain.clone(),
+            geometry: target.geometry.clone(),
+            admission: target.admission.clone(),
+            rank_reason: rank_reason.to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LocalViewAttempt {
+    pub target: DiscoveryTarget,
+    pub state: LocalViewCandidateState,
+    #[serde(default)]
+    pub discovery_status: Option<DiscoveryStatus>,
+    pub reason: String,
+    #[serde(default)]
+    pub error: Option<SafeError>,
+    #[serde(default)]
+    pub observation_coverage: Option<crate::source::catalog::ObservationCoverage>,
+    #[serde(default)]
+    pub spatial_evidence: Option<LocalViewSpatialEvidence>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LocalViewGrid {
+    pub center: GeographicPoint,
+    pub radius_m: f64,
+    pub requested_resolution_m: f64,
+    pub actual_resolution_m: f64,
+    pub grid: Grid,
+    pub in_view: Vec<bool>,
+    #[serde(default)]
+    pub source_domain: Option<Vec<bool>>,
+}
+
+impl LocalViewGrid {
+    pub(crate) fn validate(&self) -> Result<(), ModelError> {
+        self.center.validate()?;
+        if !self.radius_m.is_finite()
+            || self.radius_m <= 0.0
+            || self.radius_m > MAX_LOCAL_RADIUS_M
+            || !self.requested_resolution_m.is_finite()
+            || self.requested_resolution_m <= 0.0
+            || !self.actual_resolution_m.is_finite()
+            || self.actual_resolution_m <= 0.0
+        {
+            return Err(ModelError::InvalidLocalView("local grid parameters are invalid"));
+        }
+        if self.grid.shape.len() != 2
+            || self.grid.shape.contains(&0)
+            || self.grid.x.len() != self.grid.shape[1]
+            || self.grid.y.len() != self.grid.shape[0]
+        {
+            return Err(ModelError::InvalidLocalView("local grid axes do not match its shape"));
+        }
+        let pixels = self.grid.shape[0]
+            .checked_mul(self.grid.shape[1])
+            .ok_or(ModelError::InvalidLocalView("local grid shape overflows"))?;
+        if self.in_view.len() != pixels
+            || self.source_domain.as_ref().is_some_and(|mask| mask.len() != pixels)
+        {
+            return Err(ModelError::InvalidLocalView("local grid masks do not match its shape"));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(tag = "kind", content = "data", rename_all = "snake_case")]
+pub enum LocalViewData {
+    Numeric(RadarDataset),
+    RawImage { width: u32, height: u32, rgba: Vec<u8> },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct LocalViewProcessingRecord {
+    pub schema_version: u8,
+    pub processing_id: String,
+    pub algorithm: String,
+    pub input_logical_id: String,
+    #[serde(default)]
+    pub input_revision: Option<String>,
+    pub input_receipts: Vec<ArtifactReceipt>,
+    pub center: GeographicPoint,
+    pub radius_m: f64,
+    pub requested_resolution_m: f64,
+    pub actual_resolution_m: f64,
+    pub grid_shape: [usize; 2],
+    #[serde(default)]
+    pub affine: Option<[f64; 6]>,
+    pub registration: String,
+    pub resampling: String,
+    pub requested_mode: String,
+    pub data_kind: String,
+}
+
+impl LocalViewProcessingRecord {
+    pub(crate) fn identity_value(&self) -> serde_json::Value {
+        serde_json::json!({
+            "identity_schema": 1,
+            "algorithm": self.algorithm,
+            "input_logical_id": self.input_logical_id,
+            "input_revision": self.input_revision,
+            "input_receipts": self.input_receipts,
+            "center": self.center,
+            "radius_m": self.radius_m,
+            "requested_resolution_m": self.requested_resolution_m,
+            "actual_resolution_m": self.actual_resolution_m,
+            "grid_shape": self.grid_shape,
+            "affine": self.affine,
+            "registration": self.registration,
+            "resampling": self.resampling,
+            "requested_mode": self.requested_mode,
+            "data_kind": self.data_kind,
+        })
+    }
+
+    fn validate(&self, frame: &FrameRef, grid: &LocalViewGrid) -> Result<(), ModelError> {
+        let identity_matches = matches!(
+            crate::identity::digest(&self.identity_value()),
+            Ok(digest) if self.processing_id == digest
+        );
+        if self.schema_version != 1
+            || self.algorithm != "local-aeqd-wgs84-v1"
+            || self.input_logical_id != frame.logical_id
+            || self.input_revision != frame.revision
+            || self.input_receipts.is_empty()
+            || self.input_receipts.iter().any(|receipt| {
+                receipt.name.trim().is_empty()
+                    || receipt.size_bytes == 0
+                    || receipt.sha256.len() != 64
+                    || !receipt
+                        .sha256
+                        .bytes()
+                        .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+            })
+            || self.center != grid.center
+            || self.radius_m != grid.radius_m
+            || self.requested_resolution_m != grid.requested_resolution_m
+            || self.actual_resolution_m != grid.actual_resolution_m
+            || self.grid_shape != [grid.grid.shape[0], grid.grid.shape[1]]
+            || self.affine != grid.grid.affine
+            || self.registration != "center"
+            || !matches!(self.resampling.as_str(), "nearest" | "bilinear")
+            || !matches!(self.requested_mode.as_str(), "auto" | "raw" | "decoded" | "dbz")
+            || !matches!(self.data_kind.as_str(), "numeric" | "raw_image")
+            || !identity_matches
+        {
+            return Err(ModelError::InvalidLocalView(
+                "processing record does not match its input and grid",
+            ));
+        }
+        Ok(())
+    }
+}
+
+pub struct LocalViewResult {
+    pub schema_version: u8,
+    pub status: LocalViewStatus,
+    pub selected: Option<FrameRef>,
+    pub grid: Option<LocalViewGrid>,
+    pub data: Option<LocalViewData>,
+    pub processing: Option<LocalViewProcessingRecord>,
+    pub selection: Vec<LocalViewAttempt>,
+    pub candidate_limit_reached: bool,
+    pub error: Option<SafeError>,
+    pub observation_coverage: Option<crate::source::catalog::ObservationCoverage>,
+    pub(crate) _buffer_owner: Option<Arc<LocalViewBufferOwner>>,
+}
+
+impl LocalViewResult {
+    pub fn new(
+        status: LocalViewStatus,
+        selected: Option<FrameRef>,
+        grid: Option<LocalViewGrid>,
+        data: Option<LocalViewData>,
+        processing: Option<LocalViewProcessingRecord>,
+        selection: Vec<LocalViewAttempt>,
+        candidate_limit_reached: bool,
+        error: Option<SafeError>,
+    ) -> Result<Self, ModelError> {
+        let observation_coverage = selection
+            .iter()
+            .find(|attempt| attempt.state == LocalViewCandidateState::Selected)
+            .and_then(|attempt| attempt.observation_coverage.clone());
+        let mut result = Self {
+            schema_version: 1,
+            status,
+            selected,
+            grid,
+            data,
+            processing,
+            selection,
+            candidate_limit_reached,
+            error,
+            observation_coverage,
+            _buffer_owner: None,
+        };
+        if result.status == LocalViewStatus::NoCandidate && result.is_network_restricted() {
+            if let Some(error) = result.error.as_mut() {
+                error.code = "network_disabled".to_owned();
+                error.message = "network access is disabled; every otherwise eligible candidate requires network".to_owned();
+                error.stage = "selection".to_owned();
+            }
+        }
+        result.validate()?;
+        Ok(result)
+    }
+
+    /// Whether networking blocks every otherwise eligible candidate.
+    pub fn is_network_restricted(&self) -> bool {
+        self.selection.iter().any(|attempt| attempt.reason == "network_restricted")
+            && self.selection.iter().all(|attempt| {
+                matches!(
+                    attempt.reason.as_str(),
+                    "network_restricted"
+                        | "source_retired"
+                        | "missing_credentials"
+                        | "unsupported_source"
+                )
+            })
+    }
+
+    pub(crate) fn retain_buffer_leases(&mut self, leases: Vec<RasterBufferLease>) {
+        self._buffer_owner = Some(Arc::new(LocalViewBufferOwner { _leases: leases }));
+    }
+
+    #[cfg_attr(not(feature = "extension-module"), allow(dead_code))]
+    pub(crate) fn retain_python_binding_lease(&mut self) -> crate::errors::CoreResult<()> {
+        let raw_bytes = match self.data.as_ref() {
+            Some(LocalViewData::RawImage { rgba, .. }) => {
+                u64::try_from(rgba.len()).map_err(|_| {
+                    crate::errors::CoreError::ResourceLimit(
+                        "local image buffer size overflows".into(),
+                    )
+                })?
+            }
+            _ => 0,
+        };
+        if self.data.is_none() {
+            return Ok(());
+        }
+        let Some(grid) = self.grid.as_ref() else {
+            return Ok(());
+        };
+        let pixels = grid.grid.shape[0]
+            .checked_mul(grid.grid.shape[1])
+            .and_then(|value| u64::try_from(value).ok())
+            .ok_or_else(|| {
+                crate::errors::CoreError::ResourceLimit("local grid size overflows".into())
+            })?;
+        let axes = grid
+            .grid
+            .x
+            .len()
+            .checked_add(grid.grid.y.len())
+            .and_then(|value| u64::try_from(value).ok())
+            .ok_or_else(|| {
+                crate::errors::CoreError::ResourceLimit("local axes size overflows".into())
+            })?;
+        // PyO3 materializes axis vectors and byte masks at the Python boundary.
+        let binding_bytes = pixels
+            .checked_mul(if grid.source_domain.is_some() { 3 } else { 2 })
+            .and_then(|bytes| {
+                axes.checked_mul(std::mem::size_of::<f64>() as u64)
+                    .and_then(|axes| bytes.checked_add(axes))
+            })
+            .and_then(|bytes| bytes.checked_add(raw_bytes))
+            .ok_or_else(|| {
+                crate::errors::CoreError::ResourceLimit("Python binding copy size overflows".into())
+            })?;
+        let owner = self._buffer_owner.as_mut().and_then(Arc::get_mut).ok_or_else(|| {
+            crate::errors::CoreError::Storage("local view buffer owner is unavailable".into())
+        })?;
+        let lease = owner
+            ._leases
+            .first()
+            .ok_or_else(|| {
+                crate::errors::CoreError::Storage("local view buffer lease is unavailable".into())
+            })?
+            .reserve_sibling(binding_bytes)?;
+        owner._leases.push(lease);
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), ModelError> {
+        if self.schema_version != 1 {
+            return Err(ModelError::InvalidLocalView("unsupported local view schema version"));
+        }
+        let selected = self.status == LocalViewStatus::Selected;
+        if selected != self.selected.is_some()
+            || selected != self.grid.is_some()
+            || selected != self.data.is_some()
+            || selected != self.processing.is_some()
+        {
+            return Err(ModelError::InvalidLocalView(
+                "selected status requires a frame, grid, and data together",
+            ));
+        }
+        if !selected && self.error.is_none() {
+            return Err(ModelError::InvalidLocalView("non-selected results require a diagnostic"));
+        }
+        if let Some(frame) = &self.selected {
+            frame.validate_identity()?;
+        }
+        if let Some(grid) = &self.grid {
+            grid.validate()?;
+        }
+        if let (Some(frame), Some(grid), Some(data), Some(processing)) =
+            (&self.selected, &self.grid, &self.data, &self.processing)
+        {
+            processing.validate(frame, grid)?;
+            if processing.data_kind
+                != match data {
+                    LocalViewData::Numeric(_) => "numeric",
+                    LocalViewData::RawImage { .. } => "raw_image",
+                }
+            {
+                return Err(ModelError::InvalidLocalView(
+                    "processing data kind does not match result data",
+                ));
+            }
+            match data {
+                LocalViewData::Numeric(dataset) => {
+                    dataset.validate()?;
+                    if dataset.source != frame.source
+                        || dataset.valid_time != frame.valid_time
+                        || dataset.fields.iter().any(|field| field.grid != grid.grid)
+                    {
+                        return Err(ModelError::InvalidLocalView(
+                            "numeric data does not match the selected frame and grid",
+                        ));
+                    }
+                }
+                LocalViewData::RawImage { width, height, rgba } => {
+                    let expected = (*width as usize)
+                        .checked_mul(*height as usize)
+                        .and_then(|pixels| pixels.checked_mul(4))
+                        .ok_or(ModelError::InvalidLocalView("image dimensions overflow"))?;
+                    if *width == 0
+                        || *height == 0
+                        || rgba.len() != expected
+                        || grid.grid.shape != [*height as usize, *width as usize]
+                    {
+                        return Err(ModelError::InvalidLocalView(
+                            "image dimensions do not match its local grid",
+                        ));
+                    }
+                }
+            }
+        }
+        let mut selected_attempts = 0_usize;
+        for attempt in &self.selection {
+            if attempt.discovery_status.is_some_and(|status| !status.is_terminal()) {
+                return Err(ModelError::InvalidLocalView(
+                    "selection attempts must retain terminal discovery statuses",
+                ));
+            }
+            if attempt.state == LocalViewCandidateState::Selected {
+                if attempt.discovery_status != Some(DiscoveryStatus::Success) {
+                    return Err(ModelError::InvalidLocalView(
+                        "selected candidate must have a successful discovery status",
+                    ));
+                }
+                if attempt.error.is_some() {
+                    return Err(ModelError::InvalidLocalView(
+                        "selected candidate must not carry an error",
+                    ));
+                }
+                selected_attempts += 1;
+                let matches_frame = self.selected.as_ref().is_some_and(|frame| {
+                    attempt.target.source == frame.source
+                        && attempt
+                            .target
+                            .product
+                            .as_ref()
+                            .is_none_or(|product| *product == frame.product)
+                        && attempt
+                            .target
+                            .station
+                            .as_ref()
+                            .is_none_or(|station| frame.station.as_ref() == Some(station))
+                });
+                if !matches_frame {
+                    return Err(ModelError::InvalidLocalView(
+                        "selected candidate does not match the selected frame",
+                    ));
+                }
+            }
+        }
+        if selected_attempts != usize::from(selected) {
+            return Err(ModelError::InvalidLocalView(
+                "selected status requires exactly one selected candidate",
+            ));
+        }
+        Ok(())
+    }
+}
+
+pub(crate) struct LocalViewBufferOwner {
+    _leases: Vec<RasterBufferLease>,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PreviewMode {
@@ -588,6 +1138,8 @@ pub enum ModelError {
     InvalidDataset(&'static str),
     #[error("invalid preview: {0}")]
     InvalidPreview(&'static str),
+    #[error("invalid local view: {0}")]
+    InvalidLocalView(&'static str),
     #[error("invalid report: {0}")]
     InvalidReport(&'static str),
 }
@@ -629,6 +1181,38 @@ mod tests {
             },
             provenance: vec!["fixture".into()],
         }
+    }
+
+    fn valid_processing(
+        frame: &FrameRef,
+        grid: &LocalViewGrid,
+        data_kind: &str,
+    ) -> LocalViewProcessingRecord {
+        let mut processing = LocalViewProcessingRecord {
+            schema_version: 1,
+            processing_id: String::new(),
+            algorithm: "local-aeqd-wgs84-v1".into(),
+            input_logical_id: frame.logical_id.clone(),
+            input_revision: frame.revision.clone(),
+            input_receipts: vec![ArtifactReceipt {
+                name: "fixture.png".into(),
+                media_type: "image/png".into(),
+                size_bytes: 1,
+                sha256: "a".repeat(64),
+            }],
+            center: grid.center,
+            radius_m: grid.radius_m,
+            requested_resolution_m: grid.requested_resolution_m,
+            actual_resolution_m: grid.actual_resolution_m,
+            grid_shape: [grid.grid.shape[0], grid.grid.shape[1]],
+            affine: grid.grid.affine,
+            registration: "center".into(),
+            resampling: "nearest".into(),
+            requested_mode: "auto".into(),
+            data_kind: data_kind.into(),
+        };
+        processing.processing_id = crate::identity::digest(&processing.identity_value()).unwrap();
+        processing
     }
 
     #[test]
@@ -843,5 +1427,165 @@ mod tests {
             DiscoveryReport::from_items(Query::default(), vec![invalid], false),
             Err(ModelError::InvalidReport("successful frame identity is invalid"))
         ));
+    }
+
+    #[test]
+    fn local_view_result_requires_selected_frame_grid_and_data_together() {
+        assert!(matches!(
+            LocalViewResult::new(
+                LocalViewStatus::Selected,
+                None,
+                None,
+                None,
+                None,
+                vec![],
+                false,
+                None,
+            ),
+            Err(ModelError::InvalidLocalView(_))
+        ));
+
+        let failed = LocalViewResult::new(
+            LocalViewStatus::Failed,
+            None,
+            None,
+            None,
+            None,
+            vec![],
+            false,
+            Some(SafeError {
+                code: "no_candidate".into(),
+                message: "no eligible target".into(),
+                stage: "selection".into(),
+                retryable: false,
+            }),
+        );
+        assert!(failed.is_ok());
+    }
+
+    #[test]
+    fn local_view_result_rejects_selected_attempt_without_selected_status() {
+        let result = LocalViewResult::new(
+            LocalViewStatus::Failed,
+            None,
+            None,
+            None,
+            None,
+            vec![LocalViewAttempt {
+                target: DiscoveryTarget { source: "fr".into(), product: None, station: None },
+                state: LocalViewCandidateState::Selected,
+                discovery_status: Some(DiscoveryStatus::Success),
+                reason: "selected:test".into(),
+                error: None,
+                observation_coverage: None,
+                spatial_evidence: None,
+            }],
+            false,
+            Some(SafeError {
+                code: "failed".into(),
+                message: "failed".into(),
+                stage: "selection".into(),
+                retryable: false,
+            }),
+        );
+        assert!(matches!(result, Err(ModelError::InvalidLocalView(_))));
+    }
+
+    #[test]
+    fn local_view_request_rejects_invalid_range_and_implicit_station_scope() {
+        let invalid_radius =
+            LocalViewRequest { radius_km: Some(0.0), ..LocalViewRequest::default() };
+        assert!(matches!(invalid_radius.validate(), Err(ModelError::InvalidLocalView(_))));
+
+        let unscoped_station =
+            LocalViewRequest { station: Some("station".into()), ..LocalViewRequest::default() };
+        assert!(matches!(unscoped_station.validate(), Err(ModelError::InvalidLocalView(_))));
+    }
+
+    #[test]
+    fn local_view_python_binding_copies_are_reserved_with_the_result() {
+        let budget = crate::limits::RasterMemoryBudget::new(45);
+        let initial_lease = budget.reserve(1).unwrap();
+        let frame = valid_frame();
+        let grid = Grid {
+            shape: vec![2, 2],
+            crs: Some("local-aeqd-wgs84-v1".into()),
+            x: vec![-1000.0, 0.0],
+            y: vec![1000.0, 0.0],
+            affine: None,
+        };
+        let mut field = valid_field("reflectivity", &frame.valid_time);
+        field.grid = grid.clone();
+        let view_grid = LocalViewGrid {
+            center: GeographicPoint { longitude: 121.6, latitude: 24.0 },
+            radius_m: 1000.0,
+            requested_resolution_m: 1000.0,
+            actual_resolution_m: 1000.0,
+            grid,
+            in_view: vec![true; 4],
+            source_domain: Some(vec![true; 4]),
+        };
+        let dataset = RadarDataset {
+            fields: vec![field],
+            valid_time: frame.valid_time.clone(),
+            source: frame.source.clone(),
+        };
+        let processing = valid_processing(&frame, &view_grid, "numeric");
+        let selected_attempt = LocalViewAttempt {
+            target: DiscoveryTarget {
+                source: frame.source.clone(),
+                product: Some(frame.product.clone()),
+                station: frame.station.clone(),
+            },
+            state: LocalViewCandidateState::Selected,
+            discovery_status: Some(DiscoveryStatus::Success),
+            reason: "selected:test".into(),
+            error: None,
+            observation_coverage: Some(crate::source::catalog::ObservationCoverage {
+                kind: crate::source::catalog::ObservationCoverageKind::Unknown,
+                status: crate::source::catalog::SpatialEvidenceStatus::Unknown,
+                geometry: None,
+                evidence: Vec::new(),
+            }),
+            spatial_evidence: None,
+        };
+        let mut result = LocalViewResult::new(
+            LocalViewStatus::Selected,
+            Some(frame),
+            Some(view_grid),
+            Some(LocalViewData::Numeric(dataset)),
+            Some(processing),
+            vec![selected_attempt],
+            false,
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            result.observation_coverage.as_ref().unwrap().status,
+            crate::source::catalog::SpatialEvidenceStatus::Unknown
+        );
+        let selected_attempt = result.selection[0].clone();
+        result.selection.push(selected_attempt.clone());
+        assert!(result.validate().is_err());
+        result.selection.pop();
+        result.selection[0].target.source = "different-source".into();
+        assert!(result.validate().is_err());
+        result.selection[0] = selected_attempt.clone();
+        result.selection[0].error = Some(SafeError {
+            code: "failed".into(),
+            message: "failed".into(),
+            stage: "decode".into(),
+            retryable: false,
+        });
+        assert!(result.validate().is_err());
+        result.selection.clear();
+        assert!(result.validate().is_err());
+        result.selection.push(selected_attempt);
+        result.retain_buffer_leases(vec![initial_lease]);
+
+        result.retain_python_binding_lease().unwrap();
+        assert_eq!(budget.reserved_bytes(), 45);
+        drop(result);
+        assert_eq!(budget.reserved_bytes(), 0);
     }
 }

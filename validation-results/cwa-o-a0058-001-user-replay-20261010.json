@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-10-10",
+  "evidence_kind": "user_reported_live_diagnostic",
+  "execution": "User ran a standalone Python diagnostic on their device; this is not a Radiust Engine, CLI, or SDK acquisition acceptance run.",
+  "provider": "CWA",
+  "dataset_id": "O-A0058-001",
+  "dataset_url": "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-001",
+  "instructions_url": "https://opendata.cwa.gov.tw/devManual/instruction",
+  "metadata_endpoint": "https://opendata.cwa.gov.tw/fileapi/v1/opendataapi/O-A0058-001",
+  "request": {
+    "authorization": "User's own configured membership key; value not retained",
+    "format": "JSON",
+    "timeout_seconds": 30
+  },
+  "reported_output": [
+    "雷达元数据获取成功",
+    "产品有效时间： 2026-10-10T13:50:00+08:00",
+    "雷达图片入口可读取，PNG 文件头正确"
+  ],
+  "product_valid_time": "2026-10-10T13:50:00+08:00",
+  "product_valid_time_utc": "2026-10-10T05:50:00Z",
+  "acquired_at": null,
+  "checks": {
+    "metadata_json": "passed_user_reported",
+    "product_url_https_and_expected_cwa_s3_host": "passed_user_reported_diagnostic",
+    "png_signature_first_8_bytes": "passed_user_reported",
+    "complete_image_download_and_decode": "not_verified",
+    "metadata_image_same_version": "not_verified",
+    "freshness": "not_verified",
+    "pixel_geometry": "not_verified",
+    "dbz_mapping": "not_verified",
+    "coverage": "not_verified",
+    "radiust_three_entry_replay": "not_verified"
+  },
+  "artifacts_retained": false,
+  "artifact_sha256": null,
+  "earlier_attempt": {
+    "metadata_api_version": "v2",
+    "reported_http_status": 404,
+    "failure_stage": "not_identified",
+    "resolution": "The user reran the diagnostic using v1, as documented in the current official instructions, and reported success. The exact cause of the earlier 404 was not independently established."
+  },
+  "implementation": {
+    "dataset_adapter_integrated": false,
+    "tw_adapter_uses_membership_key": false,
+    "automatic_admission_changed": false
+  },
+  "rights": {
+    "api_access": "verified_for_this_user_reported_request_only",
+    "commercial_use": "unconfirmed",
+    "redistribution": "unconfirmed",
+    "attribution_requirements": "unconfirmed"
+  }
+}

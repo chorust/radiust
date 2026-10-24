@@ -1,4 +1,151 @@
 <!--
+SYNC IMPACT REPORT — 2026-10-24
+==============================
+Version change: 1.9.2 → 1.9.3
+Bump rationale: PATCH — 评审发现 offline/packaging 证据早于 T052 准入且代码仍在修改，006 生命周期从 verified 回退为 implemented；不改动规格、来源准入决定或其他 spec。
+
+Changes this revision:
+  - 006 lifecycle verified → implemented; table row and status heading made
+    consistent with the file's own state.
+  - SC-001 negative scenarios (missing location, network disabled, no
+    candidate, expired frame) and SC-008 final reconciliation must be
+    re-verified against the post-review tree before verified is restored.
+  - The 1.9.2 entries remain as history of the one-run T052 evidence; they are
+    not withdrawn, but are not treated as final verification.
+
+Specs affected: 006 lifecycle only; 001–005 unchanged.
+Open questions added/resolved: re-verification of SC-001/SC-008 after review
+fixes is open.
+-->
+
+<!--
+SYNC IMPACT REPORT — 2026-10-24
+==============================
+Version change: 1.9.1 → 1.9.2
+Bump rationale: PATCH — 完成 006 最终核对并依据验收证据将生命周期从 implemented 更新为 verified。
+
+Changes this revision:
+  - Confirmed the user’s personal-use scope and added visible linked RainViewer
+    attribution to the installed CLI local-view summary.
+  - Admitted RainViewer composite for personal-use local_view only after a fresh
+    installed-wheel bare-cat run selected and rendered the current frame.
+  - Recorded wheel identity, isolated empty HOME, opt-in/network/TLS conditions,
+    visible attribution, current frame and unknown observation coverage.
+  - Closed 006 T052/T053 and recorded 53/53 tasks plus SC-001–008 reconciliation.
+  - Completed the post-implementation debrief with no drift findings and moved
+    the 006 lifecycle to verified.
+  - Kept unknown coverage, commercial/high-volume integration and redistribution
+    outside the admission; other specs and source gates remain unchanged.
+
+Specs affected: 006 implementation, evidence and lifecycle; 001–005 unchanged.
+Open questions added/resolved: 006 default personal-use local_view, final
+reconciliation, and verification resolved; coverage and rights outside this
+purpose remain open.
+
+Notes: One bounded request was run from a fresh isolated HOME with network
+enabled for that command only, no credentials, and normal TLS validation.
+-->
+
+<!--
+SYNC IMPACT REPORT — 2026-10-17
+==============================
+Version change: 1.9.0 → 1.9.1
+Bump rationale: PATCH — 补齐 SG categorical auto+bilinear 的三入口排除证据；范围和来源准入状态不变。
+
+Changes this revision:
+  - Closed T027 with fixed PT raw and RainViewer decoded/dbz replay through
+    native CLI, synchronous SDK, and asynchronous SDK, including values/quality
+    fingerprints, failure/exclusion cases, and cache/view identity.
+  - Closed T036 after rerunning independent projection, sampling, quality,
+    registration, and cross-entry regressions; 51/53 tasks are checked.
+  - Verified PT raw and SG categorical auto+bilinear exclusions through CLI,
+    sync SDK, and async SDK; SG discovery/fetch logs stay empty.
+  - Updated SC-001/006 evidence without claiming default source availability;
+    T052/T053 remain open and all automatic admissions remain false.
+  - Added the test-support replay instructions and kept PT pixel-location
+    uncertainty separate from projection accuracy.
+
+Specs affected: 006 implementation evidence/status; 001–005 unchanged.
+Open questions added/resolved: T027/T036 resolved; default-use rights/current
+source admission and final 006 reconciliation remain open.
+
+Notes: The fixture replay made no public upstream request and did not change
+source permissions, coverage, catalog admission, or live validation records.
+-->
+
+<!--
+SYNC IMPACT REPORT — 2026-10-17
+==============================
+Version change: 1.7.0 → 1.8.0
+Bump rationale: MINOR — 补记 006 Core 受控模式/缓存回归与既有 CWA 三入口 raw 证据，维持来源准入和最终验收开放。
+
+Changes this revision:
+  - Recorded the 2026-10-17 Core raw/numeric mode, exclusion, failure, and
+    cache/view-identity regression, plus the focused CLI and Python contracts.
+  - Clarified that T027 still lacks a fixed-input selected-frame replay through
+    CLI, sync SDK, and async SDK; T036 remains open and 006 stays 49/53.
+  - Linked the existing CWA O-A0058-001 same-frame raw acquisition record while
+    retaining its membership-key, geometry, rights, coverage, and admission gaps.
+  - Kept T052/T053 open; no source gained automatic admission.
+
+Specs affected: 006 evidence/status only; 001–005 unchanged.
+Open questions added/resolved: no task closed; controlled entry parity and
+default-use admission remain unresolved.
+
+Notes: No new public product request was made for this update. Existing live
+records are cited separately from the offline controlled regression.
+-->
+
+<!--
+SYNC IMPACT REPORT — 2026-10-10
+==============================
+Version change: 1.5.0 → 1.6.0
+Bump rationale: MINOR — 增加 006 安装后 RainViewer 显式 live 视图证据，并明确仍未通过的默认准入条件。
+
+Changes this revision:
+  - Recorded T051 success for the installed-wheel explicit RainViewer discovery,
+    four-tile acquisition, dBZ conversion and AEQD local view; T051 is checked.
+  - Recorded the separate IPMA CLI no_data attempt and independent Web Mercator
+    pixel control in validation-results/006-local-view-live.json.
+  - Updated 006 to 49/53 tasks; T027, T036, T052 and T053 remain open.
+  - Kept automatic admission false because RainViewer free API terms are limited
+    to personal/educational use, attribution is required, and point coverage is unknown.
+  - Updated the roadmap, source permissions, quickstart and bilingual README.
+
+Specs affected: 006 (implementation status/evidence); 001–005 unchanged.
+Open questions added/resolved: T051 resolved for one explicit RainViewer product run;
+T052 remains open pending valid default-use permission and the remaining acceptance gates.
+
+Notes: One bounded public RainViewer request was made with explicit user
+authorization, normal TLS and isolated configuration. No product received
+automatic admission, and no existing source lifecycle or historical acceptance gate was closed.
+-->
+
+<!-- Historical amendment report — 1.4.0. -->
+<!--
+SYNC IMPACT REPORT — 2026-10-09
+==============================
+Version change: 1.3.0 → 1.4.0
+Bump rationale: MINOR — 登记用户要求的位置观测设计 006 及其复用的既有 005。
+
+Changes this revision:
+  - Added C-21 and spec 006 [specced] for location-driven radar discovery/view.
+  - Registered existing 005 [implemented] with its documented offline scope,
+    keeping geometry, physical-calibration and live claims separate.
+  - Recorded projection and station-table design artifacts and product gates.
+  - Cross-checked the existing 95 station-coordinate records against the
+    user-provided Tropical Globe export, retaining identity/coordinate conflicts.
+  - Linked the public roadmap and architecture to this design.
+  - Preserved 001–004 status snapshots, decisions and open acceptance gates.
+
+Notes: Design/documentation only; no runtime implementation, product test,
+live source admission, Desktop delivery or historical exception acceptance.
+005 registration is based on existing tasks and the dated evidence report,
+not a new implementation, product test or live capability qualification.
+-->
+
+<!-- Historical amendment report — 1.3.0; retained verbatim. -->
+<!--
 SYNC IMPACT REPORT — 2026-10-06
 ==============================
 Version change: 1.2.0 → 1.3.0
@@ -119,6 +266,22 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 
 ---
 
+**2026-10-09 增补（1.4.0）：** 用户要求按所在位置发现雷达、生成用户居中的局部笛卡尔图，并优先梳理投影与站表。现已建立 [006 规格与设计](../../specs/006-location-radar-view/plan.md)，生命周期为 `specced`；未实施、未增加默认来源或在线覆盖。下文 001–004 的任务统计仍属于其注明日期的历史验收快照。为明确 006 的已有能力依赖，一并补登记 [005](../../specs/005-gray-dbz-decoding/spec.md)：依据 86/86 任务与 2026-10-06 限定离线范围的证据标为 `implemented`，不升级来源物理校准、几何或在线状态；解决[2026-10-08 报告](roadmap-sync-20261008.md)的孤立规格项，不改写该历史报告。
+
+**2026-10-10 实施增补（1.5.0）：** 006 进入 `in-progress`，任务清单为 48/53；Core/CLI/同步与异步 SDK、AEQD 投影与受控采样、站表空间索引和当前实现文档已交付。独立坐标误差最大 0 m；安装后 wheel smoke 验证禁网配置下的 `no_candidate`、中心位置和 typed 导出；单独的资源同步检查通过 39 项。T027 三入口共享成功帧回放、T036 US2 综合 gate、T051 当前来源链路、T052 自动准入及 T053 最终核对仍开放。没有来源获得默认 admission，也没有执行公网产品请求；SC-001/006 为部分证据，SC-008 未验收。以下 001–004 状态仍为各自已有快照。
+
+**2026-10-10 实施增补（1.6.0）：** 006 任务清单为 49/53。安装后的 native CLI 在明确网络 opt-in、隔离配置、正常 TLS 下，以 RainViewer 显式来源获取当前帧并完成 dBZ 局部投影；四个 tile receipt、processing identity、测试点、覆盖未知状态和独立 Web Mercator 像素控制见 [live 验证记录](../../validation-results/006-local-view-live.json)。IPMA 同日 CLI 请求返回 `no_data`。RainViewer 免费 API 条款只明确个人/教育用途并要求可见署名，测试点覆盖未知，故自动 admission 仍为 false、SC-008 未通过。T051 已关闭；跨入口成功帧回放 T027、US2 综合 gate T036、默认准入 T052、最终核对 T053 仍开放。以下 001–004 状态仍为各自已有快照。
+
+**2026-10-10 实施增补（1.7.0）：** 006 仍为 49/53。一次有界 live 回放在 CLI、同步 SDK、异步 SDK 中选中同一 RainViewer `2026-10-10T03:20Z` dBZ/nearest 帧；frame/input logical ID、四个 receipt、processing ID、101×101 affine grid 一致，同步/异步 SDK values 与 quality 哈希一致。过程先发现 Python 原生扩展产物过期，按记录命令重建后重跑，合同测试 14 项、Core flow 17 项、CLI 3 项通过。一次未同步尝试跨过来源 10 分钟更新窗口，结果未计为同帧对照。T027 仍缺固定输入受控回放、raw/失败/模式/视图/缓存矩阵；T036 保持开放。RainViewer 当前免费 API 面向个人、教育及小规模社区用途，要求可见署名，商业集成按个案约定且无 SLA；覆盖仍未知。CWA O-A0058-001 目录需要登录，站点几何/匿名默认访问未验证。无来源获得自动 admission，T052/T053 与 SC-008 继续开放。
+
+**2026-10-17 实施增补（1.8.0）：** 006 仍为 49/53，T027/T036/T052/T053 保持开放。Core 受控回归现覆盖 PT receipt-bound raw/nearest、RainViewer decoded/dbz、native 模式失败不回退、auto+bilinear 排除 raw/类别，以及缓存命中后改变视图时 valid_time、frame logical ID 和 input receipts 稳定而 processing ID 改变；Core `local_view_` 过滤 50 项、投影/采样/目录/证据集成 9 项、CLI local_view 集成 3 项、Python local_view/cat 合同各 7 项及格式检查通过。固定输入的成功帧仍未贯穿 CLI、同步 SDK、异步 SDK，故 SC-001/006 部分、T036 汇总 gate 未关闭。已有 CWA O-A0058-001 三入口同帧原图获取记录，但它依赖用户会员授权码，像元几何、商用/再分发权限、实际覆盖和默认准入未知。RainViewer 当前免费条款不支持据此判定 Radiust 广泛默认用途；所有自动 admission 维持 false，SC-008/T052/T053 未通过。证据分别见 [offline regression](../../validation-results/006-local-view-offline.json)、[CWA acquisition](../../validation-results/cwa-membership-acceptance-20261010.json) 和 [RainViewer terms](https://www.rainviewer.com/api.html)。
+
+**2026-10-17 验收补充（1.9.1）：** 将 SG categorical selector 的 auto+bilinear 排除补入固定输入三入口回放；CLI、同步 SDK、异步 SDK 均报告 `unsupported_mode_or_geometry`，发现与获取日志为空。回放共 5 项，合并 Python 合同与回放 19 项通过；`cargo test -p radiust-core local_view_` 重跑 52 项（43 library + 9 integration），投影/采样/目录/证据集成 9 项另行重跑通过；其余 T052/T053 状态不变。
+
+**2026-10-17 实施增补（1.9.0）：** 006 现为 51/53，T027/T036 已完成。test-support 固定输入贯穿 CLI、同步 SDK、异步 SDK：PT raw RGBA 与 RainViewer decoded/dbz values/quality 摘要完全一致，所选帧、receipts、processing identity 和网格一致；半径变化后原帧缓存只获取一次，native 失败与 auto+bilinear 排除不回退 raw。Core 50 项、独立投影/采样/目录/证据集成 9 项、CLI 集成 3 项、Python local_view/cat 合同 14 项、跨入口 fixture 回放 4 项通过。59 个独立投影点最大误差 0 m、nearest 中心值/quality 精确、bilinear 与 Z 域参考差小于 1e-4 dBZ；PT 像元定位不确定性仍单列。SC-006 的受控固定帧场景通过；SC-001 仍因无默认来源准入保持部分证据，SC-008 未通过。RainViewer 条款、未知覆盖及 CWA 会员码/几何/商用再分发缺口没有变化；T052/T053 保持开放，所有自动 admission 仍为 false。见 [offline replay](../../validation-results/006-local-view-offline.json)、[live evidence](../../validation-results/006-local-view-live.json)、[CWA acquisition](../../validation-results/cwa-membership-acceptance-20261010.json) 和 [RainViewer terms](https://www.rainviewer.com/api.html)。
+
+**2026-10-24 验收增补（1.9.2）：** 006 任务现为 53/53，T052/T053 与 SC-001–008 已完成核对。用户确认 Radiust 供个人用户在本机使用；RainViewer 官方 API 个人/教育用途适用，CLI 局部视图报告已显示带链接署名。安装后 wheel 的裸 `cat` 在默认来源流程选中 `rainviewer/composite`，生成 Madeira 测试点 50 km、1 km、101×101 dBZ 视图，当前帧时间为 `2026-10-24T03:00Z`；构建 hash、fresh-HOME/无缓存、网络 opt-in、正常 TLS、stderr 与署名输出均见 [live evidence](../../validation-results/006-local-view-live.json)。仅将个人用途 `local_view` 设为自动准入；测试点和其他地区观测覆盖仍 unknown，不包括商业/高流量集成或底层资料再分发。T027/T036 的离线验收保持原证据；001–005 与其他来源 gate 未变。2026-10-24 [roadmap debrief](../../specs/006-location-radar-view/roadmap-reviews/debrief-20261024T031140Z.md) 未发现范围偏差或必须整改项，故生命周期更新为 `verified`。
+
 ## Vision & End States
 
 - **普通公众能够独立使用公共雷达。** Desktop 承担普通用户的观测查看、时间序列播放、来源切换和状态理解；CLI、SDK 和核心库是复用基础。默认在用户设备获取、缓存和处理，不依赖 Radiust 账号或数据中转服务。先从现有来源覆盖地区起步，持续扩展国家／地区和同一区域的来源选择。依据：[2026-10-06 理念](../../PHILOSOPHY.md)、[发展路线与验收](../../ROADMAP.md)。
@@ -152,6 +315,8 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **C-19 — 软件、数据与品牌边界分别说明。** 保留标准 Apache-2.0，接受商业使用；公众持续拥有开放且可独立运行的选择。软件许可不替代逐源数据授权，不为下游产品背书。署名、商用、再分发等未知项保留未确认；已知限制与仅用于验证的许可分别记录，不能保证免于诉讼。依据：[来源权限台账](../../DATA_SOURCES.md#逐源授权与署名台账)、[品牌规则](../../TRADEMARKS.md)、[许可证](../../LICENSE)。
 - **C-20 — 覆盖持续扩展、声明受能力与证据约束。** 第一阶段使用现有来源覆盖地区，长期新增国家／地区及已有地区补充来源；适配器数量不等于可用覆盖。当前目录 25 来源含 RDCAP，两条巴西历史记录未原生注册；C-03／C-13 的冻结基线与验收义务保留。Desktop、预测、拼图的具体实现与平台矩阵另行规格化，不预设日期或自动承诺支持。依据：[发展路线](../../ROADMAP.md)、[当前目录](../../python/radiust/resources/catalog.json)。
 
+- **C-21 — 位置驱动的默认观测流程。** 用户配置所在位置后，裸 `cat` 计划自动发现适用产品，并生成用户为原点、x 向东/y 向北的局部图；范围可配置，50 km 按半径设计。共享 Engine 承担选择与处理，未来 Desktop 复用。站址、选择器、发布域、扫描覆盖和几何分别有证据；不能以最近站、目录状态或旧 bbox 推断覆盖。具体投影、间距和候选限额属于 [006 设计](../../specs/006-location-radar-view/plan.md)，不是当前可用能力或独立来源验收。依据：2026-10-09 用户要求、[规格](../../specs/006-location-radar-view/spec.md)、[产品路线](../../ROADMAP.md#位置驱动的核心观测流程)。
+
 ## Planned Specs
 
 此节同时纳入已有 specs，标题沿用模板 ledger 名称。以下统计是现存 checkbox 的数量，不是产品完成率；未将历史页头 Draft、文档任务或登记 blocked 的任务当作整体完成。
@@ -162,6 +327,7 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 | 002 | `in-progress` | 66 / 67 | T039 | PH 同帧合法 raw/旧 gray；部分显示路径仍 blocked |
 | 003 | `in-progress` | 80 / 84 | T023、T034、T041、T082 | 来源/显示科学证据、真实存储、最终迁移 gate |
 | 004 | `in-progress` | 55 / 58 | T028、T053、T058 | 三国标准入口在线 raw 获取、科学成果读回与最终验收；离线实现及对应矩阵已有通过记录 |
+| 006 | `implemented` | 53 / 53 | 无（待重新核对） | 实现任务全部勾选；SC-001 负向场景与 SC-008 最终核对须在评审修复后重新验证，之后才可恢复 `verified`；RainViewer 准入仅基于单次单点运行，覆盖未知 |
 
 003 现存编号跨度为 T001–T085，缺独立 T035 条目；其 NetCDF 内容出现在 T034 进展中。没有证据确认这是有意合并还是编号遗漏，列 Q-06，统计只按实际条目。
 
@@ -230,6 +396,30 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 - **Remaining evidence（当前）:** T028 要求 TWN/JPN/PHL 各一站经标准入口、正常 TLS 获得真实原始响应；T053 要求三国在线科学成果独立读回；T058 依赖全部必需验收闭合。2026-10-01 的 TWN/RCHL、JPN/ISHI、PHL/SUBI 标准 SDK 尝试均在 discovery 返回 retryable `catalog_unavailable`，没有 file GET 或在线 raw/科学读回，逐国 live 能力仍 `unverified`。不从安全错误分类猜测根因或恢复日期（Q-09）。
 - **Historical notes（1.1.0）:** 按 [tasks Dependencies & Execution Order](../../specs/004-rdcap-single-station/tasks.md) 推进：目录→raw 离线接口，科学可用已有内容样本独立进行；T028 受限不阻止离线工作，但 T053/T058 必须保留开放。实施实际开始后再按证据转为 `in-progress`，规格/设计/研究完成不足以提前迁移状态。
 - **Notes（当前）:** [验证台账早期三国样本表](../../validation-results/004-rdcap-single-station.md)仍写“standard decoder 验收未验证”，其后的 SC 矩阵、更新记录和 review 已明确离线 decoder/读回通过；按有明确时间与层次的后续证据解释，早期行不覆盖后续离线结果，在线能力继续未验收。该台账记录普通 workspace Clippy 退出 0，但严格 `-D warnings` 仍因既存 warnings 不能通过，不能将“局部回归通过”扩写为所有严格检查通过。来源目录增加和局部四格式通过不关闭 001/003 的历史来源或真实远端 provider 缺口。latest/at 的逐目标计数与 range 的多帧项计数存在规范表述差异，待确认 Q-10。
+
+### 005 — 灰度编码 dBZ 解码与 gray/dbz 口径统一 [status: implemented]
+
+- **Description:** 从明确的 0–224 灰度编码读取其对应 dBZ，并统一 raw/gray/dbz 活动命名与兼容入口。
+- **Outcome:** 在 [005 规格](../../specs/005-gray-dbz-decoding/spec.md)限定的离线范围内完成编码、质量、CLI/SDK、来源路径、数值保存及独立读回；保留 blocked 和未知时间/定位，不声明独立物理校准或 live 验收。
+- **Scope (in):** 本地明确声明输入、15 条通过 gray 路径、8 条 blocked 保留、3 条直接数值路径、来源/本地质量与身份、适用数值成果及旧名称兼容。
+- **Scope (out):** 新来源、blocked 材料补齐、上游物理校准、未知几何补造、live/cloud 验收、Desktop；不关闭其他规格任务。
+- **Depends on:** 001–003 既有获取/显示/输出/SDK 契约及 004 的直接 RDCAP 数值路径；能力复用，不要求历史全范围验收闭合。
+- **Governed by:** C-05、C-09–C-10、C-14、C-16；用户已确认的 gray 编码约定及 NZ 来源反算截断见规格澄清。
+- **Spec dir:** [specs/005-gray-dbz-decoding/](../../specs/005-gray-dbz-decoding/)。
+- **Status evidence:** [tasks](../../specs/005-gray-dbz-decoding/tasks.md) 86/86 勾选；[2026-10-06 汇总](../../validation-results/gray-dbz.json)记录 `open_requirements=[]` 和离线范围完成、数值/格式/兼容证据。本次没有重跑测试，登记为 `implemented`，不新增 `verified` 或实时支持声明。
+
+### 006 — 位置驱动的雷达发现与局部投影预览 [status: implemented]
+
+- **Description:** 以用户配置的位置自动发现适用的最新产品，并转换成用户居中的局部笛卡尔图。Core、CLI、Python 同步/异步接口、AEQD 投影/采样及空间站表索引已实现；RainViewer `composite` 对个人用途 `local_view` 通过安装后裸 cat 当前链路准入，CLI 报告显示带链接署名。
+- **Outcome:** [SC-001–008](../../specs/006-location-radar-view/spec.md) 已有实现证据；SC-001 负向场景与 SC-008 最终核对的现有离线/打包记录早于 T052 准入且代码已在评审后变更，须重新验证后才恢复 `verified`。当前 RainViewer 准入仅基于 2026-10-24 单次单点（Madeira）运行，观测覆盖仍 unknown，其他地区覆盖不从此推导。
+- **Scope (in):** WGS84 用户位置、可配置半径/间距、latest 单产品、有限候选、透明选源/回退、局部数值或有定位原图、站址/选择器/产品域/覆盖分层、CLI 与薄 SDK 共用。
+- **Scope (out):** Desktop UI、动画、预测、跨来源拼图、全球新站爬取、任意 CRS 插件、未经验证 datum 转换、正式局部成果导出；不豁免旧 spec 必需验收。
+- **Depends on:** 001–003 既有获取/报告/限额/缓存契约，004 RDCAP 站表与 EPSG:4326 解码，005 数值/原图能力及质量边界；这些是已有能力复用，不要求各项全部历史验收先闭合。产品默认启用另需实际访问与当前空间链路证据。
+- **Governed by:** C-05、C-16–C-21；正式 constitution 仍为占位，不从模板新增要求。
+- **Spec dir:** [specs/006-location-radar-view/](../../specs/006-location-radar-view/)。
+- **Status evidence:** [tasks](../../specs/006-location-radar-view/tasks.md) 53/53 checked; [offline validation](../../validation-results/006-local-view-offline.json) records T027 fixed PT/RainViewer values/quality, identity parity, failure/exclusion and cache/view cases; three-entry PT raw and SG categorical auto+bilinear rejection; Core, CLI, Python and projection test evidence. Independent 59-point projection maximum inverse error is 0 m; PT pixel location still lacks independent tie points. Installed-wheel smoke is in [packaging](../../validation-results/006-local-view-packaging.json); explicit T051 and default T052 live runs, including current admission and unknown coverage, are in [live validation](../../validation-results/006-local-view-live.json). The no-drift post-implementation review is [recorded here](../../specs/006-location-radar-view/roadmap-reviews/debrief-20261024T031140Z.md). The [95-row Tropical Globe cross-check](../../specs/006-location-radar-view/tropicalglobe-crosscheck.md) preserves identity/coordinate conflicts; [legacy comparison](../../specs/006-location-radar-view/legacy-reference.md) records old directory keys and migration references.
+- **Remaining evidence:** Re-verification of SC-001 (missing location, network-disabled, no-candidate, expired-frame paths with RainViewer admitted) and SC-008 against the post-review tree; the offline and packaging records predate the T052 admission and the final wheel. Unknown observation coverage at Madeira and elsewhere, missing PT independent pixel tie points, CWA member-key/geometry/rights, and other sources’ admission remain explicit limitations. RainViewer admission is personal-use `local_view` only and rests on a single run at one point; commercial/high-volume use and underlying-data redistribution are not admitted. No 001–005 gate is closed by this spec.
+- **Notes:** 50 km 半径、1 km 请求间距、AEQD 和最多 8 候选已进入当前实现。48 RDCAP + 47 历史 SIDARMA 站址、10 个 selector、26 个产品及 95 个外部候选并不等于实体站数或已验证覆盖；`all` 的 74 个目标不变。TWD67/SG 源球面转换仍受证据限制。
 
 ### 2026-10-06 确认的后续产品主题（未编号）
 
@@ -317,4 +507,4 @@ Status legend (lifecycle): **undecided** · **needs-info** · **planned** · **s
 
 ---
 
-**Version**: 1.3.0 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-10-06
+**Version**: 1.9.3 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-10-24

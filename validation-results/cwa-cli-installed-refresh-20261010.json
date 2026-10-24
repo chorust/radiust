@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-10T06:55:44.038935+00:00",
+  "evidence_kind": "installed_native_cli_refresh_and_original_command_replay",
+  "source": "tw",
+  "product": "observation-wide",
+  "original_command": "radiust cat tw --product observation-wide --latest --raw",
+  "initial_result": {
+    "exit_code": 2,
+    "message": "radiust: error: source returned no matching frame",
+    "path": "/Users/blizhan/.cargo/bin/radiust",
+    "version": "0.1.1",
+    "product_present": false
+  },
+  "cause": "PATH selected a previously installed native CLI whose embedded catalog lacked observation-wide; the workspace CLI had the new product despite the same declared version.",
+  "refresh_command": "cargo install --offline --locked --path crates/radiust-cli --force",
+  "refresh_result": {
+    "exit_code": 0,
+    "path": "/Users/blizhan/.cargo/bin/radiust",
+    "product_present": true,
+    "version": "0.1.1",
+    "build_kind": "current_unreleased_working_tree",
+    "binary_sha256": "4bdbf47a8b5632018c552ad02cd005a174d28c293e6cd55556f6ef9c4a217ae7"
+  },
+  "original_command_replay": {
+    "exit_code": 0,
+    "network_enabled": true,
+    "credential_configured": true,
+    "valid_time": "2026-10-10T06:30:00.000000Z",
+    "shape": [
+      3600,
+      3600
+    ],
+    "image_sha256": "16f75530d208eefbc9a7a444a763fb62f5bde668a97bde605b7f7f6daa01a193",
+    "display": "raw",
+    "renderer": "auto selected text for captured non-TTY output"
+  },
+  "configuration_modified": false,
+  "python_sdk_installation_modified": false,
+  "scientific_admission": false,
+  "raw_data_distribution": false,
+  "limits": [
+    "Single original-image CLI replay; this does not add scientific, geolocation or coverage acceptance."
+  ]
+}

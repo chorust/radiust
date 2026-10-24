@@ -3,10 +3,34 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 
 const MAX_TRACKED_HOSTS: usize = 4096;
+
+/// Cooperative cancellation and absolute deadline for bounded raster work.
+#[derive(Clone)]
+pub(crate) struct RasterWorkControl {
+    cancellation: CancellationToken,
+    deadline: Instant,
+}
+
+impl RasterWorkControl {
+    pub(crate) fn new(cancellation: CancellationToken, deadline: Instant) -> Self {
+        Self { cancellation, deadline }
+    }
+
+    pub(crate) fn check(&self) -> CoreResult<()> {
+        if self.cancellation.is_cancelled() {
+            Err(CoreError::Cancelled)
+        } else if Instant::now() >= self.deadline {
+            Err(CoreError::Provider(crate::errors::ProviderError::Timeout))
+        } else {
+            Ok(())
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Limits {
@@ -113,6 +137,15 @@ impl RasterMemoryBudget {
         }
     }
 
+    /// Reserve several buffers that will coexist during one decoder stage.
+    pub fn reserve_buffers(&self, buffers: &[u64]) -> CoreResult<RasterBufferLease> {
+        let total = buffers.iter().try_fold(0_u64, |sum, bytes| {
+            sum.checked_add(*bytes)
+                .ok_or_else(|| CoreError::ResourceLimit("raster buffer size overflows".into()))
+        })?;
+        self.reserve(total)
+    }
+
     /// Reserve every buffer that will coexist for a raster of this shape.
     pub fn reserve_shape(
         &self,
@@ -140,6 +173,11 @@ impl RasterMemoryBudget {
 impl RasterBufferLease {
     pub fn bytes(&self) -> u64 {
         self.bytes
+    }
+
+    #[cfg_attr(not(feature = "extension-module"), allow(dead_code))]
+    pub(crate) fn reserve_sibling(&self, bytes: u64) -> CoreResult<Self> {
+        self.budget.reserve(bytes)
     }
 }
 
@@ -235,5 +273,32 @@ mod raster_memory_tests {
             Err(CoreError::ResourceLimit(_))
         ));
         assert!(matches!(budget.reserve_shape(1, 0, &[1]), Err(CoreError::ResourceLimit(_))));
+    }
+
+    #[test]
+    fn raster_budget_reserves_overlapping_decoder_buffers_as_one_operation() {
+        let budget = RasterMemoryBudget::new(64);
+        let lease = budget.reserve_buffers(&[24, 16, 8]).unwrap();
+        assert_eq!(lease.bytes(), 48);
+        assert_eq!(budget.reserved_bytes(), 48);
+        assert!(matches!(budget.reserve_buffers(&[16, 1]), Err(CoreError::ResourceLimit(_))));
+    }
+
+    #[test]
+    fn raster_work_control_distinguishes_cancel_from_deadline() {
+        let cancellation = CancellationToken::new();
+        let control = RasterWorkControl::new(
+            cancellation.clone(),
+            Instant::now() + std::time::Duration::from_secs(5),
+        );
+        control.check().unwrap();
+        cancellation.cancel();
+        assert!(matches!(control.check(), Err(CoreError::Cancelled)));
+
+        let expired = RasterWorkControl::new(CancellationToken::new(), Instant::now());
+        assert!(matches!(
+            expired.check(),
+            Err(CoreError::Provider(crate::errors::ProviderError::Timeout))
+        ));
     }
 }

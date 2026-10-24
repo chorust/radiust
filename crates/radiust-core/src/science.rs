@@ -2,7 +2,7 @@
 
 pub use crate::dbz::wrap_native_reflectivity;
 use crate::errors::{CoreError, CoreResult};
-use crate::limits::Limits;
+use crate::limits::{Limits, RasterBufferLease, RasterMemoryBudget, RasterWorkControl};
 use crate::model::{Grid, RadarField, RawFrame};
 use crate::source::rainviewer::{self, TILE_SIZE, ZOOM};
 use crate::source::tw;
@@ -14,6 +14,12 @@ use std::sync::OnceLock;
 
 mod rdcap;
 pub use rdcap::decode_rdcap;
+pub(crate) use rdcap::decode_rdcap_with_memory_and_control;
+
+pub(crate) struct BudgetedRadarField {
+    pub field: RadarField,
+    pub _leases: Vec<RasterBufferLease>,
+}
 
 const UNIVERSAL_BLUE_RGBA: &str = r#"
 63615914 66635a19 69665c1e 6c685d24 6f6b5f29 726e612e 75706234
@@ -46,6 +52,34 @@ const TW_QUALITY_OUTSIDE: u16 = 2;
 /// Other tile sources remain raw-only until their own scientific references
 /// pass the same kind of validation.
 pub fn decode_rainviewer(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField> {
+    let memory = limits.raster_memory_budget();
+    Ok(decode_rainviewer_with_memory(raw, limits, &memory)?.field)
+}
+
+pub(crate) fn decode_rainviewer_with_memory(
+    raw: &RawFrame,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+) -> CoreResult<BudgetedRadarField> {
+    decode_rainviewer_inner(raw, limits, memory, None)
+}
+
+pub(crate) fn decode_rainviewer_with_memory_and_control(
+    raw: &RawFrame,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+    control: &RasterWorkControl,
+) -> CoreResult<BudgetedRadarField> {
+    decode_rainviewer_inner(raw, limits, memory, Some(control))
+}
+
+fn decode_rainviewer_inner(
+    raw: &RawFrame,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+    control: Option<&RasterWorkControl>,
+) -> CoreResult<BudgetedRadarField> {
+    check_raster_work(control)?;
     rainviewer::validate_science_frame(&raw.frame)?;
     if raw.artifacts.len() != TILE_ARTIFACTS {
         return Err(CoreError::Transport(format!(
@@ -70,11 +104,22 @@ pub fn decode_rainviewer(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarFie
         .and_then(|width| width.checked_mul(4))
         .ok_or_else(|| CoreError::ResourceLimit("RainViewer grid dimensions overflow".into()))?;
     let tile_row_bytes = TILE_SIZE as usize * 4;
-    let mut mosaic = vec![0_u8; rgba_len];
+    let axes_bytes = u64::from(world_width)
+        .checked_mul(2 * std::mem::size_of::<f64>() as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("RainViewer axis buffer size overflow".into()))?;
+    let mosaic_bytes = u64::try_from(rgba_len)
+        .map_err(|_| CoreError::ResourceLimit("RainViewer mosaic size overflow".into()))?;
+    let mosaic_lease = memory.reserve(mosaic_bytes)?;
+    let mut mosaic = Vec::new();
+    mosaic
+        .try_reserve_exact(rgba_len)
+        .map_err(|_| CoreError::ResourceLimit("RainViewer mosaic could not be allocated".into()))?;
+    mosaic.resize(rgba_len, 0_u8);
     let mut seen = [[false; TILE_COUNT as usize]; TILE_COUNT as usize];
     let mut frame_bytes = 0_u64;
 
     for artifact in &raw.artifacts {
+        check_raster_work(control)?;
         if artifact.receipt.media_type != "image/png" {
             return Err(CoreError::Transport("RainViewer tile is not a PNG artifact".into()));
         }
@@ -93,6 +138,19 @@ pub fn decode_rainviewer(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarFie
         }
         frame_bytes = frame_bytes.saturating_add(metadata.len());
         limits.validate_bytes(metadata.len(), frame_bytes)?;
+        let tile_pixel_bytes = u64::from(TILE_SIZE)
+            .checked_mul(u64::from(TILE_SIZE))
+            .and_then(|pixels| pixels.checked_mul(4))
+            .ok_or_else(|| CoreError::ResourceLimit("RainViewer tile size overflow".into()))?;
+        let tile_work_lease = memory.reserve_buffers(&[
+            metadata
+                .len()
+                .checked_mul(2)
+                .ok_or_else(|| CoreError::ResourceLimit("RainViewer tile size overflow".into()))?,
+            tile_pixel_bytes,
+            // Non-RGBA PNGs retain their decoded pixels while converting to RGBA.
+            tile_pixel_bytes,
+        ])?;
         let bytes = std::fs::read(&artifact.path)
             .map_err(|_| CoreError::Temporary("RainViewer tile could not be read".into()))?;
         let digest = hex::encode(Sha256::digest(&bytes));
@@ -119,31 +177,43 @@ pub fn decode_rainviewer(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarFie
         })?;
         let rgba = DynamicImage::from_decoder(decoder)
             .map_err(|_| CoreError::Transport("RainViewer tile PNG could not be decoded".into()))?
-            .to_rgba8()
+            .into_rgba8()
             .into_raw();
 
         for row in 0..TILE_SIZE as usize {
+            check_raster_work(control)?;
             let source_start = row * tile_row_bytes;
             let destination_start = (tile_y as usize * TILE_SIZE as usize + row) * row_bytes
                 + tile_x as usize * tile_row_bytes;
             mosaic[destination_start..destination_start + tile_row_bytes]
                 .copy_from_slice(&rgba[source_start..source_start + tile_row_bytes]);
         }
+        drop(tile_work_lease);
     }
     if seen.iter().flatten().any(|present| !present) {
         return Err(CoreError::Transport("RainViewer frame is missing a tile".into()));
     }
 
-    let (values, quality) = decode_rgba(&mosaic);
-    let x = (0..world_width)
-        .map(|column| (f64::from(column) + 0.5) / f64::from(world_width) * 360.0 - 180.0)
-        .collect::<Vec<_>>();
-    let y = (0..world_width)
-        .map(|row| {
-            let normalized = (f64::from(row) + 0.5) / f64::from(world_width);
-            (std::f64::consts::PI * (1.0 - 2.0 * normalized)).sinh().atan().to_degrees()
-        })
-        .collect::<Vec<_>>();
+    let (values, quality, output_lease) = decode_rgba_with_control(&mosaic, memory, control)?;
+    drop(mosaic);
+    drop(mosaic_lease);
+    let axes_lease = memory.reserve(axes_bytes)?;
+    let axis_len = usize::try_from(world_width)
+        .map_err(|_| CoreError::ResourceLimit("RainViewer axis dimensions overflow".into()))?;
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    x.try_reserve_exact(axis_len)
+        .map_err(|_| CoreError::ResourceLimit("RainViewer x-axis allocation failed".into()))?;
+    y.try_reserve_exact(axis_len)
+        .map_err(|_| CoreError::ResourceLimit("RainViewer y-axis allocation failed".into()))?;
+    for column in 0..world_width {
+        x.push((f64::from(column) + 0.5) / f64::from(world_width) * 360.0 - 180.0);
+    }
+    for row in 0..world_width {
+        check_raster_work(control)?;
+        let normalized = (f64::from(row) + 0.5) / f64::from(world_width);
+        y.push((std::f64::consts::PI * (1.0 - 2.0 * normalized)).sinh().atan().to_degrees());
+    }
     let shape = vec![world_width as usize, world_width as usize];
     let tile_origin = raw.frame.locator["host"].as_str().unwrap_or_default();
     let tile_path = raw.frame.locator["path"].as_str().unwrap_or_default();
@@ -166,12 +236,21 @@ pub fn decode_rainviewer(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarFie
     field
         .validate()
         .map_err(|_| CoreError::Transport("RainViewer decoded field is inconsistent".into()))?;
-    Ok(field)
+    Ok(BudgetedRadarField { field, _leases: vec![output_lease, axes_lease] })
 }
 
 /// Decode the CWA O-A0059-001 numeric reflectivity grid while preserving its
 /// declared southwest-first TWD67 ordering and explicit missing/outside codes.
 pub fn decode_tw_grid(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField> {
+    let memory = limits.raster_memory_budget();
+    Ok(decode_tw_grid_with_memory(raw, limits, &memory)?.field)
+}
+
+pub(crate) fn decode_tw_grid_with_memory(
+    raw: &RawFrame,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+) -> CoreResult<BudgetedRadarField> {
     if raw.artifacts.len() != 1 {
         return Err(CoreError::Transport("source tw grid must contain one JSON artifact".into()));
     }
@@ -187,6 +266,11 @@ pub fn decode_tw_grid(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField>
         return Err(CoreError::Transport("source tw grid artifact size changed".into()));
     }
     limits.validate_bytes(file.len(), file.len())?;
+    let parser_bytes = file
+        .len()
+        .checked_mul(3)
+        .ok_or_else(|| CoreError::ResourceLimit("source tw JSON buffer size overflow".into()))?;
+    let _parser_lease = memory.reserve(parser_bytes)?;
     let payload = std::fs::read(&artifact.path)
         .map_err(|_| CoreError::Temporary("source tw grid artifact could not be read".into()))?;
     if hex::encode(Sha256::digest(&payload)) != artifact.receipt.sha256 {
@@ -206,6 +290,18 @@ pub fn decode_tw_grid(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField>
     limits.validate_pixels(decoded_pixels)?;
     let cell_count = usize::try_from(cells)
         .map_err(|_| CoreError::ResourceLimit("source tw grid dimensions overflow".into()))?;
+    let axes_bytes = u64::from(metadata.width)
+        .checked_add(u64::from(metadata.height))
+        .and_then(|count| count.checked_mul(std::mem::size_of::<f64>() as u64))
+        .ok_or_else(|| CoreError::ResourceLimit("source tw axis buffer size overflow".into()))?;
+    let output_lease = memory.reserve_buffers(&[
+        cells
+            .checked_mul((std::mem::size_of::<f32>() + std::mem::size_of::<u16>()) as u64)
+            .ok_or_else(|| {
+                CoreError::ResourceLimit("source tw output buffer size overflow".into())
+            })?,
+        axes_bytes,
+    ])?;
     let content = document
         .get("cwaopendata")
         .and_then(|provider| provider.get("dataset"))
@@ -213,8 +309,14 @@ pub fn decode_tw_grid(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField>
         .and_then(|contents| contents.get("content"))
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| CoreError::Transport("source tw grid values are missing".into()))?;
-    let mut values = Vec::with_capacity(cell_count);
-    let mut quality = Vec::with_capacity(cell_count);
+    let mut values = Vec::new();
+    let mut quality = Vec::new();
+    values
+        .try_reserve_exact(cell_count)
+        .map_err(|_| CoreError::ResourceLimit("source tw values could not be allocated".into()))?;
+    quality
+        .try_reserve_exact(cell_count)
+        .map_err(|_| CoreError::ResourceLimit("source tw quality could not be allocated".into()))?;
     for token in content.split(',') {
         if values.len() == cell_count {
             return Err(CoreError::Transport("source tw grid has too many values".into()));
@@ -245,12 +347,18 @@ pub fn decode_tw_grid(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField>
         return Err(CoreError::Transport("source tw grid has an incomplete value array".into()));
     }
 
-    let x = (0..metadata.width)
-        .map(|column| metadata.west + metadata.step * f64::from(column))
-        .collect::<Vec<_>>();
-    let y = (0..metadata.height)
-        .map(|row| metadata.south + metadata.step * f64::from(row))
-        .collect::<Vec<_>>();
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    x.try_reserve_exact(metadata.width as usize)
+        .map_err(|_| CoreError::ResourceLimit("source tw x-axis allocation failed".into()))?;
+    y.try_reserve_exact(metadata.height as usize)
+        .map_err(|_| CoreError::ResourceLimit("source tw y-axis allocation failed".into()))?;
+    for column in 0..metadata.width {
+        x.push(metadata.west + metadata.step * f64::from(column));
+    }
+    for row in 0..metadata.height {
+        y.push(metadata.south + metadata.step * f64::from(row));
+    }
     let shape = vec![metadata.height as usize, metadata.width as usize];
     let field = RadarField {
         name: "reflectivity".into(),
@@ -273,7 +381,7 @@ pub fn decode_tw_grid(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField>
     field
         .validate()
         .map_err(|_| CoreError::Transport("source tw decoded grid is inconsistent".into()))?;
-    Ok(field)
+    Ok(BudgetedRadarField { field, _leases: vec![output_lease] })
 }
 
 fn tile_coordinates(name: &str) -> CoreResult<(u32, u32)> {
@@ -313,11 +421,43 @@ fn color_table() -> &'static HashMap<u32, f32> {
     })
 }
 
-fn decode_rgba(rgba: &[u8]) -> (Vec<f32>, Vec<u16>) {
-    let mut values = Vec::with_capacity(rgba.len() / 4);
-    let mut quality = Vec::with_capacity(rgba.len() / 4);
+#[cfg(test)]
+fn decode_rgba(
+    rgba: &[u8],
+    memory: &RasterMemoryBudget,
+) -> CoreResult<(Vec<f32>, Vec<u16>, RasterBufferLease)> {
+    decode_rgba_with_control(rgba, memory, None)
+}
+
+fn decode_rgba_with_control(
+    rgba: &[u8],
+    memory: &RasterMemoryBudget,
+    control: Option<&RasterWorkControl>,
+) -> CoreResult<(Vec<f32>, Vec<u16>, RasterBufferLease)> {
+    if rgba.len() % 4 != 0 {
+        return Err(CoreError::Transport("RainViewer mosaic has an incomplete pixel".into()));
+    }
+    let pixels = rgba.len() / 4;
+    let pixel_bytes = u64::try_from(pixels)
+        .ok()
+        .and_then(|pixels| {
+            pixels.checked_mul((std::mem::size_of::<f32>() + std::mem::size_of::<u16>()) as u64)
+        })
+        .ok_or_else(|| CoreError::ResourceLimit("RainViewer output buffer size overflow".into()))?;
+    let lease = memory.reserve(pixel_bytes)?;
+    let mut values = Vec::new();
+    let mut quality = Vec::new();
+    values
+        .try_reserve_exact(pixels)
+        .map_err(|_| CoreError::ResourceLimit("RainViewer values could not be allocated".into()))?;
+    quality.try_reserve_exact(pixels).map_err(|_| {
+        CoreError::ResourceLimit("RainViewer quality could not be allocated".into())
+    })?;
     let colors = color_table();
-    for pixel in rgba.chunks_exact(4) {
+    for (index, pixel) in rgba.chunks_exact(4).enumerate() {
+        if index % 65_536 == 0 {
+            check_raster_work(control)?;
+        }
         let alpha = pixel[3];
         let packed = u32::from_be_bytes([pixel[0], pixel[1], pixel[2], alpha]);
         if alpha == 0 {
@@ -331,7 +471,14 @@ fn decode_rgba(rgba: &[u8]) -> (Vec<f32>, Vec<u16>) {
             quality.push(QUALITY_UNKNOWN_COLOR);
         }
     }
-    (values, quality)
+    Ok((values, quality, lease))
+}
+
+fn check_raster_work(control: Option<&RasterWorkControl>) -> CoreResult<()> {
+    if let Some(control) = control {
+        control.check()?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -345,11 +492,21 @@ mod tests {
             0x63, 0x61, 0x59, 0x00, // Transparent even if RGB resembles a table color.
             0x12, 0x34, 0x56, 0xff, // Unknown opaque color.
         ];
-        let (values, quality) = decode_rgba(&rgba);
+        let budget = RasterMemoryBudget::new(18);
+        let (values, quality, lease) = decode_rgba(&rgba, &budget).unwrap();
         assert_eq!(values[0], -10.0);
         assert!(values[1].is_nan());
         assert!(values[2].is_nan());
         assert_eq!(quality, [QUALITY_VALID, QUALITY_TRANSPARENT, QUALITY_UNKNOWN_COLOR]);
+        assert_eq!(lease.bytes(), 18);
+        assert_eq!(budget.reserved_bytes(), 18);
+        drop(lease);
+        assert_eq!(budget.reserved_bytes(), 0);
+
+        assert!(matches!(
+            decode_rgba(&rgba, &RasterMemoryBudget::new(17)),
+            Err(CoreError::ResourceLimit(_))
+        ));
     }
 
     #[test]

@@ -71,3 +71,13 @@ Python 项目的 `radiust` console script 由 [`python/radiust/cli/main.py`](../
 Desktop 将复用来源独立的获取与处理边界，增加默认来源、手动切换和故障回退，并呈现实际来源、时间和产品差异。跨来源自动选择、回退及桌面 UI 尚未由本文交付；实现与验收要求见[发展路线](../ROADMAP.md)。
 
 现有 `FrameRef`、`RawFrame`、`RadarField`／`RadarDataset` 提供时间、网格、值、质量和出处的演进基础。后续稳定观测接口需保留这些语义；预测结果另外标注模型、输入观测、运行时间和未来有效时间，不修改观测的含义。当前不新增预测插件 ABI。跨来源拼图同样留待后续规格，同时保留各来源的身份与处理记录；已有瓦片组合和提供方合成产品继续按单个来源产品理解。
+
+### 位置驱动的局部视图
+
+[006 规格](../specs/006-location-radar-view/plan.md)已接入共享 Engine 的 `local_view`：裸 CLI `cat` 读取配置位置，显式 `SOURCE --local` 限定来源，Python 同步/异步入口委托同一 Core。默认局部网格半径 50 km、请求间距 1 km；采用 WGS84 椭球 AEQD，每个目标格点反查源坐标。限额、共享 deadline、取消、来源身份、质量与覆盖未知状态沿用 Core 的处理边界。源 `FrameRef`/raw cache identity 保持不变；派生结果记录输入 artifact receipt、投影参数和 `processing_id`，不提供正式投影 writer。
+
+局部视图优先采用目录的产品最大时效；缺少有效声明时采用 Engine 的 3 小时保守时效上限。该上限是本地选择策略，不代表上游已验证的更新周期。过期候选保留原因并尝试下一来源；取消、超时和资源上限停止整批。RDCAP 目录只在即将尝试对应候选时限时刷新，刷新失败会公开记录并使用内置快照。
+
+数值 nearest/bilinear（dBZ 在 Z 域）与受控 raw 最近邻 RGBA 分支已实现。边缘域内缺少 bilinear 邻点时保留 source_domain 并标 missing，源域外才标 outside；raw 中心不在实际帧域内时拒绝该候选。raw 分支当前只有 PT 网页显示几何：由官方 Leaflet EPSG:3857 `ImageOverlay` bounds 与实际图像尺寸推导边缘 affine；缺少独立像素控制点，不能表示物理覆盖或定量产品。来源空间索引复用现有目录和 SIDARMA 资源，不因站点空间索引扩大 `all` 的发现目标；实体站、选择器、发布域、观测覆盖、像元几何和 admission 分开记录。站址与 Tropical Globe 的关系仍为审核候选，range 不作为 coverage。
+
+RainViewer 已通过安装后裸 `cat` 当前获取与局部投影链路，并仅对个人用途 `local_view` 自动准入；CLI 人类摘要显示带链接署名。测试点与其他地区的观测覆盖仍为 unknown，商业/高流量集成和底层资料再分发不在准入范围内。Desktop、跨来源拼接、预测和桌面 UI 仍属后续路线。

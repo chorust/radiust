@@ -150,6 +150,12 @@ pub fn preview_field_with_options(
     Ok(preview)
 }
 
+/// Return the exact numeric scale used by the decoded-field preview palette.
+pub fn preview_field_range(field: &RadarField, options: &Value) -> CoreResult<(f64, f64)> {
+    validate_field(field)?;
+    value_range(field, parse_options(field, options)?)
+}
+
 /// Render a pixel-space dBZ field without inventing a geographic grid.
 pub fn preview_pixel_dbz_with_options(
     field: &PixelDbzField,
@@ -338,8 +344,8 @@ fn value_range(field: &RadarField, options: RenderOptions) -> CoreResult<(f64, f
         return Ok((vmin, vmax));
     }
     let mut finite_range: Option<(f64, f64)> = None;
-    for &value in &field.values {
-        if value.is_finite() {
+    for (&value, &quality) in field.values.iter().zip(&field.quality) {
+        if value.is_finite() && quality & INVALID_QUALITY == 0 {
             let value = f64::from(value);
             finite_range = Some(match finite_range {
                 Some((minimum, maximum)) => (minimum.min(value), maximum.max(value)),

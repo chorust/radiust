@@ -900,6 +900,7 @@ fn parse_radar_directory(
             directory_conflicts: station_conflicts,
             provenance: vec![provenance.clone()],
             country_capabilities: BTreeMap::new(),
+            spatial: None,
             extensions,
         };
         stations.push(CatalogStation {
@@ -930,6 +931,7 @@ fn parse_radar_directory(
         directory_conflicts: conflicts,
         provenance: vec![provenance],
         country_capabilities: capabilities,
+        spatial: None,
         extensions,
     };
     Ok(StationCatalogUpdate { source_id: SOURCE.into(), stations, metadata: Some(update_metadata) })

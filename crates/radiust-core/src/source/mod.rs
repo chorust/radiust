@@ -28,7 +28,9 @@ mod vn;
 mod windy;
 mod wunderground;
 
+pub(crate) use id_sidarma::legacy_spatial_targets;
 pub use opensnow::OpenSnowSourceAdapter;
+pub(crate) use pt::local_view_geometry;
 pub use uk::UkSourceAdapter;
 pub use windy::WindySourceAdapter;
 pub use wunderground::WundergroundSourceAdapter;

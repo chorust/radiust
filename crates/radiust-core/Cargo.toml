@@ -1,6 +1,6 @@
 [package]
 name = "radiust-core"
-version = "0.1.1"
+version = "0.1.8"
 edition.workspace = true
 rust-version.workspace = true
 description = "Rust core for the radiust radar data toolkit"
@@ -20,12 +20,14 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 extension-module = ["dep:pyo3", "dep:pyo3-async-runtimes", "pyo3/extension-module"]
+test-support = []
 
 [dependencies]
 base64.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 futures-util.workspace = true
+geographiclib-rs.workspace = true
 hex.workspace = true
 image.workspace = true
 libc.workspace = true

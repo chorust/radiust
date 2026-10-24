@@ -2,12 +2,13 @@
 
 Live provider checks are opt-in. The default test suite uses replay fixtures and
 does not send credentialed requests. Keep values in the process environment or
-the CI secret store; do not put them in a config file, command history, fixture,
-or issue comment.
+the CI secret store or a private local config file; do not commit them or put
+them in command history, fixtures, or issue comments.
 
 | Provider | Runtime configuration | Live test secret | Status in this checkout |
 | --- | --- | --- | --- |
 | SIDARMA | `RADIUST_SOURCES__ID_SIDARMA__API_KEY` | `RADIUST_TEST_ID_SIDARMA_API_KEY` | Authorized UTC archive discovery and JAK raw PNG verified on 2026-09-30; legacy ssx returned HTTP 403. Science remains blocked. |
+| CWA `tw/observation-wide` | `RADIUST_SOURCES__TW__API_KEY` / `sources.tw.api_key` | Local user configuration; no provider CI case added | Membership fileapi v1 acquisition implemented; acceptance and remaining scientific limits are recorded in [CWA products](cwa-radar-products.md). |
 | PAGASA | `RADIUST_SOURCES__PH__TIMELINE_TOKEN` | `RADIUST_TEST_PH_TIMELINE_TOKEN` | No verified current token/raw frame. |
 | Weather Underground | `RADIUST_SOURCES__WUNDERGROUND__API_KEY` | `RADIUST_TEST_WUNDERGROUND_API_KEY` | No legacy key or current test credential was found. |
 | UK DataPoint | None | None | Retired on 2025-12-01; the adapter fails before network access. |

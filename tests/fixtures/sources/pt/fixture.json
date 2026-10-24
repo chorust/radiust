@@ -26,13 +26,18 @@
       "raw_mode": "P",
       "reference_variable": "rain_intensity",
       "reference_units": "1",
-      "geometry_status": "verified_ipma_image_overlay",
+      "geometry_status": "verified_ipma_leaflet_image_overlay",
+      "geometry_evidence": "validation-results/006-pt-geometry.json",
+      "geometry_scope": "IPMA webpage image placement only; the historical linear EPSG:4326 interpretation is superseded, and observation coverage remains unknown",
       "reference_grid": {
-        "kind": "geographic",
-        "crs": "EPSG:4326",
+        "kind": "cartesian",
+        "crs": "EPSG:3857",
+        "registration": "edge",
         "bounds_wsen": [-19.87034, 30.01467, -12.89697, 35.96053],
-        "first_pixel_center_lonlat": [-19.86801554333333, 35.95858181520315],
-        "last_pixel_center_lonlat": [-12.89929445666667, 30.016618184796855]
+        "data_window_xywh": [0, 0, 1500, 1526],
+        "affine_edge_origin_step": [-2211956.1306892154, 517.5146650087266, 0.0, 4295191.719145755, 0.0, -517.5334498787525],
+        "first_pixel_center_lonlat": [-19.868015543, 35.958648444],
+        "last_pixel_center_lonlat": [-12.899294457, 30.016682794]
       },
       "reference_quality": {
         "0": "no displayed colored return; below-detection quality 32",

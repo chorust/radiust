@@ -1,5 +1,8 @@
 use radiust_core::download::{DownloadBatchReport, DownloadStatus};
-use radiust_core::model::{DiscoveryReport, DiscoveryStatus, Query, TimeSelector};
+use radiust_core::model::{
+    DiscoveryReport, DiscoveryStatus, LocalViewData, LocalViewMode, LocalViewRequest,
+    LocalViewResult, LocalViewStatus, Query, TimeSelector,
+};
 use serde_json::{Value, json};
 
 pub fn discovery_envelope(report: &DiscoveryReport) -> Value {
@@ -93,6 +96,162 @@ pub fn envelope(command: &str, items: Vec<Value>, result: Option<Value>) -> Valu
         "error": null,
         "interrupted": false,
     })
+}
+
+pub fn local_view_envelope(
+    report: &LocalViewResult,
+    request: &LocalViewRequest,
+    requested_mode: &str,
+    legend: Option<Value>,
+) -> Value {
+    let selected = report.selected.as_ref().map(|frame| {
+        json!({
+            "source": frame.source,
+            "product": frame.product,
+            "station": frame.station,
+            "valid_time": frame.valid_time,
+            "base_time": frame.base_time,
+            "logical_id": frame.logical_id,
+            "revision": frame.revision,
+            "source_urls": crate::local_view_source_urls(frame),
+        })
+    });
+    let field = report.data.as_ref().and_then(|data| match data {
+        LocalViewData::Numeric(dataset) => dataset.fields.first(),
+        LocalViewData::RawImage { .. } => None,
+    });
+    let mode_info = match report.data.as_ref() {
+        Some(LocalViewData::RawImage { .. }) => json!({
+            "requested": requested_mode,
+            "actual": "raw",
+            "variable": null,
+            "units": null,
+            "method": "raw_image_nearest",
+            "encoding": null,
+            "range_policy": null,
+            "time_status": "known",
+            "geolocation": "overlay_derived",
+            "limitations": ["source_image_display_geometry", "not_quantitative"],
+        }),
+        Some(LocalViewData::Numeric(_)) => field.map_or_else(
+            || failed_mode_info(requested_mode),
+            |field| {
+                let actual = if request.mode == LocalViewMode::Dbz
+                    || (request.mode == LocalViewMode::Auto
+                        && field.name == "reflectivity"
+                        && field.units.as_deref() == Some("dBZ"))
+                {
+                    "dbz"
+                } else {
+                    "decoded"
+                };
+                native_mode_info(
+                    requested_mode,
+                    actual,
+                    &field.name,
+                    field.units.as_deref(),
+                    "known",
+                    "projected",
+                )
+            },
+        ),
+        None => failed_mode_info(requested_mode),
+    };
+    let selected_grid = report.grid.as_ref();
+    let center = selected_grid.map(|grid| grid.center).or(request.center);
+    let radius_m =
+        selected_grid.map(|grid| grid.radius_m).or_else(|| request.radius_km.map(|km| km * 1000.0));
+    let requested_resolution_m =
+        selected_grid.map(|grid| grid.requested_resolution_m).or(request.resolution_m);
+    let actual_resolution_m = selected_grid.map(|grid| grid.actual_resolution_m);
+    let coverage_evidence = selected_grid.map(|grid| {
+        let frame_pixels = grid.source_domain.as_ref().map(|mask| {
+            mask.iter().zip(&grid.in_view).filter(|(inside, in_view)| **inside && **in_view).count()
+        });
+        json!({
+            "in_view_pixels": grid.in_view.iter().filter(|inside| **inside).count(),
+            "frame_domain_in_view_pixels": frame_pixels,
+            "frame_domain_outside_view_pixels": grid.source_domain.as_ref().map(|mask| {
+                mask.iter().zip(&grid.in_view).filter(|(inside, in_view)| **inside && !**in_view).count()
+            }),
+            "observation_coverage": report.observation_coverage,
+        })
+    });
+    let selection = report
+        .selection
+        .iter()
+        .map(|attempt| {
+            let error = attempt.error.as_ref().map(|error| {
+                json!({
+                    "code": error.code,
+                    "message": radiust_core::safety::safe_text(&error.message),
+                    "stage": error.stage,
+                    "retryable": error.retryable,
+                })
+            });
+            json!({
+                "source": attempt.target.source,
+                "product": attempt.target.product,
+                "station": attempt.target.station,
+                "state": attempt.state,
+                "discovery_status": attempt.discovery_status,
+                "observation_coverage": attempt.observation_coverage,
+                "spatial_evidence": attempt.spatial_evidence,
+                "reason": radiust_core::safety::safe_text(&attempt.reason),
+                "error": error,
+            })
+        })
+        .collect::<Vec<_>>();
+    let error = report.error.as_ref().map(|error| {
+        json!({
+            "code": error.code,
+            "message": radiust_core::safety::safe_text(&error.message),
+            "stage": error.stage,
+            "retryable": error.retryable,
+        })
+    });
+    let mut envelope = envelope(
+        "cat",
+        Vec::new(),
+        Some(json!({
+            "projection": {
+                "method": "azimuthal_equidistant",
+                "ellipsoid": "WGS84",
+                "axes": {"x": "east", "y": "north", "units": "m"},
+                "row_order": "north_to_south",
+            },
+            "center": center,
+            "radius_m": radius_m,
+            "x_extent_km": radius_m.map(|radius| [-radius / 1000.0, radius / 1000.0]),
+            "y_extent_km": radius_m.map(|radius| [-radius / 1000.0, radius / 1000.0]),
+            "requested_resolution_m": requested_resolution_m,
+            "actual_resolution_m": actual_resolution_m,
+            "shape": selected_grid.map(|grid| &grid.grid.shape),
+            "affine": selected_grid.and_then(|grid| grid.grid.affine),
+            "requested_scope": {
+                "source": request.source,
+                "product": request.product,
+                "station": request.station,
+                "mode": request.mode,
+                "resampling": request.resampling,
+            },
+            "selected": selected,
+            "processing": report.processing,
+            "selection": selection,
+            "candidate_limit_reached": report.candidate_limit_reached,
+            "coverage_evidence": coverage_evidence,
+            "observation_coverage": report.observation_coverage,
+            "legend": legend,
+            "error": error,
+        })),
+    );
+    envelope["local_view_schema_version"] = json!(1);
+    envelope["status"] = serde_json::to_value(report.status).unwrap_or(Value::Null);
+    envelope["error"] = error.unwrap_or(Value::Null);
+    envelope["interrupted"] = json!(report.status == LocalViewStatus::Interrupted);
+    envelope["mode_schema_version"] = json!(1);
+    envelope["mode_info"] = mode_info;
+    envelope
 }
 
 pub fn with_mode_info(mut envelope: Value, mode_info: Value) -> Value {
@@ -535,6 +694,161 @@ mod mode_info_tests {
         assert_eq!(mode["requested"], "gray");
         assert_eq!(mode["actual"], "raw");
         assert_eq!(mode["method"], "raw_preview");
+    }
+}
+
+#[cfg(test)]
+mod local_view_report_tests {
+    use super::*;
+    use radiust_core::model::{
+        FrameRef, GeographicPoint, Grid, LocalViewGrid, RadarDataset, RadarField,
+    };
+
+    #[test]
+    fn local_view_json_keeps_selection_and_projection_but_omits_raster_and_signed_locator() {
+        let mut frame = FrameRef {
+            source: "fr".into(),
+            product: "composite".into(),
+            station: None,
+            valid_time: "2026-10-01T00:00:00Z".into(),
+            base_time: None,
+            logical_id: String::new(),
+            revision: None,
+            locator_version: "1".into(),
+            locator: json!({"url": "https://user:password@example.invalid/radar.png?token=secret&sig=signed"}),
+        };
+        frame.logical_id = radiust_core::identity::logical_id(&frame).unwrap();
+        let grid = Grid {
+            shape: vec![1, 1],
+            crs: Some("local_aeqd".into()),
+            x: vec![0.0],
+            y: vec![0.0],
+            affine: Some([-500.0, 1000.0, 0.0, 500.0, 0.0, -1000.0]),
+        };
+        let local_grid = LocalViewGrid {
+            center: GeographicPoint { longitude: 121.6, latitude: 24.0 },
+            radius_m: 500.0,
+            requested_resolution_m: 1000.0,
+            actual_resolution_m: 500.0,
+            grid: grid.clone(),
+            in_view: vec![true],
+            source_domain: Some(vec![true]),
+        };
+        let field = RadarField {
+            name: "reflectivity".into(),
+            values: vec![23.0],
+            shape: vec![1, 1],
+            quality: vec![0],
+            units: Some("dBZ".into()),
+            valid_time: frame.valid_time.clone(),
+            grid,
+            provenance: Vec::new(),
+        };
+        let mut processing = radiust_core::model::LocalViewProcessingRecord {
+            schema_version: 1,
+            processing_id: String::new(),
+            algorithm: "local-aeqd-wgs84-v1".into(),
+            input_logical_id: frame.logical_id.clone(),
+            input_revision: frame.revision.clone(),
+            input_receipts: vec![radiust_core::model::ArtifactReceipt {
+                name: "fixture.bin".into(),
+                media_type: "application/octet-stream".into(),
+                size_bytes: 1,
+                sha256: "a".repeat(64),
+            }],
+            center: local_grid.center,
+            radius_m: local_grid.radius_m,
+            requested_resolution_m: local_grid.requested_resolution_m,
+            actual_resolution_m: local_grid.actual_resolution_m,
+            grid_shape: [1, 1],
+            affine: local_grid.grid.affine,
+            registration: "center".into(),
+            resampling: "nearest".into(),
+            requested_mode: "auto".into(),
+            data_kind: "numeric".into(),
+        };
+        processing.processing_id = radiust_core::identity::digest(&json!({
+            "identity_schema": 1,
+            "algorithm": processing.algorithm,
+            "input_logical_id": processing.input_logical_id,
+            "input_revision": processing.input_revision,
+            "input_receipts": processing.input_receipts,
+            "center": processing.center,
+            "radius_m": processing.radius_m,
+            "requested_resolution_m": processing.requested_resolution_m,
+            "actual_resolution_m": processing.actual_resolution_m,
+            "grid_shape": processing.grid_shape,
+            "affine": processing.affine,
+            "registration": processing.registration,
+            "resampling": processing.resampling,
+            "requested_mode": processing.requested_mode,
+            "data_kind": processing.data_kind,
+        }))
+        .unwrap();
+        let result = LocalViewResult::new(
+            LocalViewStatus::Selected,
+            Some(frame.clone()),
+            Some(local_grid),
+            Some(LocalViewData::Numeric(RadarDataset {
+                fields: vec![field],
+                valid_time: "2026-10-01T00:00:00Z".into(),
+                source: "fr".into(),
+            })),
+            Some(processing),
+            vec![radiust_core::model::LocalViewAttempt {
+                target: radiust_core::model::DiscoveryTarget {
+                    source: frame.source.clone(),
+                    product: Some(frame.product.clone()),
+                    station: frame.station.clone(),
+                },
+                state: radiust_core::model::LocalViewCandidateState::Selected,
+                discovery_status: Some(radiust_core::model::DiscoveryStatus::Success),
+                reason: "selected".into(),
+                error: None,
+                observation_coverage: Some(radiust_core::source::catalog::ObservationCoverage {
+                    kind: radiust_core::source::catalog::ObservationCoverageKind::GeodesicCircle,
+                    status: radiust_core::source::catalog::SpatialEvidenceStatus::Declared,
+                    geometry: Some(json!({"radius_m": 100_000})),
+                    evidence: Vec::new(),
+                }),
+                spatial_evidence: None,
+            }],
+            false,
+            None,
+        )
+        .unwrap();
+        let envelope = local_view_envelope(
+            &result,
+            &LocalViewRequest::default(),
+            "auto",
+            Some(json!({"rule_version":"default-1", "vmin":0.0, "vmax":50.0, "units":"dBZ"})),
+        );
+        let document = serde_json::to_string(&envelope).unwrap();
+
+        assert_eq!(envelope["schema_version"], 1);
+        assert_eq!(envelope["local_view_schema_version"], 1);
+        assert_eq!(envelope["status"], "selected");
+        assert_eq!(envelope["mode_info"]["actual"], "dbz");
+        assert_eq!(envelope["result"]["projection"]["axes"]["x"], "east");
+        assert_eq!(envelope["result"]["coverage_evidence"]["frame_domain_in_view_pixels"], 1);
+        assert_eq!(envelope["result"]["observation_coverage"]["kind"], "geodesic_circle");
+        assert_eq!(
+            envelope["result"]["coverage_evidence"]["observation_coverage"],
+            envelope["result"]["observation_coverage"]
+        );
+        assert_eq!(
+            envelope["result"]["selection"][0]["observation_coverage"],
+            envelope["result"]["observation_coverage"]
+        );
+        assert_eq!(
+            envelope["result"]["processing"]["processing_id"],
+            result.processing.as_ref().unwrap().processing_id
+        );
+        assert_eq!(envelope["result"]["processing"]["input_receipts"][0]["sha256"], "a".repeat(64));
+        assert!(document.contains("example.invalid/radar.png"));
+        for secret in ["password", "token=secret", "sig=signed", "\"values\""] {
+            assert!(!document.contains(secret), "report leaked {secret}");
+        }
     }
 }
 

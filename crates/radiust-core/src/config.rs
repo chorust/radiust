@@ -8,6 +8,8 @@ use std::fmt;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+use crate::model::GeographicPoint;
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CoreConfig {
@@ -20,7 +22,24 @@ pub struct CoreConfig {
     #[serde(default)]
     pub output: OutputConfig,
     #[serde(default)]
+    pub location: Option<LocationConfig>,
+    #[serde(default)]
+    pub local_view: LocalViewConfig,
+    #[serde(default)]
     pub sources: BTreeMap<String, BTreeMap<String, Value>>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LocationConfig {
+    pub longitude: Option<f64>,
+    pub latitude: Option<f64>,
+}
+
+impl LocationConfig {
+    pub fn point(&self) -> Option<GeographicPoint> {
+        Some(GeographicPoint { longitude: self.longitude?, latitude: self.latitude? })
+    }
 }
 
 impl Default for CoreConfig {
@@ -30,8 +49,23 @@ impl Default for CoreConfig {
             cache: CacheConfig::default(),
             storage: StorageConfig::default(),
             output: OutputConfig::default(),
+            location: None,
+            local_view: LocalViewConfig::default(),
             sources: BTreeMap::new(),
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LocalViewConfig {
+    pub radius_km: f64,
+    pub resolution_m: f64,
+}
+
+impl Default for LocalViewConfig {
+    fn default() -> Self {
+        Self { radius_km: 50.0, resolution_m: 1000.0 }
     }
 }
 
@@ -198,6 +232,8 @@ impl CoreConfig {
             ("cache".to_owned(), "default".to_owned()),
             ("storage".to_owned(), "default".to_owned()),
             ("output".to_owned(), "default".to_owned()),
+            ("location".to_owned(), "default".to_owned()),
+            ("local_view".to_owned(), "default".to_owned()),
             ("sources".to_owned(), "default".to_owned()),
         ]);
         for &(input, origin) in yaml_files {
@@ -336,6 +372,22 @@ impl CoreConfig {
             || runtime.max_temp_bytes == 0
         {
             return Err(ConfigError::InvalidLimit);
+        }
+        if let Some(location) = &self.location {
+            let (Some(longitude), Some(latitude)) = (location.longitude, location.latitude) else {
+                return Err(ConfigError::InvalidLocation);
+            };
+            if (GeographicPoint { longitude, latitude }).validate().is_err() {
+                return Err(ConfigError::InvalidLocation);
+            }
+        }
+        if !self.local_view.radius_km.is_finite()
+            || self.local_view.radius_km <= 0.0
+            || self.local_view.radius_km > 500.0
+            || !self.local_view.resolution_m.is_finite()
+            || self.local_view.resolution_m <= 0.0
+        {
+            return Err(ConfigError::InvalidLocalView);
         }
         if self.cache.max_age_days == 0 || self.cache.gc_interval_hours == 0 {
             return Err(ConfigError::InvalidLimit);
@@ -514,6 +566,8 @@ fn validate_config_keys(value: &Value) -> Result<(), ConfigError> {
                 &["output", "endpoint", "region", "access_key", "secret_key", "anonymous"],
             )?,
             "output" => validate_section_keys(section, &["format", "grid", "resampling"])?,
+            "location" => validate_section_keys(section, &["longitude", "latitude"])?,
+            "local_view" => validate_section_keys(section, &["radius_km", "resolution_m"])?,
             "sources" => {
                 let Value::Mapping(sources) = section else {
                     return Err(ConfigError::InvalidValue);
@@ -845,6 +899,10 @@ pub enum ConfigError {
     IncompleteSourceCredentials,
     #[error("output format or grid option is unsupported")]
     InvalidOutput,
+    #[error("location must be a complete, valid WGS84 position")]
+    InvalidLocation,
+    #[error("local-view radius or resolution is invalid")]
+    InvalidLocalView,
 }
 
 #[cfg(test)]
@@ -1015,6 +1073,64 @@ mod tests {
         assert_eq!(config.runtime.discovery_workers, 6);
         assert!(!config.runtime.allow_network);
         assert_eq!(CoreConfig::default().runtime.discovery_workers, 4);
+    }
+
+    #[test]
+    fn location_and_local_view_configuration_layer_with_origins() {
+        let environment = BTreeMap::from([
+            ("RADIUST_LOCATION__LONGITUDE".into(), "122.25".into()),
+            ("RADIUST_LOCATION__LATITUDE".into(), "24.5".into()),
+            ("RADIUST_LOCAL_VIEW__RESOLUTION_M".into(), "500".into()),
+        ]);
+        let (config, origins) = CoreConfig::layered_with_origins(
+            Some("location:\n  longitude: 121.0\n  latitude: 23.0\nlocal_view:\n  radius_km: 20\n"),
+            &environment,
+            Some("local_view:\n  radius_km: 10\n"),
+        )
+        .unwrap();
+        assert_eq!(
+            config.location.as_ref().unwrap().point(),
+            Some(GeographicPoint { longitude: 122.25, latitude: 24.5 })
+        );
+        assert_eq!(config.local_view.radius_km, 10.0);
+        assert_eq!(config.local_view.resolution_m, 500.0);
+        assert_eq!(origins["location.longitude"], "environment");
+        assert_eq!(origins["location.latitude"], "environment");
+        assert_eq!(origins["local_view.radius_km"], "explicit");
+        assert_eq!(origins["local_view.resolution_m"], "environment");
+    }
+
+    #[test]
+    fn location_is_optional_but_partial_or_out_of_range_coordinates_are_rejected() {
+        let environment = BTreeMap::new();
+        let defaults = CoreConfig::layered(None, &environment, None).unwrap();
+        assert!(defaults.location.is_none());
+        assert_eq!(defaults.local_view.radius_km, 50.0);
+        assert_eq!(defaults.local_view.resolution_m, 1000.0);
+        for yaml in [
+            "location:\n  longitude: 120.0\n",
+            "location:\n  longitude: 181.0\n  latitude: 24.0\n",
+            "location:\n  longitude: 120.0\n  latitude: .nan\n",
+        ] {
+            assert_eq!(
+                CoreConfig::layered(Some(yaml), &environment, None),
+                Err(ConfigError::InvalidLocation),
+                "{yaml}"
+            );
+        }
+    }
+
+    #[test]
+    fn location_and_local_view_sections_remain_strict() {
+        let environment = BTreeMap::new();
+        for yaml in [
+            "location:\n  altitude: 10\n",
+            "local_view:\n  radius_km: 10\n  projection: mercator\n",
+            "local_view:\n  radius_km: 500.1\n",
+            "local_view:\n  resolution_m: 0\n",
+        ] {
+            assert!(CoreConfig::layered(Some(yaml), &environment, None).is_err(), "{yaml}");
+        }
     }
 
     #[test]

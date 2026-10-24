@@ -1,0 +1,387 @@
+{
+  "schema_version": 1,
+  "feature": "006-location-radar-view",
+  "recorded_at": "2026-10-10",
+  "scope": "Installed-wheel explicit-source live local-view chain. A successful frame proves retrieval and conversion for this product/time; it does not establish product coverage at the test point or automatic-admission eligibility.",
+  "historical_note": "The scope and limitations in this top-level block describe the T051 explicit-source run and replay (2026-10-10), before any source was admitted. The default-admission (naked-cat) result is in t052_personal_local_view_default below.",
+  "superseded_by": "t052_personal_local_view_default",
+  "build": {
+    "git_head": "fee15193ec9d69d08bf27c9405f7c501486d17e9",
+    "worktree_dirty": true,
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "python": "CPython 3.12.7",
+    "platform": "macOS 26.6.2 arm64",
+    "wheel": "radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_sha256": "07b1fb3a217184d75564cd3a1ea70825130130e60f2b2e5f4d6f785b09fe858a"
+  },
+  "access": {
+    "entrypoint": "installed native CLI from the wheel above",
+    "network_opt_in": "RADIUST_RUNTIME__ALLOW_NETWORK=true",
+    "config_and_home": "isolated temporary config and HOME",
+    "credentials_used": false,
+    "tls": "normal certificate validation; no exception",
+    "endpoint": "https://api.rainviewer.com/public/weather-maps.json and https://tilecache.rainviewer.com",
+    "purpose": "one bounded local-view verification; no repeated polling",
+    "provider_terms": "official free API terms target personal, educational, and small-scale community use; visible attribution is mandatory, while commercial integration is arranged case-by-case and no SLA is provided. This request does not establish permission for broad Radiust default use or redistribution of underlying observations",
+    "automatic_admission": false,
+    "terms_reference": "https://www.rainviewer.com/api.html"
+  },
+  "request": {
+    "command": "radiust --conf <isolated-config> cat rainviewer --local --dbz --renderer text --json",
+    "started_at_utc": "2026-10-10T03:06:16.606728Z",
+    "finished_at_utc": "2026-10-10T03:06:18.451414Z",
+    "exit_code": 0,
+    "stderr_empty": true,
+    "allow_network_default_in_config": false,
+    "network_enabled_only_for_this_command": true
+  },
+  "test_point": {
+    "longitude": -16.9,
+    "latitude": 32.7,
+    "radius_m": 50000,
+    "requested_resolution_m": 1000,
+    "meaning": "public test point in Madeira; not a radar station identity or coverage claim"
+  },
+  "result": {
+    "status": "selected",
+    "source": "rainviewer",
+    "product": "composite",
+    "station": null,
+    "valid_time": "2026-10-10T03:00:00.000000Z",
+    "time_semantics": "provider frame generation time, not single-radar scan time",
+    "frame_logical_id": "24696865f6f7dc2880735d7b847d53c0c0a52e1f275962f1721463a79e4e6c27",
+    "frame_revision": "e1e5e674e43c",
+    "selection_relation": "selected:needs_probe_coverage_unknown",
+    "observation_coverage": "unknown",
+    "coverage_evidence": {
+      "in_view_pixels": 7845,
+      "frame_domain_in_view_pixels": 7845,
+      "frame_domain_outside_view_pixels": 0,
+      "observation_coverage": "unknown"
+    },
+    "projection": {
+      "method": "azimuthal_equidistant",
+      "ellipsoid": "WGS84",
+      "axes": {
+        "x": "east",
+        "y": "north",
+        "units": "m"
+      },
+      "row_order": "north_to_south"
+    },
+    "shape": [
+      101,
+      101
+    ],
+    "affine": [
+      -50500.0,
+      1000.0,
+      0.0,
+      50500.0,
+      0.0,
+      -1000.0
+    ],
+    "mode_info": {
+      "requested": "dbz",
+      "actual": "dbz",
+      "variable": "reflectivity",
+      "units": "dBZ",
+      "method": "native_numeric",
+      "encoding": null,
+      "range_policy": null,
+      "time_status": "known",
+      "geolocation": "projected",
+      "limitations": []
+    },
+    "processing": {
+      "schema_version": 1,
+      "processing_id": "d19516905f3fdd5c7d2507b16bd83a7805d34a5afb9c033fd45cf1565ea3b3cf",
+      "algorithm": "local-aeqd-wgs84-v1",
+      "input_logical_id": "24696865f6f7dc2880735d7b847d53c0c0a52e1f275962f1721463a79e4e6c27",
+      "input_revision": "e1e5e674e43c",
+      "input_receipts": [
+        {
+          "name": "tile-z1-x0-y0.png",
+          "media_type": "image/png",
+          "size_bytes": 19125,
+          "sha256": "dedb9233b4a2dbdec0e219328f57e62a243343636bbabbacb83ed596d4d8432b"
+        },
+        {
+          "name": "tile-z1-x0-y1.png",
+          "media_type": "image/png",
+          "size_bytes": 3118,
+          "sha256": "3c01ad9960a05ee3bad43865b7db1a345f8d3de5782e4472c8384ba6b8bd1410"
+        },
+        {
+          "name": "tile-z1-x1-y0.png",
+          "media_type": "image/png",
+          "size_bytes": 19003,
+          "sha256": "bb68ea4e5c38c31c282e3686ba16512afb962eb16d9e85c9bfef5c6fdcee4e56"
+        },
+        {
+          "name": "tile-z1-x1-y1.png",
+          "media_type": "image/png",
+          "size_bytes": 3589,
+          "sha256": "9c65b7e8e1f2b16c422122bb9f19c80e277b94b6e2ff32a7730eadc46939a96c"
+        }
+      ],
+      "center": {
+        "longitude": -16.900000000000006,
+        "latitude": 32.7
+      },
+      "radius_m": 50000.0,
+      "requested_resolution_m": 1000.0,
+      "actual_resolution_m": 1000.0,
+      "grid_shape": [
+        101,
+        101
+      ],
+      "affine": [
+        -50500.0,
+        1000.0,
+        0.0,
+        50500.0,
+        0.0,
+        -1000.0
+      ],
+      "registration": "center",
+      "resampling": "nearest",
+      "requested_mode": "dbz",
+      "data_kind": "numeric"
+    },
+    "source_urls_omitted": true
+  },
+  "cross_entrypoint_replay": {
+    "recorded_at_utc": "2026-10-10T03:21:08Z",
+    "scope": "One bounded live dBZ/nearest request sequence through CLI, sync SDK, and async SDK. It supplements T051 and does not establish coverage or default admission.",
+    "build": {
+      "source_revision": "fee15193ec9d69d08bf27c9405f7c501486d17e9",
+      "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+      "python": "CPython 3.12.7",
+      "native_extension_sha256": "38ea315acdf3f542430dc55c7a9bcb6faf535801edf2f47dee94c0c94a09bf17",
+      "extension_build": "env -u CONDA_PREFIX uv run --group dev maturin develop"
+    },
+    "access": {
+      "network_opt_in": "single-command RADIUST_RUNTIME__ALLOW_NETWORK=true for CLI; explicit runtime.allow_network=true SDK config",
+      "credentials_used": false,
+      "tls": "normal certificate validation",
+      "cache_enabled": false,
+      "endpoint": "https://api.rainviewer.com/public/weather-maps.json and https://tilecache.rainviewer.com",
+      "automatic_admission": false
+    },
+    "request": {
+      "started_at_utc": "2026-10-10T03:21:01.716265Z",
+      "finished_at_utc": "2026-10-10T03:21:08.495515Z",
+      "center": {
+        "longitude": -16.9,
+        "latitude": 32.7
+      },
+      "radius_m": 50000,
+      "requested_resolution_m": 1000,
+      "shape": [
+        101,
+        101
+      ],
+      "mode": "dbz",
+      "resampling": "nearest"
+    },
+    "selected": {
+      "source": "rainviewer",
+      "product": "composite",
+      "valid_time": "2026-10-10T03:20:00.000000Z",
+      "frame_logical_id": "09d9e59f8868a20e5bd486cbd0ad4890b5f21045f5a6b2fe23987220166df7b1",
+      "input_logical_id": "09d9e59f8868a20e5bd486cbd0ad4890b5f21045f5a6b2fe23987220166df7b1",
+      "processing_id": "9f0fea780825e78cf7bd8a4ddf09cee5eadc7c80c9cba74103b0e8c5891aee0c",
+      "receipt_hashes": [
+        "1786e41cc2636066a3da21c4dd772f3cf1eb1cf5de2a535218ab0d2ce340ed43",
+        "279ee806cdd85dfc976acad26250c69cb0a7dc8a97b95d36c383f5e7c60ddc7f",
+        "a3f7e6a9e58db4b5c3b3e95a90bd400cdc88f2651b022cca958c9e191259fb99",
+        "d298750e129cd6e1d0977933f76f60e69798f39e8dd9d4d77523caf487d8f7a6"
+      ],
+      "affine": [
+        -50500.0,
+        1000.0,
+        0.0,
+        50500.0,
+        0.0,
+        -1000.0
+      ]
+    },
+    "entrypoints": [
+      "CLI",
+      "Client",
+      "AsyncClient"
+    ],
+    "comparison": {
+      "frame_id_equal": true,
+      "valid_time_equal": true,
+      "input_receipts_equal": true,
+      "processing_id_equal": true,
+      "grid_shape_and_affine_equal": true,
+      "sync_async_values_sha256": "613b2829e9ec1cbdb80bad754c9565dfcd36be703ec467b04efec223d3e876a8",
+      "sync_async_quality_sha256": "2fad4f25c8c4f7dc0604b2ce96a10e13c04a9af786e3cbe72b3135607901844e",
+      "cli_reports_arrays": false
+    },
+    "bilinear_probe": {
+      "entrypoint": "AsyncClient",
+      "source": "rainviewer",
+      "valid_time": "2026-10-10T03:20:00.000000Z",
+      "frame_logical_id": "09d9e59f8868a20e5bd486cbd0ad4890b5f21045f5a6b2fe23987220166df7b1",
+      "nearest_processing_id": "ec4c088c7f4e274a74be5d903c8c7cf8e8e6261433e5a000285a41a80079b39b",
+      "bilinear_processing_id": "440e4bd5cb1ddf46f8ffae0f15a28079f52c867b9a8dcf346f96b077ead7aab",
+      "nearest_and_bilinear_receipts_equal": true,
+      "nearest_values_sha256": "613b2829e9ec1cbdb80bad754c9565dfcd36be703ec467b04efec223d3e876a8",
+      "bilinear_values_sha256": "613b2829e9ec1cbdb80bad754c9565dfcd36be703ec467b04efec223d3e876a8",
+      "quality_sha256": "2fad4f25c8c4f7dc0604b2ce96a10e13c04a9af786e3cbe72b3135607901844e",
+      "interpretation": "Bilinear was accepted on the same numeric frame and produced a distinct processing identity; this coarse current mosaic yielded unchanged sampled values, so interpolation accuracy remains established by controlled tests rather than this live sample."
+    },
+    "additional_attempt_notes": [
+      "An earlier unsynchronized sequence crossed the provider's frame update: CLI and sync SDK selected 03:10Z while async SDK selected 03:20Z; it was not counted as same-frame parity.",
+      "The live replay used the current latest frame and cache was disabled. It does not verify raw-image success, cache-hit identity, changed-view identity, the complete mode/failure matrix, or observation coverage."
+    ]
+  },
+  "independent_geometry_control": {
+    "method": "independent standard Web Mercator zoom-1 global pixel-center equations evaluated in Python math; 2x2 tiles, 512 px per tile, 1024 px world mosaic",
+    "equations": "x=(longitude+180)/360*1024; y=(1-asinh(tan(latitude))/pi)/2*1024; pixel centers use index+0.5",
+    "world_pixel_x": 463.9288888888889,
+    "world_pixel_y": 413.4826466623805,
+    "expected_tile_xy": [
+      0,
+      0
+    ],
+    "expected_pixel_xy": [
+      463,
+      413
+    ],
+    "expected_world_pixel_xy": [
+      463,
+      413
+    ],
+    "expected_pixel_center_lonlat": [
+      -17.05078125,
+      32.694865977875054
+    ],
+    "source_model_reference": "tests/fixtures/sources/rainviewer/fixture.json (zoom 1, 512 px, EPSG:4326 Web Mercator pixel centers)",
+    "interpretation": "independent matrix-coordinate control only; it does not verify the upstream radar observation footprint"
+  },
+  "other_live_attempts": [
+    {
+      "source": "pt",
+      "endpoint": "https://www.ipma.pt/resources.www/transf/radar/imgs-radar-md.json",
+      "entrypoint": "same installed native CLI; explicit source/local/raw; normal TLS; no credentials",
+      "result": "failed",
+      "error_code": "no_data",
+      "stage": "discover",
+      "interpretation": "adapter received no selectable latest frame during this CLI request; no acquisition or projection occurred",
+      "result_detail": "Standard CLI discovery returned no_data; no frame was selected, so image acquisition and local projection did not run.",
+      "terms_reference": "https://api.ipma.pt/"
+    }
+  ],
+  "source_permissions": {
+    "rainviewer": "Current official free API terms target personal, educational, and small-scale community use; visible attribution is mandatory, commercial integration is case-by-case, and the service has no SLA. API access terms do not establish redistribution rights for underlying radar observations.",
+    "ipma": "Official general API/site terms allow free personal/public use without profit or offensive purpose and require source attribution; specific radar-image reuse and redistribution terms remain unconfirmed. The API page asks users to report usage and purpose; no email was sent.",
+    "rainviewer_reference": "https://www.rainviewer.com/api.html",
+    "ipma_reference": "https://api.ipma.pt/",
+    "rainviewer_current_admission": "As of 2026-10-24, current official terms support the user-confirmed personal-use local_view scope with visible linked credit. Commercial/high-volume integration is excluded, no SLA or underlying-owner contract is provided, and redistribution of underlying radar observations is not established."
+  },
+  "limitations": [
+    "RainViewer observation coverage at the test point is unknown; candidate relation remains needs_probe_coverage_unknown.",
+    "The 50 km output is a projected view window and must not be interpreted as verified radar coverage.",
+    "One successful explicit-source run does not demonstrate naked-cat auto-selection, another region, stable service, scan cadence, or commercial redistribution rights.",
+    "IPMA latest discovery returned no_data in the installed CLI attempt."
+  ],
+  "t052_personal_local_view_default": {
+    "recorded_at_utc": "2026-10-24T03:09:37.778Z",
+    "scope": "Personal use of RainViewer composite through the default location-driven local_view path; commercial/high-volume integration and redistribution of underlying observations are outside this admission.",
+    "record_limitations": [
+      "Build was worktree_dirty=true on source_revision fee15193 (the already-published docs commit), so the admission code and attribution change exist only in uncommitted state; no tree or diff hash was recorded.",
+      "The request block keeps only stdout_sha256 and a hand-entered attribution_line; no frame logical ID, receipt hashes or processing_id were recorded for this run, unlike the T051 block, and the CLI output itself was not stored.",
+      "The admission rests on a single run at one test point; observation coverage there and elsewhere is unknown."
+    ],
+    "user_scope_confirmation": "User confirmed Radiust is intended for individual personal use and project attribution is present; CLI local-view output now visibly includes the required RainViewer credit and link.",
+    "terms": {
+      "reference": "https://www.rainviewer.com/api.html",
+      "checked_at": "2026-10-24",
+      "basis": "Official API terms describe personal/educational use, require visible linked attribution, state no SLA and no contract with underlying data owners; commercial integration is case-by-case.",
+      "admission": "personal local_view only",
+      "commercial_or_high_volume": "not admitted; case-by-case provider terms required",
+      "underlying_observation_redistribution": "not established"
+    },
+    "catalog_admission": {
+      "source": "rainviewer",
+      "product": "composite",
+      "status": "verified",
+      "automatic": true,
+      "purposes": [
+        "local_view"
+      ],
+      "coverage": "unknown",
+      "canonical_resource": "python/radiust/resources/catalog.json",
+      "embedded_resource": "crates/radiust-core/resources/builtin/catalog.json"
+    },
+    "build": {
+      "source_revision": "fee15193ec9d69d08bf27c9405f7c501486d17e9",
+      "worktree_dirty": true,
+      "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+      "python": "CPython 3.12.7",
+      "platform": "macOS 26.6.2 arm64",
+      "build_command": "env -u CONDA_PREFIX uv run --group dev maturin build --release --out /tmp/radiust-local-view-wheel",
+      "wheel": "radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+      "wheel_sha256": "3278ea9afc182f7d1f53c545e19486eb6c6ac2ec56880d947d1f897756d0f68b",
+      "wheel_size_bytes": 15586945
+    },
+    "access": {
+      "entrypoint": "installed native CLI from the final rebuilt wheel above",
+      "command": "radiust --conf <isolated-config> cat --renderer text",
+      "network_opt_in": "RADIUST_RUNTIME__ALLOW_NETWORK=true for this command only",
+      "config_and_home": "isolated YAML config with allow_network=false and fresh empty HOME/cache",
+      "credentials_used": false,
+      "tls": "normal certificate validation; no exception",
+      "cache_state": "empty HOME created immediately before invocation; no prior cache entries",
+      "endpoint_hosts": [
+        "api.rainviewer.com",
+        "tilecache.rainviewer.com"
+      ],
+      "attempts_in_recorded_invocation": 1
+    },
+    "request": {
+      "started_at_utc": "2026-10-24T03:09:32.794Z",
+      "finished_at_utc": "2026-10-24T03:09:37.778Z",
+      "exit_code": 0,
+      "stderr_empty": true,
+      "stdout_sha256": "7de6ef3f3817977bc103fd49302ba7f88c16b7233e99f34a87c68a9115c7e89c",
+      "attribution_line": "Weather data by RainViewer: https://www.rainviewer.com/"
+    },
+    "test_point": {
+      "longitude": -16.9,
+      "latitude": 32.7,
+      "radius_m": 50000,
+      "requested_resolution_m": 1000,
+      "meaning": "Madeira public test point; not a radar station identity or coverage claim"
+    },
+    "result": {
+      "status": "selected",
+      "source": "rainviewer",
+      "product": "composite",
+      "valid_time": "2026-10-24T03:00:00.000000Z",
+      "time_semantics": "provider frame generation time, not single-radar scan time",
+      "selection_relation": "selected:needs_probe_coverage_unknown",
+      "observation_coverage": "unknown",
+      "frame_domain_in_view_pixels": 7845,
+      "requested_view_pixels": 7845,
+      "projection": "azimuthal_equidistant / WGS84",
+      "axes": "x east, y north; meters",
+      "radius_m": 50000,
+      "requested_resolution_m": 1000,
+      "actual_resolution_m": 1000,
+      "shape": [
+        101,
+        101
+      ],
+      "mode": "numeric reflectivity, dBZ",
+      "resampling": "nearest",
+      "human_readable_attribution_visible": true,
+      "other_regions_coverage_claimed": false
+    }
+  }
+}

@@ -16,15 +16,19 @@ def _set_cf_time(dataset: xr.Dataset, values: np.ndarray) -> None:
     dataset["time"].attrs["calendar"] = "proleptic_gregorian"
 
 
-def test_cat_requires_exactly_one_source_or_file():
+def test_bare_cat_uses_local_view_and_source_file_conflict_stays_invalid(tmp_path):
     runner = CliRunner()
-    neither = runner.invoke(main, ["cat"])
-    both = runner.invoke(main, ["cat", "my", "--file", str(FIXTURE)])
+    config = tmp_path / "config.yaml"
+    config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
+    neither = runner.invoke(main, ["--json", "--conf", str(config), "cat"])
+    both = runner.invoke(main, ["--json", "--conf", str(config), "cat", "my", "--file", str(FIXTURE)])
 
     assert neither.exit_code == 2
-    assert "exactly one" in neither.output
+    local_report = json.loads(neither.output)
+    assert local_report["local_view_schema_version"] == 1
+    assert local_report["error"]["code"] == "location_missing"
     assert both.exit_code == 2
-    assert "exactly one" in both.output
+    assert "exactly one" in json.loads(both.output)["error"]["message"]
 
 
 def test_cat_file_text_is_redirectable_and_image_renderer_requires_tty():

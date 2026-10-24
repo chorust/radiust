@@ -30,7 +30,16 @@ from .errors import (
     TransportError,
     UnsupportedQueryError,
 )
-from .models import BatchResult, DiscoveryReport, DownloadReport, FrameRef, FrameResult, Query
+from .models import (
+    BatchResult,
+    DiscoveryReport,
+    DownloadReport,
+    FrameRef,
+    FrameResult,
+    LocalViewRequest,
+    LocalViewResult,
+    Query,
+)
 
 ProgressCallback = Any
 _DOWNLOAD_PROCESSING_KEYS = {
@@ -183,6 +192,15 @@ class _ProgressEventBridge:
             operation = event.get("operation")
             stage = event.get("stage")
             progress = event.get("progress") or {}
+
+            if self.mode == "local_view" and operation == "local_view":
+                if stage == "started":
+                    self._emit("local_view", 0, None)
+                elif stage == "progress":
+                    self._emit("local_view", progress["completed"], progress.get("total"))
+                elif stage == "completed":
+                    self._emit("local_view", 1, 1)
+                continue
 
             if self.mode in {"discover", "fetch"} and operation == "discover":
                 if stage == "started":
@@ -696,6 +714,18 @@ class Client:
                 events.set_discovered_count(report.counts["success"])
             return report
 
+    async def _alocal_view(
+        self, request: LocalViewRequest, *, progress: ProgressCallback | None = None
+    ) -> LocalViewResult:
+        try:
+            payload = request.as_dict()
+        except (TypeError, ValueError) as exc:
+            raise UnsupportedQueryError(
+                str(exc), context=ErrorContext(stage="validate"), cause=exc
+            ) from exc
+        async with _operation_scope(self, progress, "local_view"):
+            return await self._session.local_view(payload)
+
     def discover(self, query: Any, *, progress: ProgressCallback | None = None) -> list[Any]:
         return self._run(self._adiscover(query, progress=progress))
 
@@ -703,6 +733,31 @@ class Client:
         self, query: Any, *, progress: ProgressCallback | None = None
     ) -> DiscoveryReport:
         return self._run(self._adiscover_report(query, progress=progress))
+
+    def local_view(
+        self,
+        *,
+        center: tuple[float, float] | Mapping[str, float] | None = None,
+        radius_km: float | None = None,
+        resolution_m: float | None = None,
+        source: str | None = None,
+        product: str | None = None,
+        station: str | None = None,
+        mode: str = "auto",
+        resampling: str = "nearest",
+        progress: ProgressCallback | None = None,
+    ) -> LocalViewResult:
+        request = LocalViewRequest(
+            center=center,
+            radius_km=radius_km,
+            resolution_m=resolution_m,
+            source=source,
+            product=product,
+            station=station,
+            mode=mode,
+            resampling=resampling,
+        )
+        return self._run(self._alocal_view(request, progress=progress))
 
     def replay_raw_manifest(
         self, manifest_path: str | os.PathLike[str], *, mode: str | None = None
@@ -1357,6 +1412,32 @@ class AsyncClient:
     ) -> DiscoveryReport:
         self._ensure_open()
         return await self._adiscover_report(query, progress=progress)
+
+    async def local_view(
+        self,
+        *,
+        center: tuple[float, float] | Mapping[str, float] | None = None,
+        radius_km: float | None = None,
+        resolution_m: float | None = None,
+        source: str | None = None,
+        product: str | None = None,
+        station: str | None = None,
+        mode: str = "auto",
+        resampling: str = "nearest",
+        progress: ProgressCallback | None = None,
+    ) -> LocalViewResult:
+        self._ensure_open()
+        request = LocalViewRequest(
+            center=center,
+            radius_km=radius_km,
+            resolution_m=resolution_m,
+            source=source,
+            product=product,
+            station=station,
+            mode=mode,
+            resampling=resampling,
+        )
+        return await Client._alocal_view(self, request, progress=progress)
 
     async def replay_raw_manifest(
         self, manifest_path: str | os.PathLike[str], *, mode: str | None = None

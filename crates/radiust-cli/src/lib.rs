@@ -13,7 +13,11 @@ use radiust_core::download::{DecodedGrid, DecodedProcessing, FetchErrorPolicy};
 use radiust_core::engine::{Engine, EngineError};
 use radiust_core::grid::Resampling;
 use radiust_core::limits::Limits;
-use radiust_core::model::{DiscoveryReport, DiscoveryStatus, PreviewMode, Query, TimeSelector};
+use radiust_core::model::{
+    DiscoveryReport, DiscoveryStatus, LocalViewData, LocalViewMode, LocalViewRequest,
+    LocalViewResampling, LocalViewResult, LocalViewStatus, Preview, PreviewMode, Query,
+    TimeSelector,
+};
 use radiust_core::preview::preview_file;
 use radiust_core::raster::RasterResultData;
 use radiust_core::source::SourceRegistry;
@@ -184,6 +188,18 @@ enum Command {
         /// Decode a declared local gray image or native reflectivity to dBZ.
         #[arg(long, conflicts_with_all = ["raw", "decoded", "gray", "legacy_display"])]
         dbz: bool,
+        /// Discover and project a source frame around the configured or requested location.
+        #[arg(long)]
+        local: bool,
+        /// Radius of the local view in kilometers (implies --local).
+        #[arg(long = "radius-km")]
+        radius_km: Option<f64>,
+        /// Requested local output grid spacing in meters (implies --local).
+        #[arg(long = "resolution-m")]
+        resolution_m: Option<f64>,
+        /// Local numeric resampling method (implies --local).
+        #[arg(long, value_parser = ["nearest", "bilinear"])]
+        resampling: Option<String>,
         /// Select an explicit frame from a multi-frame local image.
         #[arg(long = "frame-index")]
         frame_index: Option<u32>,
@@ -1161,9 +1177,26 @@ async fn download_decoded_cancellable(
 }
 
 pub(crate) fn public_source_urls(frame: &radiust_core::model::FrameRef) -> Vec<String> {
+    sanitize_source_urls(frame, false)
+}
+
+/// Local view also reports the metadata endpoint that produced the frame.
+pub(crate) fn local_view_source_urls(frame: &radiust_core::model::FrameRef) -> Vec<String> {
+    sanitize_source_urls(frame, true)
+}
+
+fn sanitize_source_urls(
+    frame: &radiust_core::model::FrameRef,
+    include_metadata_endpoint: bool,
+) -> Vec<String> {
     let mut candidates = Vec::new();
     if let Some(url) = frame.locator.get("url").and_then(Value::as_str) {
         candidates.push(url);
+    }
+    if include_metadata_endpoint {
+        if let Some(url) = frame.locator.get("metadata_endpoint").and_then(Value::as_str) {
+            candidates.push(url);
+        }
     }
     if let Some(artifacts) = frame.locator.get("artifacts").and_then(Value::as_array) {
         candidates.extend(
@@ -1963,6 +1996,250 @@ where
     }
 }
 
+fn local_mode_name(raw: bool, decoded: bool, gray: bool, dbz: bool) -> &'static str {
+    if raw {
+        "raw"
+    } else if gray {
+        "gray"
+    } else if dbz {
+        "dbz"
+    } else if decoded {
+        "decoded"
+    } else {
+        "auto"
+    }
+}
+
+fn local_view_exit_code(result: &LocalViewResult) -> u8 {
+    match result.status {
+        LocalViewStatus::Selected => 0,
+        // Network-off is a configuration condition, like download --dry-run's exit 2.
+        LocalViewStatus::NoCandidate if result.is_network_restricted() => 2,
+        LocalViewStatus::NoCandidate => 3,
+        LocalViewStatus::Interrupted => 130,
+        LocalViewStatus::TimedOut | LocalViewStatus::Failed => 5,
+    }
+}
+
+fn failed_local_result(code: &str, message: &str, stage: &str) -> LocalViewResult {
+    LocalViewResult::new(
+        LocalViewStatus::Failed,
+        None,
+        None,
+        None,
+        None,
+        Vec::new(),
+        false,
+        Some(radiust_core::model::SafeError {
+            code: code.to_owned(),
+            message: radiust_core::safety::safe_text(message),
+            stage: stage.to_owned(),
+            retryable: false,
+        }),
+    )
+    .expect("a failed local-view result has an error and no selected data")
+}
+
+fn cat_local_validation_error(
+    request: LocalViewRequest,
+    requested_mode: &str,
+    message: &str,
+    as_json: bool,
+    verbose: bool,
+) -> Result<u8, String> {
+    let result = failed_local_result("invalid_request", message, "validate");
+    let report = report::local_view_envelope(&result, &request, requested_mode, None);
+    if as_json {
+        emit(&report, true)?;
+    } else {
+        println!("{}", report::render_human(&report, Some("cat"), verbose));
+    }
+    Ok(2)
+}
+
+fn cat_local_view(
+    config: CoreConfig,
+    request: LocalViewRequest,
+    requested_mode: &str,
+    options: CatRenderOptions,
+    renderer: &str,
+    as_json: bool,
+    progress_enabled: bool,
+    verbose: bool,
+) -> Result<u8, String> {
+    let resolved_renderer =
+        resolve_preview_renderer(renderer, std::io::stdout().is_terminal(), as_json)?;
+    let mut report_request = request.clone();
+    report_request.center = report_request
+        .center
+        .or_else(|| config.location.as_ref().and_then(|location| location.point()));
+    report_request.radius_km.get_or_insert(config.local_view.radius_km);
+    report_request.resolution_m.get_or_insert(config.local_view.resolution_m);
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(config.runtime.decode_workers.max(1))
+        .enable_all()
+        .build()
+        .map_err(|_| "native runtime could not be initialized".to_owned())?;
+    let engine = {
+        #[cfg(feature = "test-support")]
+        {
+            if std::env::var_os("RADIUST_TEST_LOCAL_VIEW_FIXTURE").is_some() {
+                let mut fixture_config = config.clone();
+                // The fixture adapter only reads local files; the Engine shares its network gate with selection.
+                fixture_config.runtime.allow_network = true;
+                Engine::new(fixture_config, radiust_core::test_support::local_view_registry())
+            } else {
+                Engine::new(config.clone(), SourceRegistry::default())
+            }
+        }
+        #[cfg(not(feature = "test-support"))]
+        {
+            Engine::new(config.clone(), SourceRegistry::default())
+        }
+    }
+    .map_err(|error| error.to_string())?;
+    if report_request.center.is_none() {
+        let result = failed_local_result(
+            "location_missing",
+            "location is required: set `location` in the config or pass --center",
+            "validate",
+        );
+        let report = report::local_view_envelope(&result, &report_request, requested_mode, None);
+        if as_json {
+            emit(&report, true)?;
+        } else {
+            println!("{}", report::render_human(&report, Some("cat"), verbose));
+        }
+        return Ok(2);
+    }
+    let outcome = runtime.block_on(with_progress(
+        &engine,
+        async {
+            let operation = engine.local_view(request.clone());
+            tokio::pin!(operation);
+            let cancellation = tokio::signal::ctrl_c();
+            tokio::pin!(cancellation);
+            tokio::select! {
+                biased;
+                signal = &mut cancellation => {
+                    signal.map_err(|_| EngineError::RuntimeUnavailable)?;
+                    engine.cancel();
+                    operation.await
+                }
+                result = &mut operation => result,
+            }
+        },
+        progress_enabled,
+    ));
+    let result = match outcome {
+        Ok(result) => result,
+        Err(error) => {
+            let (code, stage, exit_code) = match &error {
+                EngineError::InvalidQuery(_) | EngineError::Query(_) => {
+                    ("invalid_request", "validate", 2)
+                }
+                EngineError::Core(radiust_core::errors::CoreError::Cancelled) => {
+                    ("cancelled", "local_view", 130)
+                }
+                EngineError::Core(radiust_core::errors::CoreError::ResourceLimit(_)) => {
+                    ("resource_limit", "local_view", 5)
+                }
+                _ => ("local_view_failed", "local_view", 5),
+            };
+            let result = failed_local_result(code, &error.to_string(), stage);
+            let report =
+                report::local_view_envelope(&result, &report_request, requested_mode, None);
+            if as_json {
+                emit(&report, true)?;
+            } else {
+                println!("{}", report::render_human(&report, Some("cat"), verbose));
+            }
+            return Ok(exit_code);
+        }
+    };
+
+    let exit_code = local_view_exit_code(&result);
+    let field = result.data.as_ref().and_then(|data| match data {
+        LocalViewData::Numeric(dataset) => dataset.fields.first(),
+        LocalViewData::RawImage { .. } => None,
+    });
+    let legend = if let Some(field) = field {
+        let (vmin, vmax) =
+            radiust_core::output::png::preview_field_range(field, &options.as_png_options())
+                .map_err(|error| error.to_string())?;
+        Some(json!({
+            "rule_version": if result.selected.as_ref().is_some_and(|frame| frame.source == "rdcap") {
+                "rdcap-reflectivity-v1"
+            } else {
+                "default-1"
+            },
+            "vmin": vmin,
+            "vmax": vmax,
+            "units": field.units,
+        }))
+    } else {
+        None
+    };
+    let report = report::local_view_envelope(&result, &report_request, requested_mode, legend);
+    #[cfg(feature = "test-support")]
+    let report = {
+        let mut report = report;
+        if std::env::var_os("RADIUST_TEST_LOCAL_VIEW_FIXTURE").is_some() {
+            if let Some(fingerprints) =
+                radiust_core::test_support::local_view_data_fingerprints(&result)
+            {
+                report["result"]["test_support_data_fingerprints"] = fingerprints;
+            }
+        }
+        report
+    };
+    if result.status != LocalViewStatus::Selected {
+        if as_json {
+            emit(&report, true)?;
+        } else {
+            println!("{}", report::render_human(&report, Some("cat"), verbose));
+        }
+        return Ok(exit_code);
+    }
+    if as_json {
+        emit(&report, true)?;
+        return Ok(exit_code);
+    }
+
+    let preview = match result.data.as_ref() {
+        Some(LocalViewData::Numeric(dataset)) => {
+            let field = dataset.fields.first().ok_or("selected local view has no field")?;
+            radiust_core::output::png::preview_field_with_options(
+                field,
+                &Limits::default(),
+                &options.as_png_options(),
+            )
+            .map_err(|error| error.to_string())?
+        }
+        Some(LocalViewData::RawImage { width, height, rgba }) => {
+            let frame = result.selected.clone().ok_or("selected local view has no frame")?;
+            let preview = Preview {
+                width: *width,
+                height: *height,
+                rgba: rgba.clone(),
+                frame: Some(frame),
+                mode: PreviewMode::Raw,
+                rule_version: None,
+            };
+            preview.validate().map_err(|error| error.to_string())?;
+            preview
+        }
+        None => return Err("selected local view has no data to render".into()),
+    };
+    let caption = human::local_view_caption(&report);
+    if resolved_renderer != PreviewRenderer::Text {
+        println!("{caption}");
+    }
+    render_cat_preview(&preview, &caption, resolved_renderer, options.width, options.height)?;
+    Ok(exit_code)
+}
+
 fn cat_interrupted_envelope() -> Value {
     let mut payload = report::envelope("cat", Vec::new(), None);
     payload["error"] = json!({
@@ -2529,6 +2806,10 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             decoded,
             gray,
             dbz,
+            local,
+            radius_km,
+            resolution_m,
+            resampling,
             frame_index,
             legacy_display,
             source,
@@ -2546,8 +2827,113 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                         .into(),
                 );
             }
-            if source.is_some() && !decoded && !dbz && options.has_science_options() {
+            let local_requested =
+                local || radius_km.is_some() || resolution_m.is_some() || resampling.is_some();
+            if source.is_some()
+                && !local_requested
+                && !decoded
+                && !dbz
+                && options.has_science_options()
+            {
                 return Err("raw image preview does not accept scientific decoding options".into());
+            }
+            if file.is_some() && local_requested {
+                let request = LocalViewRequest {
+                    radius_km,
+                    resolution_m,
+                    source,
+                    product,
+                    station: stations.into_iter().next(),
+                    ..LocalViewRequest::default()
+                };
+                return cat_local_validation_error(
+                    request,
+                    local_mode_name(raw, decoded, gray || legacy_display, dbz),
+                    "local view cannot be combined with --file",
+                    cli.json,
+                    cli.verbose,
+                );
+            }
+            if file.is_none() && (source.is_none() || local_requested) {
+                let mode = if dbz {
+                    LocalViewMode::Dbz
+                } else if raw {
+                    LocalViewMode::Raw
+                } else if decoded {
+                    LocalViewMode::Decoded
+                } else {
+                    LocalViewMode::Auto
+                };
+                let request = LocalViewRequest {
+                    radius_km,
+                    resolution_m,
+                    source: source.clone(),
+                    product: product.clone(),
+                    station: stations.first().cloned(),
+                    mode,
+                    resampling: match resampling.as_deref() {
+                        Some("bilinear") => LocalViewResampling::Bilinear,
+                        _ => LocalViewResampling::Nearest,
+                    },
+                    ..LocalViewRequest::default()
+                };
+                let invalid = if gray || legacy_display {
+                    Some("local views do not support --gray or --legacy-display")
+                } else if frame_index.is_some() {
+                    Some("--frame-index applies only to a local --file image")
+                } else if variable.is_some() {
+                    Some("--variable is not supported for source local views")
+                } else if at.is_some() || base_time.is_some() {
+                    Some(
+                        "local views currently accept latest frames only; --at and --base-time are unsupported",
+                    )
+                } else if stations.len() > 1 {
+                    Some("local views accept at most one --station")
+                } else if request.source.is_none()
+                    && (request.product.is_some() || request.station.is_some())
+                {
+                    Some("--product and --station require an explicit SOURCE")
+                } else {
+                    None
+                };
+                if let Some(message) = invalid {
+                    return cat_local_validation_error(
+                        request,
+                        local_mode_name(raw, decoded, gray || legacy_display, dbz),
+                        message,
+                        cli.json,
+                        cli.verbose,
+                    );
+                }
+                if let Err(error) = options.validate() {
+                    return cat_local_validation_error(
+                        request,
+                        local_mode_name(raw, decoded, gray || legacy_display, dbz),
+                        &error,
+                        cli.json,
+                        cli.verbose,
+                    );
+                }
+                if let Err(error) = request.validate() {
+                    return cat_local_validation_error(
+                        request,
+                        local_mode_name(raw, decoded, gray || legacy_display, dbz),
+                        &error.to_string(),
+                        cli.json,
+                        cli.verbose,
+                    );
+                }
+                let config = load_config(cli.config_path.as_deref())?;
+                return cat_local_view(
+                    config,
+                    request,
+                    local_mode_name(raw, decoded, gray || legacy_display, dbz),
+                    options,
+                    &renderer,
+                    cli.json,
+                    progress_enabled,
+                    cli.verbose,
+                );
             }
             options.validate()?;
             if legacy_display && !cli.json {
@@ -3067,6 +3453,32 @@ mod tests {
     }
 
     #[test]
+    fn cat_parser_accepts_local_projection_options_and_bare_cat() {
+        assert!(matches!(
+            Cli::try_parse_from(["radiust", "cat"]).unwrap().command,
+            Command::Cat { source: None, file: None, .. }
+        ));
+        assert!(matches!(
+            Cli::try_parse_from([
+                "radiust", "cat", "rainviewer", "--local", "--radius-km", "25",
+                "--resolution-m", "500", "--resampling", "nearest", "--decoded"
+            ])
+            .unwrap()
+            .command,
+            Command::Cat {
+                source: Some(source),
+                local: true,
+                radius_km: Some(25.0),
+                resolution_m: Some(500.0),
+                resampling: Some(method),
+                decoded: true,
+                ..
+            } if source == "rainviewer" && method == "nearest"
+        ));
+        assert!(Cli::try_parse_from(["radiust", "cat", "--resampling", "cubic"]).is_err());
+    }
+
+    #[test]
     fn cat_render_options_are_bounded_and_keep_default_palette_semantics() {
         assert!(
             CatRenderOptions {
@@ -3564,6 +3976,97 @@ mod tests {
         };
         frame.logical_id = logical_id(&frame).unwrap();
         frame
+    }
+
+    #[test]
+    fn local_view_exit_codes_follow_status() {
+        let result = |status, selection: Vec<radiust_core::model::LocalViewAttempt>| {
+            LocalViewResult::new(
+                status,
+                None,
+                None,
+                None,
+                None,
+                selection,
+                false,
+                Some(radiust_core::model::SafeError {
+                    code: "x".into(),
+                    message: "x".into(),
+                    stage: "x".into(),
+                    retryable: false,
+                }),
+            )
+            .unwrap()
+        };
+        let attempt = |reason: &str| radiust_core::model::LocalViewAttempt {
+            target: DiscoveryTarget { source: "s".into(), product: None, station: None },
+            state: radiust_core::model::LocalViewCandidateState::Excluded,
+            discovery_status: None,
+            reason: reason.into(),
+            error: None,
+            observation_coverage: None,
+            spatial_evidence: None,
+        };
+        assert_eq!(local_view_exit_code(&result(LocalViewStatus::TimedOut, vec![])), 5);
+        assert_eq!(local_view_exit_code(&result(LocalViewStatus::Failed, vec![])), 5);
+        assert_eq!(local_view_exit_code(&result(LocalViewStatus::Interrupted, vec![])), 130);
+        assert_eq!(local_view_exit_code(&result(LocalViewStatus::NoCandidate, vec![])), 3);
+        assert_eq!(
+            local_view_exit_code(&result(
+                LocalViewStatus::NoCandidate,
+                vec![attempt("network_restricted")]
+            )),
+            2
+        );
+        // Unavailable sources do not change why the remaining candidates cannot run.
+        assert_eq!(
+            local_view_exit_code(&result(
+                LocalViewStatus::NoCandidate,
+                vec![
+                    attempt("network_restricted"),
+                    attempt("source_retired"),
+                    attempt("missing_credentials"),
+                    attempt("unsupported_source")
+                ]
+            )),
+            2
+        );
+        for reasons in [
+            vec!["source_retired", "missing_credentials"],
+            vec!["network_restricted", "outside_domain"],
+            vec!["network_restricted", "unsupported_mode_or_geometry"],
+            vec!["network_restricted", "upstream_failed"],
+        ] {
+            assert_eq!(
+                local_view_exit_code(&result(
+                    LocalViewStatus::NoCandidate,
+                    reasons.into_iter().map(attempt).collect()
+                )),
+                3
+            );
+        }
+    }
+
+    #[test]
+    fn metadata_endpoint_is_reported_only_for_local_view() {
+        let mut frame = cat_test_frame("https://example.com/image.png".into());
+        frame.locator["metadata_endpoint"] = json!("https://example.com/meta");
+        assert_eq!(public_source_urls(&frame), ["https://example.com/image.png"]);
+        assert_eq!(
+            local_view_source_urls(&frame),
+            ["https://example.com/image.png", "https://example.com/meta"]
+        );
+    }
+
+    #[test]
+    fn public_metadata_endpoint_strips_credentials_queries_and_fragments() {
+        let mut frame = cat_test_frame("https://example.com/image.png".into());
+        frame.locator["metadata_endpoint"] =
+            json!("https://user:secret@example.com/fileapi/product?Authorization=secret#private");
+        assert_eq!(
+            local_view_source_urls(&frame),
+            ["https://example.com/image.png", "https://example.com/fileapi/product"]
+        );
     }
 
     fn cat_test_engine(

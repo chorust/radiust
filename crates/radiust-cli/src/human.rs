@@ -112,6 +112,10 @@ pub(crate) fn render(value: &Value, hint: Option<&str>, verbose: bool) -> String
     render_with(value, hint, verbose, &presentation)
 }
 
+pub(crate) fn local_view_caption(value: &Value) -> String {
+    local_view_summary(value)
+}
+
 fn render_with(value: &Value, hint: Option<&str>, verbose: bool, p: &Presentation) -> String {
     let command = value["command"].as_str().or(hint).unwrap_or("result");
     let heading = if command == "cache" {
@@ -120,6 +124,15 @@ fn render_with(value: &Value, hint: Option<&str>, verbose: bool, p: &Presentatio
         command.to_ascii_uppercase()
     };
     let mut sections = vec![p.title(&heading)];
+    if value["local_view_schema_version"] == 1 {
+        sections.push(local_view_summary(value));
+        if verbose {
+            sections.push(
+                "diagnostics:\n  runtime: rust\n  report_schema: 1\n  secrets: redacted".into(),
+            );
+        }
+        return format!("{}\n{}", sections[0], sections[1..].join("\n\n"));
+    }
     if let Some(query) = value.get("query").filter(|query| query.is_object()) {
         let mut parts = Vec::new();
         for key in ["source", "sources", "product", "stations", "at", "start", "end", "base_time"] {
@@ -224,6 +237,109 @@ fn render_with(value: &Value, hint: Option<&str>, verbose: bool, p: &Presentatio
         "{heading}\n{}",
         sections.into_iter().filter(|part| !part.is_empty()).collect::<Vec<_>>().join("\n\n")
     )
+}
+
+fn local_view_summary(value: &Value) -> String {
+    let result = &value["result"];
+    let mut lines = vec![format!("Status: {}", field(value, "status"))];
+    let center = &result["center"];
+    if center.is_object() {
+        lines.push(format!(
+            "Center: {:.5}, {:.5} (latitude, longitude)",
+            center["latitude"].as_f64().unwrap_or_default(),
+            center["longitude"].as_f64().unwrap_or_default(),
+        ));
+    } else {
+        lines.push("Center: not configured".into());
+    }
+    lines.push(format!(
+        "Axes: x east (+), y north (+); top row north; extent ±{} km; grid coordinates are meters",
+        result["radius_m"]
+            .as_f64()
+            .map(|value| format_general(value / 1000.0))
+            .unwrap_or_else(|| "-".into()),
+    ));
+    lines.push(format!(
+        "Range: {} km; spacing: {} m requested, {} m actual; shape: {}",
+        result["radius_m"]
+            .as_f64()
+            .map(|value| format_general(value / 1000.0))
+            .unwrap_or_else(|| "-".into()),
+        field(result, "requested_resolution_m"),
+        field(result, "actual_resolution_m"),
+        field(result, "shape"),
+    ));
+    if !result["selected"].is_null() {
+        let selected = &result["selected"];
+        lines.push(format!(
+            "Radar: {}/{}/{} at {}",
+            field(selected, "source"),
+            field(selected, "product"),
+            field(selected, "station"),
+            field(selected, "valid_time"),
+        ));
+        if selected["source"] == "rainviewer" {
+            lines.push("Weather data by RainViewer: https://www.rainviewer.com/".into());
+        }
+        let mode = &value["mode_info"];
+        lines.push(format!(
+            "Data: {} ({}, {}); resampling: {}; projection: AEQD / WGS84",
+            field(mode, "variable"),
+            field(mode, "actual"),
+            field(mode, "units"),
+            field(&result["requested_scope"], "resampling"),
+        ));
+        if !result["legend"].is_null() {
+            lines.push(format!(
+                "Legend: {} to {} {}; palette {}",
+                result["legend"]["vmin"]
+                    .as_f64()
+                    .map(format_general)
+                    .unwrap_or_else(|| field(&result["legend"], "vmin")),
+                result["legend"]["vmax"]
+                    .as_f64()
+                    .map(format_general)
+                    .unwrap_or_else(|| field(&result["legend"], "vmax")),
+                field(&result["legend"], "units"),
+                field(&result["legend"], "rule_version"),
+            ));
+        }
+        if !result["coverage_evidence"].is_null() {
+            lines.push(format!(
+                "Current frame domain: {} pixels inside requested view ({} in-view pixels); observation coverage remains unknown",
+                field(&result["coverage_evidence"], "frame_domain_in_view_pixels"),
+                field(&result["coverage_evidence"], "in_view_pixels"),
+            ));
+        }
+    }
+    if let Some(attempts) = result["selection"].as_array() {
+        for attempt in attempts {
+            let target = ["source", "product", "station"]
+                .into_iter()
+                .filter_map(|key| {
+                    attempt.get(key).filter(|value| !value.is_null()).map(display_value)
+                })
+                .collect::<Vec<_>>()
+                .join("/");
+            lines.push(format!(
+                "Selection: {} — {} ({})",
+                target,
+                field(attempt, "reason"),
+                field(attempt, "state"),
+            ));
+        }
+    }
+    if value["result"]["candidate_limit_reached"] == true {
+        lines.push("Candidate limit reached; other candidates were not tried".into());
+    }
+    if !value["error"].is_null() {
+        lines.push(format!("Error: {}", field(&value["error"], "message")));
+    }
+    lines.join("\n")
+}
+
+fn format_general(value: f64) -> String {
+    format!("{value:.6}").trim_end_matches('0').trim_end_matches('.').to_owned()
 }
 
 fn field(value: &Value, key: &str) -> String {
@@ -550,6 +666,45 @@ mod tests {
         assert_eq!(output.matches("transport request failed").count(), 1);
         assert!(output.contains("nz/rain"));
         assert!(output.contains("pt/composite"));
+    }
+
+    #[test]
+    fn local_view_summary_names_the_centered_axes_range_time_and_legend() {
+        let report = json!({
+            "command": "cat",
+            "local_view_schema_version": 1,
+            "status": "selected",
+            "mode_info": {"requested":"auto", "actual":"dbz", "variable":"reflectivity", "units":"dBZ"},
+            "result": {
+                "center": {"longitude":121.6, "latitude":24.0},
+                "radius_m":50000.0,
+                "requested_resolution_m":1000.0,
+                "actual_resolution_m":1000.0,
+                "shape":[101,101],
+                "requested_scope":{"resampling":"bilinear"},
+                "selected":{"source":"fr", "product":"composite", "station":null, "valid_time":"2026-10-01T00:00:00Z"},
+                "legend":{"vmin":0.0,"vmax":50.0,"units":"dBZ","rule_version":"default-1"},
+                "coverage_evidence":{"in_view_pixels":7845,"frame_domain_in_view_pixels":7000},
+                "selection":[{"source":"fr","product":"composite","reason":"selected","state":"selected"}],
+                "candidate_limit_reached":false
+            },
+            "error":null
+        });
+        let output = render_with(&report, None, false, &plain(120));
+
+        assert!(output.contains("Center: 24.00000, 121.60000"));
+        assert!(output.contains("x east (+), y north (+)"));
+        assert!(output.contains("extent ±50 km"));
+        assert!(output.contains("fr/composite/- at 2026-10-01T00:00:00Z"));
+        assert!(output.contains("resampling: bilinear"));
+        assert!(output.contains("Legend: 0 to 50 dBZ; palette default-1"));
+        assert!(output.contains("observation coverage remains unknown"));
+
+        let mut rainviewer = report;
+        rainviewer["result"]["selected"]["source"] = json!("rainviewer");
+        let credit = local_view_summary(&rainviewer);
+        assert!(credit.contains("Weather data by RainViewer"));
+        assert!(credit.contains("https://www.rainviewer.com/"));
     }
 
     #[test]

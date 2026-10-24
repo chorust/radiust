@@ -325,13 +325,16 @@ fn sparse_buffers_are_included_in_the_decode_byte_budget() {
             &serde_json::to_vec(&content).unwrap(),
             root.path(),
         );
-        let required_bytes = 4
+        let decoded_bytes = 4
             * (std::mem::size_of::<i16>()
                 + std::mem::size_of::<f32>()
                 + std::mem::size_of::<u16>())
             + ndv * (std::mem::size_of::<usize>() + std::mem::size_of::<i16>())
-            + 3 * std::mem::size_of::<usize>();
-        let mut limits = Limits { max_temp_bytes: required_bytes as u64 - 1, ..Limits::default() };
+            + 3 * std::mem::size_of::<usize>()
+            + 4 * std::mem::size_of::<f64>();
+        let input_bytes = std::fs::metadata(&raw.artifacts[0].path).unwrap().len() * 3;
+        let required_bytes = input_bytes + decoded_bytes as u64;
+        let mut limits = Limits { max_temp_bytes: required_bytes - 1, ..Limits::default() };
         assert!(matches!(
             radiust_core::science::decode_rdcap(&raw, &limits),
             Err(CoreError::ResourceLimit(_))

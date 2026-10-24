@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "feature": "006-location-radar-view",
+  "review_fix_verification": {
+    "recorded_at": "2026-10-24",
+    "scope": "Offline code-review regressions; does not re-establish SC-008 live acceptance or final installed-wheel acceptance.",
+    "core": {
+      "command": "cargo test -p radiust-core --offline --lib --test local_view_sampling --test local_view_catalog --test local_view_evidence --test local_view_projection --test gray_dbz_local",
+      "passed": 422,
+      "ignored": 1,
+      "failed": 0
+    },
+    "cli": {"suites": ["radiust-cli lib", "local_view_cli"], "passed": 54, "failed": 0},
+    "http_metadata": {"passed": 21, "failed": 0},
+    "python": {
+      "build_command": "env -u CONDA_PREFIX UV_OFFLINE=true .venv/bin/maturin develop --offline --features extension-module,test-support",
+      "build_exit_code": 0,
+      "command": "env -u RADIUST_TEST_ALLOW_LIVE -u RADIUST_TEST_ALLOW_PROVIDER CARGO_NET_OFFLINE=true .venv/bin/python -m pytest tests/contract tests/integration -q",
+      "passed": 355,
+      "skipped": 3,
+      "failed": 0,
+      "sdk_fixture_smoke": {
+        "network": "disabled; synthetic test-support fixture",
+        "status": "selected",
+        "shape": [3, 3],
+        "numeric_fields": 1,
+        "observation_coverage": "unknown",
+        "spatial_rank_reason": "needs_probe_coverage_unknown"
+      }
+    },
+    "discovery_contract": {
+      "command": ".venv/bin/python -m pytest -q tests/contract/test_cli_discover_all.py",
+      "passed": 10,
+      "failed": 0
+    },
+    "offline_cli_smoke": {
+      "configured_bare_cat": {"error_code": "network_disabled", "exit_code": 2},
+      "rainviewer_local": {"error_code": "network_disabled", "exit_code": 2},
+      "retired_uk_local": {"error_code": "no_candidate", "exit_code": 3}
+    }
+  },
+  "recorded_at": "2026-10-10",
+  "scope": "US1–US3 offline implementation and regression evidence; fixed-frame CLI/sync/async replay and US2 aggregate gate passed; live-provider automatic admission remains open",
+  "historical_note": "Except for review_fix_verification, this ledger records the 2026-10-10..2026-10-17 pre-admission state. Statements below that live-provider automatic admission is open, that SC-001/SC-008 are partial, and that T052/T053 are unachieved describe that state only. The later 2026-10-24 RainViewer personal-use local_view admission is recorded in 006-local-view-live.json (t052_personal_local_view_default). Offline review regressions are recorded separately above; the historical build and installed-wheel acceptance records below are not results for the corrected implementation.",
+  "superseded_by": "006-local-view-live.json#t052_personal_local_view_default",
+  "build": {
+    "git_head": "fee15193ec9d69d08bf27c9405f7c501486d17e9",
+    "worktree_dirty": true,
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "python": "CPython 3.12.7",
+    "platform": "macOS 26.6.2 arm64",
+    "extension_version": "0.1.1",
+    "extension_path": "python/radiust/_core.cpython-312-darwin.so",
+    "extension_sha256": "1e64757b82612c3677717953c4ae5d84e427176a8fe1a4cec826cf64f12df152",
+    "extension_build_command": "env -u CONDA_PREFIX uv run --group dev maturin develop",
+    "extension_build_exit_code": 0
+  },
+  "fixtures": [
+    {
+      "path": "tests/fixtures/local-view/reference.json",
+      "sha256": "3b7f357f00e42e46b55c67d7563d0e188a4cc59ad9159561cbe273ee5ba543ae",
+      "status": "The original projection-reference record predates the 2026-10-17 T027/T036 closure; fixed-input cross-entry success and exclusion replays are recorded below. One bounded live same-frame replay is recorded separately in 006-local-view-live.json."
+    }
+  ],
+  "follow_up_verification": {
+    "recorded_at": "2026-10-10",
+    "reason": "A live bilinear probe found the loaded extension rejected a behavior implemented in current Rust source; the editable native extension was rebuilt before parity verification.",
+    "native_extension": {
+      "command": "env -u CONDA_PREFIX uv run --group dev maturin develop",
+      "exit_code": 0,
+      "sha256": "38ea315acdf3f542430dc55c7a9bcb6faf535801edf2f47dee94c0c94a09bf17"
+    },
+    "tests": [
+      {"command": "env -u CONDA_PREFIX uv run --group dev pytest -q tests/contract/test_local_view.py tests/contract/test_cli_cat.py", "exit_code": 0, "passed": 14, "failed": 0},
+      {"command": "cargo test -p radiust-core --lib local_view_flow::", "exit_code": 0, "passed": 17, "failed": 0},
+      {"command": "cargo test -p radiust-cli --test local_view_cli", "exit_code": 0, "passed": 3, "failed": 0}
+    ]
+  },
+  "t027_core_follow_up": {
+    "recorded_at": "2026-10-17",
+    "git_head": "fee15193ec9d69d08bf27c9405f7c501486d17e9",
+    "evidence_kind": "offline controlled fixture regression",
+    "fixture": "tests/fixtures/sources/pt/raw/PTST2.png",
+    "core_matrix": {
+      "raw_pt_nearest": "passed; receipt-bound 1500x1526 IPMA webpage-overlay geometry",
+      "auto_pt_nearest": "passed; returns raw image data",
+      "decoded_and_dbz_rainviewer": "passed; both retain the native reflectivity dBZ field",
+      "raw_only_native_modes": "passed; decoded/dbz and auto+bilinear produce no raw fallback",
+      "auto_bilinear_raw_and_categorical_exclusion": "passed; PT raw and SG categorical selector are excluded",
+      "view_change_after_raw_cache_hit": "passed; valid_time, frame logical ID, and input receipts stay equal; processing ID changes; adapter fetch count remains one"
+    },
+    "tests": [
+      {"command": "cargo test -p radiust-core local_view_", "exit_code": 0, "passed": 52, "failed": 0, "result": "43 library unit tests and 9 integration tests"},
+      {"command": "cargo test -p radiust-core --test local_view_projection --test local_view_sampling --test local_view_catalog --test local_view_evidence", "exit_code": 0, "passed": 9, "failed": 0},
+      {"command": "cargo test -p radiust-cli --test local_view_cli", "exit_code": 0, "passed": 3, "failed": 0},
+      {"command": "cargo test -p radiust-cli local_view", "exit_code": 0, "passed": 2, "failed": 0},
+      {"command": ".venv/bin/python -m pytest -q tests/contract/test_local_view.py", "exit_code": 0, "passed": 7, "failed": 0},
+      {"command": ".venv/bin/python -m pytest -q tests/contract/test_cli_cat.py", "exit_code": 0, "passed": 7, "failed": 0},
+      {"command": "cargo fmt --all -- --check", "exit_code": 0, "result": "passed"}
+    ],
+    "remaining": "This Core-only follow-up predates the fixed cross-entry replay recorded below."
+  },
+  "cross_entry_follow_up": {
+    "recorded_at": "2026-10-17",
+    "evidence_kind": "offline controlled fixture replay",
+    "network": "The fixture configuration keeps runtime.allow_network=false. Test-support clones it for the fixture Engine and opens its shared gate so explicit-source fixtures can run; the registry overrides PT/RainViewer with file-only adapters and SG with a logged empty-discovery stub. These adapters do not call HTTP/FTP transports. SG's auto+bilinear exclusion is asserted before discovery and fetch. No public upstream request was made.",
+    "cases": {
+      "pt_raw": "The receipt-bound PTST2 frame was selected by CLI, sync SDK, and async SDK at 1 km spacing. Frame logical ID, valid_time, receipt, processing record, and grid matched; RGBA SHA-256 matched across all three. Repeating with radius 2 km retained frame identity/receipt, changed processing ID, and caused one fixture fetch per entry.",
+      "rainviewer_decoded": "The fixed RainViewer tile frame produced matching source identity, receipts, processing record, and grid through all three entries; numeric values and quality SHA-256 matched exactly.",
+      "rainviewer_dbz": "The fixed RainViewer tile frame produced matching source identity, receipts, processing record, and grid through all three entries; dBZ values and quality SHA-256 matched exactly.",
+      "auto_bilinear_exclusion": "PT raw geometry was excluded by auto+bilinear in all three entries; each returned no_candidate, no raw data, and no fetch.",
+      "categorical_bilinear_exclusion": "SG categorical selector was excluded by auto+bilinear in all three entries with unsupported_mode_or_geometry; discovery and fetch logs remained empty.",
+      "native_failure": "An invalid RainViewer native fixture failed consistently in all three entries; no entry returned a raw fallback."
+    },
+    "tests": [
+      {
+        "command": "env -u CONDA_PREFIX uv run pytest -q tests/integration/test_local_view.py",
+        "exit_code": 0,
+        "passed": 5,
+        "failed": 0
+      },
+      {
+        "command": "env -u CONDA_PREFIX uv run pytest -q tests/contract/test_local_view.py tests/contract/test_cli_cat.py tests/integration/test_local_view.py",
+        "exit_code": 0,
+        "passed": 19,
+        "failed": 0
+      },
+      {
+        "command": "env -u CONDA_PREFIX uv run ruff check tests/integration/test_local_view.py",
+        "exit_code": 0,
+        "result": "passed"
+      },
+      {
+        "command": "cargo fmt --all -- --check",
+        "exit_code": 0,
+        "result": "passed"
+      }
+    ],
+    "test_support": "The opt-in feature adds only local fixture adapters, SDK engine injection, and CLI data fingerprints; CLI fingerprints appear only when both test-support and the explicit fixture environment flag are active. The CLI fixture binary builds into target/local-view-test-support so normal builds cannot overwrite it."
+  },
+  "commands": [
+    {
+      "command": "cargo check -p radiust-core --features extension-module",
+      "exit_code": 0,
+      "result": "compiled typed PyO3 local-view boundary"
+    },
+    {
+      "command": "cargo test -p radiust-core --lib local_view",
+      "exit_code": 0,
+      "passed": 32,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p radiust-core --lib local_view_flow::",
+      "exit_code": 0,
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p radiust-core --lib config::tests::",
+      "exit_code": 0,
+      "passed": 18,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p radiust-core --lib grid::tests::",
+      "exit_code": 0,
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p radiust-cli --lib local_view",
+      "exit_code": 0,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p radiust-cli --test local_view_cli",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "env -u CONDA_PREFIX uv run --group dev pytest -q tests/contract/test_local_view.py tests/contract/test_cli_cat.py tests/contract/test_python_sdk.py tests/contract/test_config.py",
+      "exit_code": 0,
+      "passed": 29,
+      "failed": 0
+    },
+    {
+      "command": "env -u CONDA_PREFIX uv run --group dev pytest -q tests/contract/test_discovery_config.py tests/contract/test_grids.py tests/contract/test_cli_cat.py",
+      "exit_code": 0,
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "command": "env -u CONDA_PREFIX uv run --group dev ruff check python/radiust/__init__.py python/radiust/models.py python/radiust/_bridge.py python/radiust/rust_client.py tests/contract/test_local_view.py",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p radiust-core --test local_view_projection -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0,
+      "result": "59 independent controls; maximum inverse projection error 0 m"
+    },
+    {
+      "command": "cargo test -p radiust-core --test local_view_sampling --test local_view_catalog --test local_view_evidence",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0,
+      "result": "sampling/registration, 95 candidate index, and evidence relation cases passed"
+    },
+    {
+      "command": "cargo test -p radiust-core --test local_view_projection --test local_view_sampling --test local_view_catalog --test local_view_evidence",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "result": "independent projection controls, sampling/registration, candidate index, and evidence relation cases passed"
+    },
+    {
+      "command": "env -u CONDA_PREFIX uv run --group dev pytest -q tests/contract/test_local_view.py tests/contract/test_cli_cat.py tests/contract/test_config.py",
+      "exit_code": 0,
+      "passed": 26,
+      "failed": 0,
+      "result": "26 passed after adding the fresh-interpreter import regression test"
+    },
+    {
+      "command": "env -u CONDA_PREFIX uv run --group dev pytest -q tests/contract/test_local_view.py -k fresh_interpreter",
+      "exit_code": 0,
+      "passed": 1,
+      "failed": 0,
+      "result": "fresh interpreter imports LocalViewGrid/Request/Result without a circular import"
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0,
+      "result": "Rust formatting check passed"
+    },
+    {
+      "command": "python3 scripts/release/prepare.py --check-resources",
+      "exit_code": 0,
+      "result": "verified 39 embedded resources"
+    },
+    {
+      "command": "env -u CONDA_PREFIX uv run --group dev ruff check python/radiust/_bridge.py tests/contract/test_local_view.py",
+      "exit_code": 0,
+      "result": "All checks passed after the deferred model import fix."
+    },
+    {
+      "command": "installed CPython 3.12 wheel SDK/CLI assertion smoke; see 006-local-view-packaging.json",
+      "exit_code": 0,
+      "result": "Typed exports and 25 sources present; disabled-network SDK and CLI both report no_candidate with the configured center."
+    }
+  ],
+  "scenario_evidence": {
+    "preferred_candidate": "local_view_selects_the_first_eligible_candidate_without_fallback",
+    "fallback": "local_view_falls_back_in_evidence_order_and_preserves_both_attempts",
+    "all_failed_and_explicit_source_scope": "local_view_reports_all_failures_and_never_crosses_explicit_source_scope",
+    "partial_current_frame_domain": "local_view_keeps_partial_current_frame_domain_separate_from_view_mask",
+    "all_missing": "local_view_keeps_all_missing_frames_and_does_not_fallback",
+    "below_display_threshold": "local_view_does_not_apply_a_display_threshold_to_low_reflectivity",
+    "limits_deadline_and_cancellation": "local_view_flow tests cover preflight limits, shared deadline, cancellation, worker release, and no late publish",
+    "sdk": "sync/async no-candidate results match; request defaults/overrides, environment origins, native-boundary conversion, and task cancellation are covered",
+    "projection": "59 independent reference controls passed; maximum inverse error 0 m",
+    "nearest_sampling": "non-square 2x3 field preserves center value 20 dBZ and quality flag 1 exactly under ascending/descending x and y axes",
+    "bilinear_sampling": "local-view dBZ Z-domain result matches the reference within 1e-4 dBZ; generic grid interpolation reference is within 1e-5 dBZ; interpolation quality is preserved",
+    "station_inventory": "48 RDCAP IDs, 47 SIDARMA historical records, 10 selectors, 26 product relations, and 95 Tropical Globe primary candidates; 105 inventory rows are not called physical stations; all expansion remains 74"
+  },
+  "success_criteria": {
+    "SC-001": {
+      "status": "partial",
+      "evidence": "Bare cat configured-center/no-candidate and legacy source/file routes pass. Fixed PT/RainViewer fixtures now replay selected frames through CLI, sync SDK, and async SDK with identical frame/grid/processing identity and exact raw RGBA or values/quality fingerprints. Automatic selection still has no source with verified default-use admission, so the no-source bare-cat success criterion remains open."
+    },
+    "SC-005": {
+      "status": "controlled_scenarios_passed",
+      "evidence": "The six listed selection/data scenarios preserve source, current-frame domain, missing quality, and low values in the controlled Engine tests; zero incorrect cross-source transitions or invented no-rain values were observed in this matrix."
+    },
+    "SC-006": {
+      "status": "controlled_scenarios_passed",
+      "evidence": "Legacy source/file routing and sync/async terminal-result parity pass. Fixed PT raw and RainViewer decoded/dbz fixture replays match frame/receipt/processing/grid identity and exact output fingerprints through CLI, sync SDK, and async SDK; PT raw and SG categorical auto+bilinear exclusions also match, with SG discovery/fetch logs empty. Controlled no-candidate and native-failure outcomes match without raw fallback. CLI array fingerprints exist only in the test-support build. This is limited to the exercised fixtures and does not imply every provider or platform has equivalent evidence."
+    },
+    "SC-007": {
+      "status": "controlled_scenarios_passed",
+      "evidence": "Preflight resource limits, shared candidate deadlines, cancellation, CPU-worker release, and no late publish pass in controlled tests; broader stress/platform coverage remains open."
+    },
+    "SC-002": {
+      "status": "passed",
+      "evidence": "59 independent projection controls passed for distance, direction, center, dateline, high latitude, and polar cases; maximum inverse error 0 m. Provider pixel-location uncertainty remains separately constrained by each geometry record."
+    },
+    "SC-003": {
+      "status": "passed",
+      "evidence": "Catalog tests and audit records preserve 48 RDCAP station IDs, 47 SIDARMA historical coordinates, 10 selectors, 26 product relations, and 95 external candidates; conflicts/unknowns remain explicit, no range becomes coverage, and all expansion stays 74."
+    },
+    "SC-004": {
+      "status": "controlled_scenarios_passed",
+      "evidence": "T036 aggregate US2 acceptance passed with independent projection controls, non-square sampling/registration, Core raw/numeric mode and cache/view-identity cases, and the fixed-input three-entry replay. Nearest sampling preserves the center 20 dBZ value and quality flag 1 exactly under both axis directions; local-view dBZ bilinear matches the Z-domain reference within 1e-4 dBZ. PT source pixel-location uncertainty remains separate from projection accuracy and independent pixel tie points remain unavailable."
+    },
+    "SC-008": {
+      "status": "partial",
+      "evidence": "An explicit RainViewer live chain was recorded for T051, but no product passed default admission and the test-point observation coverage remains unknown; the full SC-008 default chain was not achieved, so T052 stays open."
+    }
+  },
+  "transient_test_issue": {
+    "command": "initial run of the local-view/CLI/SDK/config pytest group",
+    "exit_code": 1,
+    "result": "28 passed, 1 failed because the fake native core in the result-conversion test omitted safety_value_json",
+    "resolution": "Added the missing sanitizer method to the test double; the exact group then passed 29 tests."
+  },
+  "not_verified": [
+    "This offline record contains no public upstream request; the separate live record has explicit RainViewer results. Production catalog automatic admission remains false.",
+    "SC-001 remains partial because no real product has passed automatic default-use admission; fixture replay does not replace current upstream, permission, or coverage evidence.",
+    "The fixed fixture replay compares the CLI's test-only data fingerprints with SDK bytes; standard CLI JSON intentionally omits pixel arrays. PT's webpage overlay geometry has no independent pixel tie points, so source pixel-location uncertainty is not covered by projection accuracy.",
+    "The offline installed-wheel smoke intentionally did not exercise a selected-frame success path; that path is recorded separately in the live evidence. Mode/cancellation are covered by controlled Core and SDK tests.",
+    "T051 explicit live source chain was run and passed. T052 default admission, T053 final gate, and SC-008 remain unachieved."
+  ],
+  "projection_controls": {
+    "independent_reference_points": 59,
+    "max_inverse_error_m": 0.0,
+    "coverage": "10/50/200/500 km; cardinal and diagonal directions; dateline, high latitude, polar cases",
+    "source_pixel_location_error": "separately limited by provider geometry evidence; no global claim"
+  },
+  "station_catalog_evidence": {
+    "rdcap_unique_station_ids": 48,
+    "sidarma_historical_coordinate_records": 47,
+    "region_or_product_selectors": 10,
+    "products_with_spatial_relations": 26,
+    "tropical_globe_primary_candidates": 95,
+    "possible_sorong_successor": 1,
+    "inventory_rows": 105,
+    "inventory_rows_are_physical_station_count": false,
+    "rdcap_plus_sidarma_is_claimed_station_total": false,
+    "all_target_expansion": 74,
+    "automatic_admissions": 0,
+    "false_coordinate_merge_or_coverage_claims": 0,
+    "conflicts_and_unknown_relations_preserved": true
+  },
+  "packaging_report": "006-local-view-packaging.json",
+  "resolved_import_issue": {
+    "symptom": "Fresh wheel import of radiust.models raised a circular import through safety -> _bridge -> models.",
+    "fix": "Moved LocalViewGrid/LocalViewResult runtime imports into CoreEngineSession.local_view and retained a TYPE_CHECKING import for annotations.",
+    "regression": "Fresh-interpreter import test passed after the fix; rebuilt wheel SDK/CLI smoke passed."
+  }
+}

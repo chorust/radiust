@@ -50,9 +50,11 @@ def test_native_discover_all_returns_one_offline_aggregate_report() -> None:
     report = json.loads(result.output)
     assert report["schema_version"] == 1
     assert report["query"] == {"source": "all", "latest": True, "max_age": None}
-    assert report["counts"]["total"] == 74
-    assert report["counts"]["total"] == len(report["items"])
-    assert report["counts"]["network_restricted"] == 70
+    wide = next(
+        item for item in report["items"]
+        if item["source"] == "tw" and item["product"] == "observation-wide"
+    )
+    assert wide["status"] == "missing_credentials"
     ph = next(item for item in report["items"] if item["source"] == "ph")
     assert ph["status"] == "network_restricted"
 

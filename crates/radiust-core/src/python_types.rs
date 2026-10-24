@@ -9,7 +9,10 @@ use crate::engine::{Engine, EngineError};
 use crate::error_contract::{ErrorCode, ErrorReport, ErrorStage};
 use crate::errors::{CoreError, ProviderError};
 use crate::grid::Resampling;
-use crate::model::{DiscoveryReport, FrameRef, Grid, Query, RadarDataset, RadarField, RawFrame};
+use crate::model::{
+    DiscoveryReport, FrameRef, Grid, LocalViewData, LocalViewRequest, LocalViewResult,
+    LocalViewStatus, Query, RadarDataset, RadarField, RawFrame,
+};
 use crate::raster::{AlphaPlane, GrayDecision, PixelDbzField, RasterResult, RasterResultData};
 use crate::runtime::RuntimeEventReceiver;
 use crate::source::SourceRegistry;
@@ -300,6 +303,7 @@ pub struct PyRadarField {
 enum RadarFieldBacking {
     Owned(Arc<RadarField>),
     Dataset { owner: Arc<RadarDataset>, index: usize },
+    LocalView { owner: Arc<LocalViewResult>, index: usize },
 }
 
 impl PyRadarField {
@@ -309,7 +313,141 @@ impl PyRadarField {
             RadarFieldBacking::Dataset { owner, index } => {
                 owner.fields.get(*index).expect("dataset field index is validated")
             }
+            RadarFieldBacking::LocalView { owner, index } => {
+                let Some(LocalViewData::Numeric(dataset)) = owner.data.as_ref() else {
+                    unreachable!("local-view field wrapper requires numeric data")
+                };
+                dataset.fields.get(*index).expect("local-view field index is validated")
+            }
         }
+    }
+}
+
+#[pyclass(name = "LocalViewRequest", module = "radiust._core", frozen)]
+pub struct PyLocalViewRequest {
+    inner: LocalViewRequest,
+}
+
+#[pymethods]
+impl PyLocalViewRequest {
+    #[new]
+    fn new(request_json: &str) -> PyResult<Self> {
+        let request: LocalViewRequest = parse_json(request_json, "local-view request")?;
+        request.validate().map_err(|error| PyValueError::new_err(error.to_string()))?;
+        Ok(Self { inner: request })
+    }
+}
+
+#[pyclass(name = "LocalViewResult", module = "radiust._core", frozen)]
+pub struct PyLocalViewResult {
+    inner: Arc<LocalViewResult>,
+}
+
+impl PyLocalViewResult {
+    fn new(mut inner: LocalViewResult) -> PyResult<Self> {
+        inner
+            .retain_python_binding_lease()
+            .map_err(|error| engine_error_to_py(EngineError::Core(error), ErrorStage::Regrid))?;
+        inner.validate().map_err(|error| PyValueError::new_err(error.to_string()))?;
+        Ok(Self { inner: Arc::new(inner) })
+    }
+}
+
+#[pymethods]
+impl PyLocalViewResult {
+    #[getter]
+    fn status(&self) -> &'static str {
+        match self.inner.status {
+            LocalViewStatus::Selected => "selected",
+            LocalViewStatus::NoCandidate => "no_candidate",
+            LocalViewStatus::Failed => "failed",
+            LocalViewStatus::Interrupted => "interrupted",
+            LocalViewStatus::TimedOut => "timed_out",
+        }
+    }
+
+    #[getter]
+    fn field_count(&self) -> usize {
+        match self.inner.data.as_ref() {
+            Some(LocalViewData::Numeric(dataset)) => dataset.fields.len(),
+            _ => 0,
+        }
+    }
+
+    fn selected(&self) -> Option<PyFrameRef> {
+        self.inner.selected.clone().map(|inner| PyFrameRef { inner })
+    }
+
+    fn field(&self, index: usize) -> PyResult<PyRadarField> {
+        if index >= self.field_count() {
+            return Err(PyValueError::new_err("local-view field index is out of range"));
+        }
+        Ok(PyRadarField {
+            backing: RadarFieldBacking::LocalView { owner: self.inner.clone(), index },
+        })
+    }
+
+    fn x_axis(&self) -> Option<Vec<f64>> {
+        self.inner.grid.as_ref().map(|grid| grid.grid.x.clone())
+    }
+
+    fn y_axis(&self) -> Option<Vec<f64>> {
+        self.inner.grid.as_ref().map(|grid| grid.grid.y.clone())
+    }
+
+    fn in_view_bytes<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        self.inner.grid.as_ref().map(|grid| {
+            let bytes = grid.in_view.iter().map(|inside| u8::from(*inside)).collect::<Vec<_>>();
+            PyBytes::new(py, &bytes)
+        })
+    }
+
+    fn source_domain_bytes<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        self.inner.grid.as_ref().and_then(|grid| {
+            grid.source_domain.as_ref().map(|mask| {
+                let bytes = mask.iter().map(|inside| u8::from(*inside)).collect::<Vec<_>>();
+                PyBytes::new(py, &bytes)
+            })
+        })
+    }
+
+    fn raw_image_rgba<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyBytes>> {
+        match self.inner.data.as_ref() {
+            Some(LocalViewData::RawImage { rgba, .. }) => Some(PyBytes::new(py, rgba)),
+            _ => None,
+        }
+    }
+
+    fn metadata_json(&self) -> PyResult<String> {
+        let selected = self.inner.selected.as_ref();
+        let grid = self.inner.grid.as_ref().map(|grid| {
+            serde_json::json!({
+                "center": grid.center,
+                "radius_m": grid.radius_m,
+                "requested_resolution_m": grid.requested_resolution_m,
+                "actual_resolution_m": grid.actual_resolution_m,
+                "shape": grid.grid.shape,
+                "crs": grid.grid.crs,
+                "affine": grid.grid.affine,
+            })
+        });
+        let value = crate::safety::safe_value(serde_json::json!({
+            "schema_version": self.inner.schema_version,
+            "status": self.status(),
+            "selected": selected,
+            "grid": grid,
+            "processing": self.inner.processing,
+            "selection": self.inner.selection,
+            "observation_coverage": self.inner.observation_coverage,
+            "candidate_limit_reached": self.inner.candidate_limit_reached,
+            "error": self.inner.error,
+        }));
+        serde_json::to_string(&value)
+            .map_err(|_| PyValueError::new_err("local-view result could not be serialized"))
+    }
+
+    fn to_json(&self) -> PyResult<String> {
+        self.metadata_json()
     }
 }
 
@@ -1461,6 +1599,20 @@ impl PyEngine {
         Ok(Self { inner: Arc::new(inner) })
     }
 
+    #[cfg(feature = "test-support")]
+    #[classmethod]
+    fn for_local_view_test_fixture(
+        _class: &Bound<'_, PyType>,
+        config: PyRef<'_, PyResolvedConfig>,
+    ) -> PyResult<Self> {
+        let mut fixture_config = config.config.clone();
+        // The fixture adapter only reads local files; the Engine shares its network gate with selection.
+        fixture_config.runtime.allow_network = true;
+        let inner = Engine::new(fixture_config, crate::test_support::local_view_registry())
+            .map_err(|error| PyValueError::new_err(error.to_string()))?;
+        Ok(Self { inner: Arc::new(inner) })
+    }
+
     /// Cancel operations owned by this engine. A cancelled engine is terminal;
     /// create a new Engine to begin another operation.
     fn cancel(&self) {
@@ -1490,6 +1642,23 @@ impl PyEngine {
                 .map_err(|error| engine_error_to_py(error, ErrorStage::Discover))?;
             let report = PyDiscoveryReport::from_report(report)?;
             Python::attach(|py| Py::new(py, report))
+        })
+    }
+
+    fn local_view<'py>(
+        &self,
+        py: Python<'py>,
+        request: PyRef<'_, PyLocalViewRequest>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let request = request.inner.clone();
+        let engine = self.inner.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let result = engine
+                .local_view(request)
+                .await
+                .map_err(|error| engine_error_to_py(error, ErrorStage::Regrid))?;
+            let result = PyLocalViewResult::new(result)?;
+            Python::attach(|py| Py::new(py, result))
         })
     }
 
@@ -2142,6 +2311,8 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyQuery>()?;
     m.add_class::<PyFrameRef>()?;
     m.add_class::<PyRadarField>()?;
+    m.add_class::<PyLocalViewRequest>()?;
+    m.add_class::<PyLocalViewResult>()?;
     m.add_class::<PyPixelDbzField>()?;
     m.add_class::<PyRasterResult>()?;
     m.add_class::<PyGrayDecision>()?;

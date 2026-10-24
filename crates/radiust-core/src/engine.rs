@@ -11,18 +11,28 @@ use crate::error_contract::{ErrorReport, ErrorStage};
 use crate::errors::{CoreError, ProviderError};
 use crate::grid::{Resampling, regrid_regular, supports_regrid_crs};
 use crate::identity::{ProcessingSpec, apply_science_versions, cache_key, logical_id, safe_ref};
-use crate::limits::{Limits, RequestBudget};
+use crate::limits::{
+    Limits, RasterBufferLease, RasterMemoryBudget, RasterWorkControl, RequestBudget,
+};
+use crate::local_view::{
+    LocalViewCandidate, LocalViewSelectionPolicy, project_field_with_resampling_with_budget,
+    project_raw_image_nearest, select_candidates,
+};
 use crate::model::{
     ArtifactReceipt, DiscoveryItem, DiscoveryReport, DiscoveryStatus, DiscoveryTarget, FrameRef,
-    Grid, Query, RadarField, RawArtifact, RawFrame, SafeError, TimeSelector, parse_utc_time,
+    Grid, LocalViewAttempt, LocalViewCandidateState, LocalViewData, LocalViewGrid, LocalViewMode,
+    LocalViewProcessingRecord, LocalViewRequest, LocalViewResampling, LocalViewResult,
+    LocalViewStatus, Query, RadarDataset, RadarField, RawArtifact, RawFrame, SafeError,
+    TimeSelector, parse_utc_time,
 };
 use crate::runtime::{OperationContext, OperationKind, RuntimeEventReceiver, RuntimeEvents};
 use crate::source::catalog::{
-    CatalogCapabilityStatus, CatalogError, CatalogMetadata, CatalogStation, SourceCatalog,
-    StationCatalogUpdate,
+    CatalogCapabilityStatus, CatalogError, CatalogMetadata, CatalogProvenance,
+    CatalogSpatialTarget, CatalogStation, PixelRegistration, RasterGeometryEvidence, SourceCatalog,
+    SpatialEvidenceStatus, StationCatalogUpdate,
 };
 use crate::source::rdcap::{is_valid_station_id, resolve_station_selection};
-use crate::source::{SourceContext, SourceRegistry};
+use crate::source::{SourceAdapter, SourceContext, SourceRegistry};
 use crate::storage::{LocalCommitRequest, LocalCommitStatus, LocalStore, StagedArtifact};
 use crate::transport::ftp::FtpTransport;
 use crate::transport::http::{HttpRequestCoalescer, HttpTransport};
@@ -59,6 +69,72 @@ pub enum ReplayRawResult {
     Science(RadarField),
     Gray(crate::raster::GrayDecision),
     Dbz(crate::raster::RasterResult),
+}
+
+#[derive(Clone)]
+struct DiscoverySession {
+    deadline: Instant,
+    request_coalescer: Arc<HttpRequestCoalescer>,
+}
+
+struct LocalOperationCancellationGuard(tokio_util::sync::CancellationToken);
+
+impl Drop for LocalOperationCancellationGuard {
+    fn drop(&mut self) {
+        self.0.cancel();
+    }
+}
+
+struct BudgetedLocalGrid {
+    grid: Option<crate::model::LocalViewGrid>,
+    lease: Option<RasterBufferLease>,
+}
+
+struct ProjectedLocalFrame {
+    selected: FrameRef,
+    grid: LocalViewGrid,
+    data: LocalViewData,
+    processing: LocalViewProcessingRecord,
+    leases: Vec<RasterBufferLease>,
+}
+
+impl BudgetedLocalGrid {
+    fn new(grid: crate::model::LocalViewGrid, lease: RasterBufferLease) -> Self {
+        Self { grid: Some(grid), lease: Some(lease) }
+    }
+
+    fn take_grid(&mut self) -> crate::model::LocalViewGrid {
+        self.grid.take().expect("local grid is consumed once")
+    }
+
+    fn take_lease(&mut self) -> RasterBufferLease {
+        self.lease.take().expect("local grid lease is consumed once")
+    }
+}
+
+impl DiscoverySession {
+    fn new(deadline: Instant) -> Self {
+        Self { deadline, request_coalescer: Arc::new(HttpRequestCoalescer::default()) }
+    }
+
+    fn remaining(&self) -> Duration {
+        self.deadline.saturating_duration_since(Instant::now())
+    }
+}
+
+/// Engine policy, not source evidence: freshness bound applied to local-view frames when the
+/// catalog product declares no `suggested_max_age_seconds`. Older frames are recorded as stale
+/// attempts and the next candidate is tried.
+const LOCAL_VIEW_DEFAULT_MAX_AGE_SECS: f64 = 3.0 * 3600.0;
+
+/// The optional RDCAP directory refresh may use at most this fraction (1/N) of the remaining
+/// local-view deadline, so a hung directory endpoint cannot starve the candidates themselves.
+const RDCAP_DIRECTORY_REFRESH_DEADLINE_DIVISOR: u32 = 4;
+
+struct RefreshedDiscoveryCatalog {
+    catalog: SourceCatalog,
+    rdcap_refreshed: bool,
+    rdcap_error: Option<CoreError>,
 }
 
 impl Engine {
@@ -365,7 +441,7 @@ impl Engine {
             let _frame_permit = self.request_budget.acquire_frame().await?;
             tokio::time::timeout(
                 Duration::from_secs_f64(self.config.runtime.frame_deadline),
-                self.fetch_raw_inner(frame, &operation),
+                self.fetch_raw_inner(frame, &operation, Arc::new(HttpRequestCoalescer::default())),
             )
             .await
             .map_err(|_| {
@@ -374,6 +450,42 @@ impl Engine {
         }
         .await;
         finish_engine_operation(operation, &result, false);
+        result
+    }
+
+    /// Discover the best eligible current radar product near the configured or
+    /// requested location and project its verified numeric field into a local grid.
+    pub async fn local_view(
+        &self,
+        mut request: LocalViewRequest,
+    ) -> Result<LocalViewResult, EngineError> {
+        request.validate()?;
+        request.center = request
+            .center
+            .or_else(|| self.config.location.as_ref().and_then(|location| location.point()));
+        let center = request.center.ok_or(EngineError::InvalidQuery(
+            "local view requires a configured or explicit location",
+        ))?;
+        request.radius_km.get_or_insert(self.config.local_view.radius_km);
+        request.resolution_m.get_or_insert(self.config.local_view.resolution_m);
+        request.validate()?;
+        let operation = self.runtime_events.begin(OperationKind::LocalView);
+        let session = DiscoverySession::new(
+            Instant::now() + Duration::from_secs_f64(self.config.runtime.discovery_deadline),
+        );
+        let cancellation = self.request_budget.cancellation.child_token();
+        let _cancel_on_drop = LocalOperationCancellationGuard(cancellation.clone());
+        let result =
+            self.local_view_inner(request, center, &session, &operation, cancellation).await;
+        match &result {
+            Ok(result) if result.status == LocalViewStatus::Interrupted => operation.cancel(),
+            Ok(result)
+                if matches!(result.status, LocalViewStatus::Failed | LocalViewStatus::TimedOut) =>
+            {
+                operation.fail()
+            }
+            _ => finish_engine_operation(operation, &result, false),
+        }
         result
     }
 
@@ -1314,6 +1426,7 @@ impl Engine {
         &self,
         frame: FrameRef,
         operation: &OperationContext,
+        request_coalescer: Arc<HttpRequestCoalescer>,
     ) -> Result<RawFrame, EngineError> {
         if self.is_cancelled() {
             return Err(CoreError::Cancelled.into());
@@ -1361,11 +1474,7 @@ impl Engine {
         };
         let source_fetch = adapter.clone().fetch_raw(
             frame.clone(),
-            self.source_context(
-                fetch_query,
-                &frame.source,
-                Arc::new(HttpRequestCoalescer::default()),
-            ),
+            self.source_context(fetch_query, &frame.source, request_coalescer),
             temp_root.clone(),
         );
 
@@ -1712,53 +1821,22 @@ impl Engine {
                 None => return Err(EngineError::InvalidQuery("a source must be selected")),
             }
         };
-        let discovery_deadline = Duration::from_secs_f64(self.config.runtime.discovery_deadline);
-        let deadline_at = Instant::now() + discovery_deadline;
-        let request_coalescer = Arc::new(HttpRequestCoalescer::default());
-        let mut catalog = self.catalog.clone();
-        let rdcap_selected =
-            source_ids.as_ref().is_none_or(|ids| ids.iter().any(|source| source == "rdcap"));
-        let mut catalog_refresh_error = None;
-        let mut catalog_refreshed = false;
-
-        // Refresh once before expansion/filtering. The refresh uses the same
-        // Engine request budget and its elapsed time is deducted from the
-        // discovery deadline below.
-        if rdcap_selected {
-            let refresh_result = if !self.config.runtime.allow_network {
-                Err(CoreError::NetworkDisabled(
-                    "RDCAP catalog refresh requires network access".into(),
-                ))
-            } else if let Some(adapter) = self.sources.get("rdcap") {
-                let remaining = deadline_at.saturating_duration_since(Instant::now());
-                if remaining.is_zero() {
-                    Err(CoreError::Provider(ProviderError::Timeout))
-                } else {
-                    let context =
-                        self.source_context(query.clone(), "rdcap", request_coalescer.clone());
-                    match tokio::time::timeout(remaining, adapter.refresh_station_catalog(context))
-                        .await
-                    {
-                        Ok(result) => result,
-                        Err(_) => Err(CoreError::Provider(ProviderError::Timeout)),
-                    }
-                }
-            } else {
-                Err(CoreError::Provider(ProviderError::CatalogUnavailable))
-            };
-
-            match refresh_result {
-                Ok(Some(update)) => {
-                    merge_station_catalog_update(&mut catalog, update)?;
-                    catalog_refreshed = true;
-                }
-                Ok(None) => {
-                    catalog_refresh_error =
-                        Some(CoreError::Provider(ProviderError::CatalogUnavailable));
-                }
-                Err(error) => catalog_refresh_error = Some(error),
-            }
-        }
+        let discovery_session = DiscoverySession::new(
+            Instant::now() + Duration::from_secs_f64(self.config.runtime.discovery_deadline),
+        );
+        let refreshed = self
+            .refresh_discovery_catalog(
+                &query,
+                source_ids.as_deref(),
+                self.catalog.clone(),
+                &discovery_session,
+                discovery_session.deadline,
+            )
+            .await;
+        let catalog = refreshed.catalog;
+        let catalog_refresh_error = refreshed.rdcap_error;
+        let catalog_refreshed = refreshed.rdcap_refreshed;
+        let request_coalescer = discovery_session.request_coalescer.clone();
 
         let mut dispatch_query = query.clone();
         let mut preflight_items = Vec::new();
@@ -1867,7 +1945,7 @@ impl Engine {
                     "retired",
                     "source retired",
                 ));
-            } else if let Some(field) = required_credential(&target.source)
+            } else if let Some(field) = required_credential(&target)
                 .filter(|field| !self.has_credential(&target.source, field))
             {
                 let message = format!("source requires sources.{}.{}", target.source, field);
@@ -1906,7 +1984,7 @@ impl Engine {
             .map(|(target, adapter)| (target, adapter))
             .collect::<std::collections::BTreeMap<_, _>>();
         let runnable_targets = adapters.keys().cloned().collect::<Vec<_>>();
-        let remaining = deadline_at.saturating_duration_since(Instant::now());
+        let remaining = discovery_session.remaining();
         let dispatched: Vec<(DiscoveryTarget, DiscoveryOutcome<Vec<FrameRef>, CoreError>)> = if self
             .request_budget
             .cancellation
@@ -1989,6 +2067,918 @@ impl Engine {
         Ok(DiscoveryReport::from_items(query, items, interrupted)?)
     }
 
+    async fn local_view_inner(
+        &self,
+        request: LocalViewRequest,
+        center: crate::model::GeographicPoint,
+        session: &DiscoverySession,
+        operation: &OperationContext,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<LocalViewResult, EngineError> {
+        let mut rdcap_directory_failure = None;
+        let mut result = self
+            .local_view_select(
+                request,
+                center,
+                session,
+                operation,
+                cancellation,
+                &mut rdcap_directory_failure,
+            )
+            .await?;
+        if let Some(code) = rdcap_directory_failure {
+            // The built-in directory was used unrefreshed; disclose it on every RDCAP
+            // attempt that actually ran.
+            for attempt in result.selection.iter_mut().filter(|attempt| {
+                attempt.target.source == "rdcap"
+                    && !matches!(
+                        attempt.state,
+                        LocalViewCandidateState::Excluded | LocalViewCandidateState::NotStarted
+                    )
+            }) {
+                attempt.reason = format!("{};directory_refresh_failed:{code}", attempt.reason);
+            }
+        }
+        Ok(result)
+    }
+
+    async fn local_view_select(
+        &self,
+        request: LocalViewRequest,
+        center: crate::model::GeographicPoint,
+        session: &DiscoverySession,
+        operation: &OperationContext,
+        cancellation: tokio_util::sync::CancellationToken,
+        rdcap_directory_failure: &mut Option<String>,
+    ) -> Result<LocalViewResult, EngineError> {
+        let radius_km = request.radius_km.expect("defaults filled before local_view_inner");
+        let resolution_m = request.resolution_m.expect("defaults filled before local_view_inner");
+        let limits = limits_from_config(&self.config.runtime);
+        let memory = limits.raster_memory_budget();
+        let target_grid = match self
+            .build_local_grid_for_operation(
+                center,
+                radius_km,
+                resolution_m,
+                limits.max_pixels,
+                memory.clone(),
+                session,
+                cancellation.clone(),
+            )
+            .await
+        {
+            Ok(grid) => grid,
+            Err(LocalProcessStop::Cancelled) => {
+                return local_view_terminal(
+                    LocalViewStatus::Interrupted,
+                    Vec::new(),
+                    false,
+                    "cancelled",
+                    "local view operation was cancelled during preflight",
+                );
+            }
+            Err(LocalProcessStop::TimedOut) => {
+                return local_view_terminal(
+                    LocalViewStatus::TimedOut,
+                    Vec::new(),
+                    false,
+                    "timeout",
+                    "local view deadline expired during preflight",
+                );
+            }
+            Err(LocalProcessStop::Failed(error, _)) => return Err(error.into()),
+        };
+        if self.request_budget.cancellation.is_cancelled() || cancellation.is_cancelled() {
+            return local_view_terminal(
+                LocalViewStatus::Interrupted,
+                Vec::new(),
+                false,
+                "cancelled",
+                "local view operation was cancelled during preflight",
+            );
+        }
+        if Instant::now() >= session.deadline {
+            return local_view_terminal(
+                LocalViewStatus::TimedOut,
+                Vec::new(),
+                false,
+                "timeout",
+                "local view deadline expired during preflight",
+            );
+        }
+
+        let source_ids = request.source.as_ref().map(std::slice::from_ref);
+        let query = Query {
+            source: request.source.clone(),
+            product: request.product.clone(),
+            stations: request.station.clone().into_iter().collect(),
+            selector: TimeSelector::Latest,
+            ..Query::default()
+        };
+        let mut catalog = self.catalog.clone();
+        let mut rdcap_refresh_attempted = false;
+        if self.request_budget.cancellation.is_cancelled() {
+            return local_view_terminal(
+                LocalViewStatus::Interrupted,
+                Vec::new(),
+                false,
+                "cancelled",
+                "local view operation was cancelled",
+            );
+        }
+        if Instant::now() >= session.deadline {
+            return local_view_terminal(
+                LocalViewStatus::TimedOut,
+                Vec::new(),
+                false,
+                "timeout",
+                "local view deadline expired before candidate discovery",
+            );
+        }
+        let spatial_targets = catalog.spatial_targets(source_ids)?;
+        let selected = select_candidates(
+            spatial_targets.clone(),
+            &request,
+            center,
+            &local_view_policy(self, &spatial_targets),
+        );
+        let mut attempts = selected.excluded;
+        let mut candidates = selected.candidates;
+        let candidate_limit_reached = candidates.len() > 8;
+        let truncated = if candidate_limit_reached { candidates.split_off(8) } else { Vec::new() };
+        let total = attempts.len().saturating_add(candidates.len()).saturating_add(truncated.len());
+        let mut last_error = None;
+        let mut target_grid = Some(target_grid);
+
+        if candidates.is_empty() {
+            return local_view_terminal(
+                LocalViewStatus::NoCandidate,
+                attempts,
+                candidate_limit_reached,
+                "no_candidate",
+                "no candidate satisfies the selected access, mode, and spatial evidence",
+            );
+        }
+
+        for (index, candidate) in candidates.iter().enumerate() {
+            let local_attempt = |target, state, discovery_status, reason: &str, error| {
+                let mut attempt = local_attempt(target, state, discovery_status, reason, error);
+                attach_local_candidate_evidence(&mut attempt, candidate);
+                attempt
+            };
+            if self.request_budget.cancellation.is_cancelled() {
+                append_not_started(&mut attempts, &candidates[index..], "cancelled");
+                append_truncated(&mut attempts, &truncated);
+                return local_view_terminal(
+                    LocalViewStatus::Interrupted,
+                    attempts,
+                    candidate_limit_reached,
+                    "cancelled",
+                    "local view operation was cancelled; remaining candidates were not started",
+                );
+            }
+            if Instant::now() >= session.deadline {
+                append_not_started(&mut attempts, &candidates[index..], "deadline_expired");
+                append_truncated(&mut attempts, &truncated);
+                return local_view_terminal(
+                    LocalViewStatus::TimedOut,
+                    attempts,
+                    candidate_limit_reached,
+                    "timeout",
+                    "local view deadline expired; remaining candidates were not started",
+                );
+            }
+            let target = candidate.spatial.target.clone();
+            let Some(adapter) = self.sources.get(&target.source) else {
+                attempts.push(local_attempt(
+                    target,
+                    LocalViewCandidateState::Failed,
+                    None,
+                    "unsupported_source",
+                    Some(SafeError {
+                        code: "unsupported_source".into(),
+                        message: "native source adapter is not available".into(),
+                        stage: "discover".into(),
+                        retryable: false,
+                    }),
+                ));
+                operation.progress(attempts.len() as u64, Some(total as u64));
+                continue;
+            };
+            if let Some(field) = required_credential(&target)
+                .filter(|field| !self.has_credential(&target.source, field))
+            {
+                let error = SafeError {
+                    code: "missing_credentials".into(),
+                    message: format!("source requires sources.{}.{}", target.source, field),
+                    stage: "discover".into(),
+                    retryable: false,
+                };
+                last_error = Some(error.clone());
+                attempts.push(local_attempt(
+                    target,
+                    LocalViewCandidateState::Failed,
+                    Some(DiscoveryStatus::MissingCredentials),
+                    "missing_credentials",
+                    Some(error),
+                ));
+                operation.progress(attempts.len() as u64, Some(total as u64));
+                continue;
+            }
+            if target.source == "rdcap" && !rdcap_refresh_attempted {
+                rdcap_refresh_attempted = true;
+                if self.config.runtime.allow_network {
+                    let remaining = session.deadline.saturating_duration_since(Instant::now());
+                    let refresh_deadline =
+                        Instant::now() + remaining / RDCAP_DIRECTORY_REFRESH_DEADLINE_DIVISOR;
+                    let rdcap_only = ["rdcap".to_owned()];
+                    let refreshed = tokio::select! {
+                        biased;
+                        _ = self.request_budget.cancellation.cancelled() => None,
+                        refreshed = self.refresh_discovery_catalog(
+                            &query,
+                            Some(&rdcap_only),
+                            catalog.clone(),
+                            session,
+                            refresh_deadline,
+                        ) => Some(refreshed),
+                    };
+                    match refreshed {
+                        Some(refreshed) => match refreshed.rdcap_error {
+                            None => catalog = refreshed.catalog,
+                            Some(error) => {
+                                *rdcap_directory_failure =
+                                    Some(safe_local_error(&error, ErrorStage::Discover).code);
+                            }
+                        },
+                        None => *rdcap_directory_failure = Some("cancelled".to_owned()),
+                    }
+                }
+            }
+            let max_age_secs = catalog
+                .source(&target.source)
+                .and_then(|source| {
+                    source
+                        .products
+                        .iter()
+                        .find(|product| target.product.as_deref() == Some(product.id.as_str()))
+                })
+                .and_then(|product| product.suggested_max_age_seconds)
+                .filter(|age| age.is_finite() && *age > 0.0)
+                .or(Some(LOCAL_VIEW_DEFAULT_MAX_AGE_SECS));
+            let target_query = Query {
+                source: Some(target.source.clone()),
+                product: target.product.clone(),
+                stations: target.station.clone().into_iter().collect(),
+                max_age_secs,
+                ..Query::default()
+            };
+            let discovery = self
+                .discover_target_until(target.clone(), adapter, target_query.clone(), session)
+                .await;
+            let frame = match discovery {
+                DiscoveryOutcome::Completed(Ok(frames)) => {
+                    let items = select_target_frames(
+                        &target_query,
+                        target.clone(),
+                        frames,
+                        false,
+                        Utc::now(),
+                    );
+                    if items.len() != 1 {
+                        let error = SafeError {
+                            code: "ambiguous".into(),
+                            message: "candidate discovery returned multiple target results".into(),
+                            stage: "discover".into(),
+                            retryable: false,
+                        };
+                        last_error = Some(error.clone());
+                        attempts.push(local_attempt(
+                            target,
+                            LocalViewCandidateState::Failed,
+                            None,
+                            "ambiguous_discovery_result",
+                            Some(error),
+                        ));
+                        operation.progress(attempts.len() as u64, Some(total as u64));
+                        continue;
+                    }
+                    let item = items.into_iter().next().expect("one discovery result");
+                    if item.status == DiscoveryStatus::Success {
+                        if let Some(frame) = item.frame {
+                            frame
+                        } else {
+                            let error = SafeError {
+                                code: "invalid_frame".into(),
+                                message: "successful discovery omitted its frame".into(),
+                                stage: "discover".into(),
+                                retryable: false,
+                            };
+                            last_error = Some(error.clone());
+                            attempts.push(local_attempt(
+                                target,
+                                LocalViewCandidateState::Failed,
+                                Some(DiscoveryStatus::UpstreamFailed),
+                                "invalid_discovery_result",
+                                Some(error),
+                            ));
+                            operation.progress(attempts.len() as u64, Some(total as u64));
+                            continue;
+                        }
+                    } else {
+                        let error = item.error.unwrap_or_else(|| SafeError {
+                            code: discovery_status_code(item.status).into(),
+                            message: "candidate did not produce a current frame".into(),
+                            stage: "discover".into(),
+                            retryable: false,
+                        });
+                        last_error = Some(error.clone());
+                        attempts.push(local_attempt(
+                            target,
+                            LocalViewCandidateState::Failed,
+                            Some(item.status),
+                            discovery_status_code(item.status),
+                            Some(error),
+                        ));
+                        operation.progress(attempts.len() as u64, Some(total as u64));
+                        continue;
+                    }
+                }
+                DiscoveryOutcome::Completed(Err(error)) => {
+                    let status = core_discovery_status(&error);
+                    let safe = safe_local_error(&error, ErrorStage::Discover);
+                    last_error = Some(safe.clone());
+                    attempts.push(local_attempt(
+                        target,
+                        if status == DiscoveryStatus::Cancelled {
+                            LocalViewCandidateState::Attempted
+                        } else {
+                            LocalViewCandidateState::Failed
+                        },
+                        Some(status),
+                        "discovery_failed",
+                        Some(safe),
+                    ));
+                    operation.progress(attempts.len() as u64, Some(total as u64));
+                    if status == DiscoveryStatus::Cancelled {
+                        append_not_started(&mut attempts, &candidates[index + 1..], "cancelled");
+                        append_truncated(&mut attempts, &truncated);
+                        return local_view_terminal(
+                            LocalViewStatus::Interrupted,
+                            attempts,
+                            candidate_limit_reached,
+                            "cancelled",
+                            "local view operation was cancelled",
+                        );
+                    }
+                    continue;
+                }
+                DiscoveryOutcome::Cancelled => {
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Attempted,
+                        Some(DiscoveryStatus::Cancelled),
+                        "cancelled",
+                        Some(safe_local_error(&CoreError::Cancelled, ErrorStage::Discover)),
+                    ));
+                    append_not_started(&mut attempts, &candidates[index + 1..], "cancelled");
+                    append_truncated(&mut attempts, &truncated);
+                    return local_view_terminal(
+                        LocalViewStatus::Interrupted,
+                        attempts,
+                        candidate_limit_reached,
+                        "cancelled",
+                        "local view operation was cancelled",
+                    );
+                }
+                DiscoveryOutcome::NotStarted => {
+                    let cancelled = self.request_budget.cancellation.is_cancelled();
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::NotStarted,
+                        Some(if cancelled {
+                            DiscoveryStatus::Cancelled
+                        } else {
+                            DiscoveryStatus::Timeout
+                        }),
+                        if cancelled { "cancelled" } else { "deadline_expired" },
+                        None,
+                    ));
+                    append_not_started(
+                        &mut attempts,
+                        &candidates[index + 1..],
+                        if cancelled { "cancelled" } else { "deadline_expired" },
+                    );
+                    append_truncated(&mut attempts, &truncated);
+                    return local_view_terminal(
+                        if cancelled {
+                            LocalViewStatus::Interrupted
+                        } else {
+                            LocalViewStatus::TimedOut
+                        },
+                        attempts,
+                        candidate_limit_reached,
+                        if cancelled { "cancelled" } else { "timeout" },
+                        if cancelled {
+                            "local view operation was cancelled"
+                        } else {
+                            "local view deadline expired during discovery"
+                        },
+                    );
+                }
+                DiscoveryOutcome::Timeout => {
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Attempted,
+                        Some(DiscoveryStatus::Timeout),
+                        "deadline_expired_during_discovery",
+                        Some(safe_local_error(
+                            &CoreError::Provider(ProviderError::Timeout),
+                            ErrorStage::Discover,
+                        )),
+                    ));
+                    append_not_started(&mut attempts, &candidates[index + 1..], "deadline_expired");
+                    append_truncated(&mut attempts, &truncated);
+                    return local_view_terminal(
+                        LocalViewStatus::TimedOut,
+                        attempts,
+                        candidate_limit_reached,
+                        "timeout",
+                        "local view deadline expired during discovery",
+                    );
+                }
+            };
+
+            let fetch = tokio::select! {
+                biased;
+                _ = self.request_budget.cancellation.cancelled() => Err(LocalFetchStop::Cancelled),
+                _ = tokio::time::sleep_until(session.deadline) => Err(LocalFetchStop::TimedOut),
+                result = async {
+                    let _permit = self.request_budget.acquire_frame().await?;
+                    self.fetch_raw_inner(
+                        frame.clone(),
+                        operation,
+                        session.request_coalescer.clone(),
+                    ).await
+                } => result.map_err(LocalFetchStop::Failed),
+            };
+            let fetch = match fetch {
+                Err(LocalFetchStop::Failed(EngineError::Core(CoreError::Cancelled))) => {
+                    Err(LocalFetchStop::Cancelled)
+                }
+                other => other,
+            };
+            let raw = match fetch {
+                Ok(raw) => raw,
+                Err(LocalFetchStop::Failed(error)) => {
+                    let safe = safe_engine_error(&error, ErrorStage::Acquire);
+                    if matches!(error, EngineError::Core(CoreError::ResourceLimit(_))) {
+                        attempts.push(local_attempt(
+                            target,
+                            LocalViewCandidateState::Failed,
+                            Some(DiscoveryStatus::Success),
+                            "resource_limit",
+                            Some(safe),
+                        ));
+                        append_not_started(
+                            &mut attempts,
+                            &candidates[index + 1..],
+                            "resource_limit",
+                        );
+                        append_truncated(&mut attempts, &truncated);
+                        return local_view_terminal(
+                            LocalViewStatus::Failed,
+                            attempts,
+                            candidate_limit_reached,
+                            "resource_limit",
+                            "local-view resource limit stopped candidate acquisition",
+                        );
+                    }
+                    last_error = Some(safe.clone());
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Failed,
+                        Some(DiscoveryStatus::Success),
+                        "acquisition_failed",
+                        Some(safe),
+                    ));
+                    operation.progress(attempts.len() as u64, Some(total as u64));
+                    continue;
+                }
+                Err(LocalFetchStop::Cancelled) => {
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Attempted,
+                        Some(DiscoveryStatus::Success),
+                        "cancelled_during_acquisition",
+                        Some(safe_local_error(&CoreError::Cancelled, ErrorStage::Acquire)),
+                    ));
+                    append_not_started(&mut attempts, &candidates[index + 1..], "cancelled");
+                    append_truncated(&mut attempts, &truncated);
+                    return local_view_terminal(
+                        LocalViewStatus::Interrupted,
+                        attempts,
+                        candidate_limit_reached,
+                        "cancelled",
+                        "local view operation was cancelled during acquisition",
+                    );
+                }
+                Err(LocalFetchStop::TimedOut) => {
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Attempted,
+                        Some(DiscoveryStatus::Success),
+                        "deadline_expired_during_acquisition",
+                        None,
+                    ));
+                    append_not_started(&mut attempts, &candidates[index + 1..], "deadline_expired");
+                    append_truncated(&mut attempts, &truncated);
+                    return local_view_terminal(
+                        LocalViewStatus::TimedOut,
+                        attempts,
+                        candidate_limit_reached,
+                        "timeout",
+                        "local view deadline expired during acquisition",
+                    );
+                }
+            };
+
+            let processing_grid = match target_grid.take() {
+                Some(grid) => Ok(grid),
+                None => {
+                    self.build_local_grid_for_operation(
+                        center,
+                        radius_km,
+                        resolution_m,
+                        limits.max_pixels,
+                        memory.clone(),
+                        session,
+                        cancellation.clone(),
+                    )
+                    .await
+                }
+            };
+            let processed = match processing_grid {
+                Ok(grid) => {
+                    self.project_local_frame(
+                        raw,
+                        candidate,
+                        grid,
+                        request.mode,
+                        request.resampling,
+                        limits.clone(),
+                        memory.clone(),
+                        session,
+                        cancellation.clone(),
+                    )
+                    .await
+                }
+                Err(stop) => Err(stop),
+            };
+            match processed {
+                Ok(projected) => {
+                    if self.request_budget.cancellation.is_cancelled()
+                        || cancellation.is_cancelled()
+                    {
+                        attempts.push(local_attempt(
+                            target,
+                            LocalViewCandidateState::Attempted,
+                            Some(DiscoveryStatus::Success),
+                            "cancelled_before_publish",
+                            Some(safe_local_error(&CoreError::Cancelled, ErrorStage::Regrid)),
+                        ));
+                        append_not_started(&mut attempts, &candidates[index + 1..], "cancelled");
+                        append_truncated(&mut attempts, &truncated);
+                        return local_view_terminal(
+                            LocalViewStatus::Interrupted,
+                            attempts,
+                            candidate_limit_reached,
+                            "cancelled",
+                            "local view operation was cancelled before publication",
+                        );
+                    }
+                    if Instant::now() >= session.deadline {
+                        attempts.push(local_attempt(
+                            target,
+                            LocalViewCandidateState::Attempted,
+                            Some(DiscoveryStatus::Success),
+                            "deadline_expired_before_publish",
+                            None,
+                        ));
+                        append_not_started(
+                            &mut attempts,
+                            &candidates[index + 1..],
+                            "deadline_expired",
+                        );
+                        append_truncated(&mut attempts, &truncated);
+                        return local_view_terminal(
+                            LocalViewStatus::TimedOut,
+                            attempts,
+                            candidate_limit_reached,
+                            "timeout",
+                            "local view deadline expired before publication",
+                        );
+                    }
+                    let reason = if attempts
+                        .iter()
+                        .any(|attempt| attempt.state == LocalViewCandidateState::Failed)
+                    {
+                        format!("selected_after_fallback:{}", candidate.reason)
+                    } else {
+                        format!("selected:{}", candidate.reason)
+                    };
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Selected,
+                        Some(DiscoveryStatus::Success),
+                        &reason,
+                        None,
+                    ));
+                    append_not_started(
+                        &mut attempts,
+                        &candidates[index + 1..],
+                        "not_needed_after_selection",
+                    );
+                    append_truncated(&mut attempts, &truncated);
+                    operation.progress(attempts.len() as u64, Some(total as u64));
+                    let mut result = LocalViewResult::new(
+                        LocalViewStatus::Selected,
+                        Some(projected.selected),
+                        Some(projected.grid),
+                        Some(projected.data),
+                        Some(projected.processing),
+                        attempts,
+                        candidate_limit_reached,
+                        None,
+                    )?;
+                    result.retain_buffer_leases(projected.leases);
+                    return Ok(result);
+                }
+                Err(LocalProcessStop::Failed(error, reason)) => {
+                    let safe = safe_local_error(&error, ErrorStage::Regrid);
+                    if matches!(error, CoreError::ResourceLimit(_)) {
+                        attempts.push(local_attempt(
+                            target,
+                            LocalViewCandidateState::Failed,
+                            Some(DiscoveryStatus::Success),
+                            "resource_limit",
+                            Some(safe.clone()),
+                        ));
+                        append_not_started(
+                            &mut attempts,
+                            &candidates[index + 1..],
+                            "resource_limit",
+                        );
+                        append_truncated(&mut attempts, &truncated);
+                        return local_view_terminal(
+                            LocalViewStatus::Failed,
+                            attempts,
+                            candidate_limit_reached,
+                            "resource_limit",
+                            "local-view resource limit stopped candidate processing",
+                        );
+                    }
+                    last_error = Some(safe.clone());
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Failed,
+                        Some(DiscoveryStatus::Success),
+                        reason,
+                        Some(safe),
+                    ));
+                    operation.progress(attempts.len() as u64, Some(total as u64));
+                }
+                Err(LocalProcessStop::Cancelled) => {
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Attempted,
+                        Some(DiscoveryStatus::Success),
+                        "cancelled_during_processing",
+                        Some(safe_local_error(&CoreError::Cancelled, ErrorStage::Regrid)),
+                    ));
+                    append_not_started(&mut attempts, &candidates[index + 1..], "cancelled");
+                    append_truncated(&mut attempts, &truncated);
+                    return local_view_terminal(
+                        LocalViewStatus::Interrupted,
+                        attempts,
+                        candidate_limit_reached,
+                        "cancelled",
+                        "local view operation was cancelled during processing",
+                    );
+                }
+                Err(LocalProcessStop::TimedOut) => {
+                    attempts.push(local_attempt(
+                        target,
+                        LocalViewCandidateState::Attempted,
+                        Some(DiscoveryStatus::Success),
+                        "deadline_expired_during_processing",
+                        None,
+                    ));
+                    append_not_started(&mut attempts, &candidates[index + 1..], "deadline_expired");
+                    append_truncated(&mut attempts, &truncated);
+                    return local_view_terminal(
+                        LocalViewStatus::TimedOut,
+                        attempts,
+                        candidate_limit_reached,
+                        "timeout",
+                        "local view deadline expired during processing",
+                    );
+                }
+            }
+        }
+        append_truncated(&mut attempts, &truncated);
+        let error = last_error.unwrap_or_else(|| SafeError {
+            code: "all_candidates_failed".into(),
+            message: "all eligible candidates failed; see selection for per-target outcomes".into(),
+            stage: "local_view".into(),
+            retryable: false,
+        });
+        LocalViewResult::new(
+            LocalViewStatus::Failed,
+            None,
+            None,
+            None,
+            None,
+            attempts,
+            candidate_limit_reached,
+            Some(error),
+        )
+        .map_err(EngineError::from)
+    }
+
+    async fn project_local_frame(
+        &self,
+        raw: RawFrame,
+        candidate: &LocalViewCandidate,
+        target_grid: BudgetedLocalGrid,
+        mode: LocalViewMode,
+        resampling: LocalViewResampling,
+        limits: Limits,
+        memory: RasterMemoryBudget,
+        session: &DiscoverySession,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<ProjectedLocalFrame, LocalProcessStop> {
+        let permit = tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => return Err(LocalProcessStop::Cancelled),
+            _ = tokio::time::sleep_until(session.deadline) => return Err(LocalProcessStop::TimedOut),
+            permit = self.decode_workers.clone().acquire_owned() => {
+                permit.map_err(|_| LocalProcessStop::Cancelled)?
+            }
+        };
+        let candidate = candidate.clone();
+        let control = RasterWorkControl::new(cancellation.clone(), session.deadline.into_std());
+        let task = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            decode_project_local_frame(
+                raw,
+                &candidate.spatial,
+                target_grid,
+                mode,
+                resampling,
+                &limits,
+                &memory,
+                &control,
+            )
+        });
+        tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => Err(LocalProcessStop::Cancelled),
+            _ = tokio::time::sleep_until(session.deadline) => Err(LocalProcessStop::TimedOut),
+            result = task => result
+                .map_err(|_| LocalProcessStop::Failed(
+                    CoreError::Temporary("local view worker failed".into()),
+                    "processing_worker_failed",
+                ))?
+                .map_err(|(error, reason)| match error {
+                    CoreError::Cancelled => LocalProcessStop::Cancelled,
+                    CoreError::Provider(ProviderError::Timeout) => LocalProcessStop::TimedOut,
+                    error => LocalProcessStop::Failed(error, reason),
+                }),
+        }
+    }
+
+    async fn build_local_grid_for_operation(
+        &self,
+        center: crate::model::GeographicPoint,
+        radius_km: f64,
+        resolution_m: f64,
+        max_pixels: u64,
+        memory: RasterMemoryBudget,
+        session: &DiscoverySession,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<BudgetedLocalGrid, LocalProcessStop> {
+        let permit = tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => return Err(LocalProcessStop::Cancelled),
+            _ = tokio::time::sleep_until(session.deadline) => return Err(LocalProcessStop::TimedOut),
+            permit = self.decode_workers.clone().acquire_owned() => {
+                permit.map_err(|_| LocalProcessStop::Cancelled)?
+            }
+        };
+        let control = RasterWorkControl::new(cancellation.clone(), session.deadline.into_std());
+        let task = tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            crate::projection::build_local_view_grid_with_budget(
+                center,
+                radius_km,
+                resolution_m,
+                max_pixels,
+                &memory,
+                &control,
+            )
+        });
+        let result = tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => return Err(LocalProcessStop::Cancelled),
+            _ = tokio::time::sleep_until(session.deadline) => return Err(LocalProcessStop::TimedOut),
+            result = task => result
+                .map_err(|_| LocalProcessStop::Failed(
+                    CoreError::Temporary("local grid worker failed".into()),
+                    "grid_worker_failed",
+                ))?,
+        };
+        match result {
+            Ok((grid, lease)) => Ok(BudgetedLocalGrid::new(grid, lease)),
+            Err(CoreError::Cancelled) => Err(LocalProcessStop::Cancelled),
+            Err(CoreError::Provider(ProviderError::Timeout)) => Err(LocalProcessStop::TimedOut),
+            Err(error) => Err(LocalProcessStop::Failed(error, "grid_build_failed")),
+        }
+    }
+
+    /// Refreshes the RDCAP station directory within `refresh_deadline`, which callers
+    /// may set earlier than the session deadline to bound an optional refresh.
+    async fn refresh_discovery_catalog(
+        &self,
+        query: &Query,
+        source_ids: Option<&[String]>,
+        mut catalog: SourceCatalog,
+        session: &DiscoverySession,
+        refresh_deadline: Instant,
+    ) -> RefreshedDiscoveryCatalog {
+        let rdcap_selected =
+            source_ids.is_none_or(|ids| ids.iter().any(|source| source == "rdcap"));
+        let mut rdcap_refreshed = false;
+        let mut rdcap_error = None;
+        if rdcap_selected {
+            let refresh_result = if !self.config.runtime.allow_network {
+                Err(CoreError::NetworkDisabled(
+                    "RDCAP catalog refresh requires network access".into(),
+                ))
+            } else if refresh_deadline <= Instant::now() {
+                Err(CoreError::Provider(ProviderError::Timeout))
+            } else if let Some(adapter) = self.sources.get("rdcap") {
+                let context =
+                    self.source_context(query.clone(), "rdcap", session.request_coalescer.clone());
+                match tokio::time::timeout_at(
+                    refresh_deadline,
+                    adapter.refresh_station_catalog(context),
+                )
+                .await
+                {
+                    Ok(result) => result,
+                    Err(_) => Err(CoreError::Provider(ProviderError::Timeout)),
+                }
+            } else {
+                Err(CoreError::Provider(ProviderError::CatalogUnavailable))
+            };
+
+            match refresh_result {
+                Ok(Some(update)) => match merge_station_catalog_update(&mut catalog, update) {
+                    Ok(()) => rdcap_refreshed = true,
+                    Err(EngineError::Core(error)) => rdcap_error = Some(error),
+                    Err(_) => {
+                        rdcap_error = Some(CoreError::Provider(ProviderError::UnexpectedBody));
+                    }
+                },
+                Ok(None) => {
+                    rdcap_error = Some(CoreError::Provider(ProviderError::CatalogUnavailable));
+                }
+                Err(error) => rdcap_error = Some(error),
+            }
+        }
+        RefreshedDiscoveryCatalog { catalog, rdcap_refreshed, rdcap_error }
+    }
+
+    async fn discover_target_until(
+        &self,
+        target: DiscoveryTarget,
+        adapter: Arc<dyn SourceAdapter>,
+        query: Query,
+        session: &DiscoverySession,
+    ) -> DiscoveryOutcome<Vec<FrameRef>, CoreError> {
+        if self.request_budget.cancellation.is_cancelled() || Instant::now() >= session.deadline {
+            return DiscoveryOutcome::NotStarted;
+        }
+        let context = self.source_context(query, &target.source, session.request_coalescer.clone());
+        tokio::select! {
+            biased;
+            _ = self.request_budget.cancellation.cancelled() => DiscoveryOutcome::Cancelled,
+            _ = tokio::time::sleep_until(session.deadline) => DiscoveryOutcome::Timeout,
+            result = adapter.discover(target, context) => DiscoveryOutcome::Completed(result),
+        }
+    }
+
     fn has_credential(&self, source: &str, field: &str) -> bool {
         self.config
             .sources
@@ -2021,6 +3011,526 @@ impl Engine {
             request_coalescer,
         }
     }
+}
+
+enum LocalFetchStop {
+    Cancelled,
+    TimedOut,
+    Failed(EngineError),
+}
+
+enum LocalProcessStop {
+    Cancelled,
+    TimedOut,
+    Failed(CoreError, &'static str),
+}
+
+fn local_view_terminal(
+    status: LocalViewStatus,
+    selection: Vec<LocalViewAttempt>,
+    candidate_limit_reached: bool,
+    code: &str,
+    message: &str,
+) -> Result<LocalViewResult, EngineError> {
+    LocalViewResult::new(
+        status,
+        None,
+        None,
+        None,
+        None,
+        selection,
+        candidate_limit_reached,
+        Some(SafeError {
+            code: code.to_owned(),
+            message: message.to_owned(),
+            stage: "local_view".into(),
+            retryable: false,
+        }),
+    )
+    .map_err(EngineError::from)
+}
+
+fn local_attempt(
+    target: DiscoveryTarget,
+    state: LocalViewCandidateState,
+    discovery_status: Option<DiscoveryStatus>,
+    reason: &str,
+    error: Option<SafeError>,
+) -> LocalViewAttempt {
+    LocalViewAttempt {
+        target,
+        state,
+        discovery_status,
+        reason: reason.to_owned(),
+        error,
+        observation_coverage: None,
+        spatial_evidence: None,
+    }
+}
+
+fn attach_local_candidate_evidence(attempt: &mut LocalViewAttempt, candidate: &LocalViewCandidate) {
+    attempt.observation_coverage = candidate.spatial.observation_coverage.clone();
+    attempt.spatial_evidence = Some(crate::model::LocalViewSpatialEvidence::from_target(
+        &candidate.spatial,
+        candidate.site_distance_m,
+        &candidate.reason,
+    ));
+}
+
+fn append_not_started(
+    attempts: &mut Vec<LocalViewAttempt>,
+    candidates: &[LocalViewCandidate],
+    reason: &str,
+) {
+    attempts.extend(candidates.iter().map(|candidate| {
+        let mut attempt = local_attempt(
+            candidate.spatial.target.clone(),
+            LocalViewCandidateState::NotStarted,
+            None,
+            reason,
+            None,
+        );
+        attach_local_candidate_evidence(&mut attempt, candidate);
+        attempt
+    }));
+}
+
+fn append_truncated(attempts: &mut Vec<LocalViewAttempt>, candidates: &[LocalViewCandidate]) {
+    append_not_started(attempts, candidates, "candidate_limit");
+}
+
+fn safe_local_error(error: &CoreError, stage: ErrorStage) -> SafeError {
+    let report = ErrorReport::from_core(error, stage);
+    SafeError {
+        code: serde_json::to_value(report.code)
+            .ok()
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "internal".into()),
+        message: report.message,
+        stage: serde_json::to_value(report.stage)
+            .ok()
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "stage".into()),
+        retryable: report.retryable,
+    }
+}
+
+fn safe_engine_error(error: &EngineError, stage: ErrorStage) -> SafeError {
+    match error {
+        EngineError::Core(error) => safe_local_error(error, stage),
+        EngineError::UnsupportedSource(_) => SafeError {
+            code: "unsupported_source".into(),
+            message: "native source adapter is not available".into(),
+            stage: "acquire".into(),
+            retryable: false,
+        },
+        EngineError::UnsupportedScience(_) => SafeError {
+            code: "unsupported_science".into(),
+            message: "native numeric decoder is not available".into(),
+            stage: "decode".into(),
+            retryable: false,
+        },
+        EngineError::InvalidFrame => SafeError {
+            code: "invalid_frame".into(),
+            message: "discovered frame identity is invalid".into(),
+            stage: "acquire".into(),
+            retryable: false,
+        },
+        _ => SafeError {
+            code: "internal".into(),
+            message: "local view stage failed".into(),
+            stage: "stage".into(),
+            retryable: false,
+        },
+    }
+}
+
+fn local_view_policy(
+    engine: &Engine,
+    targets: &[CatalogSpatialTarget],
+) -> LocalViewSelectionPolicy {
+    let source_exclusions = targets
+        .iter()
+        .filter_map(|spatial| {
+            if engine.sources.get(&spatial.target.source).is_none() {
+                Some((spatial.target.source.clone(), "unsupported_source".to_owned()))
+            } else {
+                // Only source-level credentials exclude a whole source here. Product-scoped
+                // credentials are checked per target in `local_view_inner`.
+                let source_target = DiscoveryTarget {
+                    source: spatial.target.source.clone(),
+                    product: None,
+                    station: None,
+                };
+                required_credential(&source_target)
+                    .filter(|field| !engine.has_credential(&spatial.target.source, field))
+                    .map(|_| (spatial.target.source.clone(), "missing_credentials".to_owned()))
+            }
+        })
+        .collect();
+    LocalViewSelectionPolicy {
+        allow_network: engine.config.runtime.allow_network,
+        source_exclusions,
+    }
+}
+
+fn core_discovery_status(error: &CoreError) -> DiscoveryStatus {
+    match error {
+        CoreError::Cancelled => DiscoveryStatus::Cancelled,
+        CoreError::NetworkDisabled(_) => DiscoveryStatus::NetworkRestricted,
+        CoreError::Provider(ProviderError::Timeout) => DiscoveryStatus::Timeout,
+        CoreError::Provider(ProviderError::UnknownStation) => DiscoveryStatus::NoData,
+        _ => DiscoveryStatus::UpstreamFailed,
+    }
+}
+
+fn discovery_status_code(status: DiscoveryStatus) -> &'static str {
+    match status {
+        DiscoveryStatus::Success => "success",
+        DiscoveryStatus::NoData => "no_data",
+        DiscoveryStatus::Stale => "stale",
+        DiscoveryStatus::MissingCredentials => "missing_credentials",
+        DiscoveryStatus::Retired => "source_retired",
+        DiscoveryStatus::NetworkRestricted => "network_restricted",
+        DiscoveryStatus::UpstreamFailed => "upstream_failed",
+        DiscoveryStatus::Ambiguous => "ambiguous",
+        DiscoveryStatus::Timeout => "timeout",
+        DiscoveryStatus::Cancelled => "cancelled",
+        DiscoveryStatus::NotStarted => "not_started",
+        DiscoveryStatus::Pending | DiscoveryStatus::Running => "incomplete",
+    }
+}
+
+fn decode_project_local_frame(
+    raw: RawFrame,
+    target: &CatalogSpatialTarget,
+    mut target_grid: BudgetedLocalGrid,
+    mode: LocalViewMode,
+    resampling: LocalViewResampling,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+    control: &RasterWorkControl,
+) -> Result<ProjectedLocalFrame, (CoreError, &'static str)> {
+    if raw.frame.source != target.target.source
+        || target.target.product.as_deref() != Some(raw.frame.product.as_str())
+        || target
+            .target
+            .station
+            .as_deref()
+            .is_some_and(|station| raw.frame.station.as_deref() != Some(station))
+    {
+        return Err((
+            CoreError::Integrity("frame does not match local candidate".into()),
+            "frame_mismatch",
+        ));
+    }
+    if mode == LocalViewMode::Raw || (mode == LocalViewMode::Auto && raw.frame.source == "pt") {
+        return decode_project_local_raw_image(
+            raw,
+            target,
+            target_grid,
+            mode,
+            resampling,
+            limits,
+            memory,
+            control,
+        );
+    }
+    let target_grid_value = target_grid.take_grid();
+    let decoded = match (raw.frame.source.as_str(), raw.frame.product.as_str()) {
+        ("rainviewer", "composite") => {
+            crate::science::decode_rainviewer_with_memory_and_control(&raw, limits, memory, control)
+        }
+        ("rdcap", "reflectivity") => {
+            crate::science::decode_rdcap_with_memory_and_control(&raw, limits, memory, control)
+        }
+        _ => {
+            return Err((
+                CoreError::Provider(ProviderError::DecodeUnverified),
+                "unsupported_native_decoder",
+            ));
+        }
+    }
+    .map_err(|error| (error, "decode_failed"))?;
+    if mode == LocalViewMode::Dbz
+        && (decoded.field.name != "reflectivity" || decoded.field.units.as_deref() != Some("dBZ"))
+    {
+        return Err((
+            CoreError::UnitMismatch {
+                variable: decoded.field.name.clone(),
+                units: decoded.field.units.clone(),
+            },
+            "requested_dbz_unavailable",
+        ));
+    }
+    let geometry = local_frame_geometry(&raw, &decoded.field, target)
+        .map_err(|error| (error, "geometry_unverified"))?;
+    let method = match resampling {
+        LocalViewResampling::Nearest => Resampling::Nearest,
+        LocalViewResampling::Bilinear => Resampling::Bilinear,
+    };
+    let (projected, projected_lease) = project_field_with_resampling_with_budget(
+        &decoded.field,
+        &geometry,
+        target_grid_value,
+        method,
+        memory,
+        control,
+    )
+    .map_err(|error| {
+        let reason = if matches!(
+            &error,
+            CoreError::Storage(message)
+                if message == "user location is outside the current frame domain"
+        ) {
+            "outside_current_frame_domain"
+        } else {
+            "projection_failed"
+        };
+        (error, reason)
+    })?;
+    let frame = raw.frame.clone();
+    let input_receipts = raw.artifacts.iter().map(|artifact| artifact.receipt.clone()).collect();
+    let data = LocalViewData::Numeric(RadarDataset {
+        fields: vec![projected.field],
+        valid_time: frame.valid_time.clone(),
+        source: frame.source.clone(),
+    });
+    let grid = projected.grid;
+    let processing =
+        local_view_processing_record(&frame, &grid, input_receipts, mode, resampling, "numeric")
+            .map_err(|error| (error, "processing_identity_failed"))?;
+    drop(decoded);
+    Ok(ProjectedLocalFrame {
+        selected: frame,
+        grid,
+        data,
+        processing,
+        leases: vec![projected_lease, target_grid.take_lease()],
+    })
+}
+
+fn decode_project_local_raw_image(
+    raw: RawFrame,
+    target: &CatalogSpatialTarget,
+    mut target_grid: BudgetedLocalGrid,
+    mode: LocalViewMode,
+    resampling: LocalViewResampling,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+    control: &RasterWorkControl,
+) -> Result<ProjectedLocalFrame, (CoreError, &'static str)> {
+    if resampling != LocalViewResampling::Nearest || raw.frame.source != "pt" {
+        return Err((CoreError::Provider(ProviderError::DecodeUnverified), "unsupported_raw_mode"));
+    }
+    let [height, width] =
+        target.geometry.as_ref().and_then(|geometry| geometry.shape).ok_or_else(|| {
+            (
+                CoreError::Storage("raw local view has no verified image shape".into()),
+                "geometry_unverified",
+            )
+        })?;
+    let source_pixels = u64::from(height).checked_mul(u64::from(width)).ok_or_else(|| {
+        (CoreError::ResourceLimit("raw image dimensions overflow".into()), "resource_limit")
+    })?;
+    limits.validate_pixels(source_pixels).map_err(|error| (error, "resource_limit"))?;
+    let decode_bytes = source_pixels.checked_mul(12).ok_or_else(|| {
+        (
+            CoreError::ResourceLimit("raw image decode buffer size overflows".into()),
+            "resource_limit",
+        )
+    })?;
+    let decode_lease = memory.reserve(decode_bytes).map_err(|error| (error, "resource_limit"))?;
+    if raw.artifacts.len() != 1 {
+        return Err((
+            CoreError::Storage("PT raw view requires exactly one receipt-bound image".into()),
+            "geometry_unverified",
+        ));
+    }
+    let artifact = &raw.artifacts[0];
+    let preview = crate::preview::preview_artifact(artifact, limits)
+        .map_err(|error| (error, "raw_image_decode_failed"))?;
+    if [preview.preview.height, preview.preview.width] != [height, width] {
+        return Err((
+            CoreError::Storage("PT image dimensions conflict with verified geometry".into()),
+            "geometry_unverified",
+        ));
+    }
+    let geometry = crate::source::local_view_geometry(
+        &raw.frame,
+        &artifact.receipt,
+        preview.preview.width,
+        preview.preview.height,
+    )
+    .map_err(|error| (error, "geometry_unverified"))?;
+    let catalog_geometry = target.geometry.as_ref().ok_or_else(|| {
+        (
+            CoreError::Storage("PT product catalog has no verified overlay geometry".into()),
+            "geometry_unverified",
+        )
+    })?;
+    if catalog_geometry.status != geometry.status
+        || catalog_geometry.crs != geometry.crs
+        || catalog_geometry.registration != geometry.registration
+        || catalog_geometry.shape != geometry.shape
+        || catalog_geometry.data_window != geometry.data_window
+        || !catalog_geometry.affine.zip(geometry.affine).is_some_and(|(left, right)| {
+            left.into_iter().zip(right).all(|(left, right)| (left - right).abs() <= 1e-8)
+        })
+    {
+        return Err((
+            CoreError::Storage("PT resource and catalog geometry disagree".into()),
+            "geometry_unverified",
+        ));
+    }
+    control.check().map_err(|error| (error, "raw_image_decode_failed"))?;
+    let (grid, rgba, output_lease) = project_raw_image_nearest(
+        &preview.preview,
+        &geometry,
+        target_grid.take_grid(),
+        limits,
+        memory,
+        control,
+    )
+    .map_err(|error| {
+        let reason = if matches!(error, CoreError::ResourceLimit(_)) {
+            "resource_limit"
+        } else if matches!(&error, CoreError::Storage(message)
+            if message == "user location is outside the current frame domain")
+        {
+            "outside_current_frame_domain"
+        } else {
+            "raw_image_projection_failed"
+        };
+        (error, reason)
+    })?;
+    let frame = raw.frame.clone();
+    let input_receipts = raw.artifacts.iter().map(|artifact| artifact.receipt.clone()).collect();
+    let output_width = u32::try_from(grid.grid.shape[1]).map_err(|_| {
+        (CoreError::ResourceLimit("local raw image width overflows".into()), "resource_limit")
+    })?;
+    let output_height = u32::try_from(grid.grid.shape[0]).map_err(|_| {
+        (CoreError::ResourceLimit("local raw image height overflows".into()), "resource_limit")
+    })?;
+    let processing =
+        local_view_processing_record(&frame, &grid, input_receipts, mode, resampling, "raw_image")
+            .map_err(|error| (error, "processing_identity_failed"))?;
+    drop(preview);
+    drop(decode_lease);
+    Ok(ProjectedLocalFrame {
+        selected: frame,
+        grid,
+        data: LocalViewData::RawImage { width: output_width, height: output_height, rgba },
+        processing,
+        leases: vec![output_lease, target_grid.take_lease()],
+    })
+}
+
+fn local_view_processing_record(
+    frame: &FrameRef,
+    grid: &LocalViewGrid,
+    mut input_receipts: Vec<ArtifactReceipt>,
+    mode: LocalViewMode,
+    resampling: LocalViewResampling,
+    data_kind: &str,
+) -> Result<LocalViewProcessingRecord, CoreError> {
+    if input_receipts.is_empty() {
+        return Err(CoreError::Integrity("local view input has no artifact receipt".into()));
+    }
+    input_receipts.sort_by(|left, right| {
+        left.name.cmp(&right.name).then_with(|| left.sha256.cmp(&right.sha256))
+    });
+    let mut record = LocalViewProcessingRecord {
+        schema_version: 1,
+        processing_id: String::new(),
+        algorithm: "local-aeqd-wgs84-v1".into(),
+        input_logical_id: frame.logical_id.clone(),
+        input_revision: frame.revision.clone(),
+        input_receipts,
+        center: grid.center,
+        radius_m: grid.radius_m,
+        requested_resolution_m: grid.requested_resolution_m,
+        actual_resolution_m: grid.actual_resolution_m,
+        grid_shape: [grid.grid.shape[0], grid.grid.shape[1]],
+        affine: grid.grid.affine,
+        registration: "center".into(),
+        resampling: match resampling {
+            LocalViewResampling::Nearest => "nearest",
+            LocalViewResampling::Bilinear => "bilinear",
+        }
+        .into(),
+        requested_mode: match mode {
+            LocalViewMode::Auto => "auto",
+            LocalViewMode::Raw => "raw",
+            LocalViewMode::Decoded => "decoded",
+            LocalViewMode::Dbz => "dbz",
+        }
+        .into(),
+        data_kind: data_kind.into(),
+    };
+    record.processing_id = crate::identity::digest(&record.identity_value()).map_err(|_| {
+        CoreError::Integrity("local view processing identity could not be computed".into())
+    })?;
+    Ok(record)
+}
+
+fn local_frame_geometry(
+    raw: &RawFrame,
+    field: &RadarField,
+    target: &CatalogSpatialTarget,
+) -> Result<RasterGeometryEvidence, CoreError> {
+    if raw.frame.source == "rdcap" {
+        let artifact = raw
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.receipt.name == "file-response.json")
+            .ok_or_else(|| {
+                CoreError::Storage("RDCAP frame geometry has no bound artifact".into())
+            })?;
+        let [height, width] = field.shape.as_slice() else {
+            return Err(CoreError::Storage("RDCAP frame geometry is not two-dimensional".into()));
+        };
+        let shape = [
+            u32::try_from(*height).map_err(|_| {
+                CoreError::ResourceLimit("RDCAP frame height exceeds geometry range".into())
+            })?,
+            u32::try_from(*width).map_err(|_| {
+                CoreError::ResourceLimit("RDCAP frame width exceeds geometry range".into())
+            })?,
+        ];
+        let affine = field.grid.affine.ok_or_else(|| {
+            CoreError::Storage("RDCAP frame geometry has no affine transform".into())
+        })?;
+        return Ok(RasterGeometryEvidence {
+            status: SpatialEvidenceStatus::Verified,
+            crs: field.grid.crs.clone(),
+            registration: PixelRegistration::Edge,
+            shape: Some(shape),
+            affine: Some(affine),
+            data_window: Some([0, 0, shape[1], shape[0]]),
+            artifact_sha256: Some(artifact.receipt.sha256.clone()),
+            evidence: vec![CatalogProvenance {
+                source: "RDCAP receipt-bound CSR decoder".into(),
+                reference: Some(format!("sha256:{}", artifact.receipt.sha256)),
+                observed_at: None,
+            }],
+        });
+    }
+    let geometry = target
+        .geometry
+        .as_ref()
+        .filter(|geometry| {
+            geometry.status == SpatialEvidenceStatus::Verified && !geometry.evidence.is_empty()
+        })
+        .ok_or_else(|| {
+            CoreError::Storage("local projection requires verified frame geometry".into())
+        })?;
+    if let Some(hash) = geometry.artifact_sha256.as_deref()
+        && !raw.artifacts.iter().any(|artifact| artifact.receipt.sha256 == hash)
+    {
+        return Err(CoreError::Integrity("frame artifact conflicts with geometry evidence".into()));
+    }
+    Ok(geometry.clone())
 }
 
 fn merge_station_catalog_update(
@@ -2483,10 +3993,11 @@ fn limits_from_config(runtime: &RuntimeConfig) -> Limits {
     }
 }
 
-fn required_credential(source: &str) -> Option<&'static str> {
-    match source {
+fn required_credential(target: &DiscoveryTarget) -> Option<&'static str> {
+    match target.source.as_str() {
         "id" => Some("token"),
         "id_sidarma" | "wunderground" => Some("api_key"),
+        "tw" if target.product.as_deref() == Some("observation-wide") => Some("api_key"),
         _ => None,
     }
 }
@@ -2737,10 +4248,14 @@ pub enum EngineError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::catalog::CatalogDirectoryConflict;
     use crate::source::{SourceAdapter, SourceContext, SourceRegistry};
     use futures_util::future::BoxFuture;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
+
+    #[path = "local_view_flow.rs"]
+    mod local_view_flow;
 
     #[tokio::test]
     async fn offline_discovery_reports_all_catalog_targets_without_network() {
@@ -2749,10 +4264,65 @@ mod tests {
             .discover_seeded(Query { source: Some("all".into()), ..Query::default() }, 7)
             .await
             .unwrap();
-        assert_eq!(report.counts.total, 74);
-        assert_eq!(report.counts.missing_credentials, 3);
+        assert_eq!(report.counts.total, 75);
+        assert_eq!(report.counts.missing_credentials, 4);
         assert_eq!(report.counts.retired, 1);
         assert_eq!(report.counts.network_restricted, 70);
+    }
+
+    #[test]
+    fn optional_tw_membership_does_not_exclude_anonymous_source_products() {
+        for product in [None, Some("observation"), Some("grid"), Some("observation-wide")] {
+            let target = DiscoveryTarget {
+                source: "tw".into(),
+                product: product.map(str::to_owned),
+                station: None,
+            };
+            assert_eq!(
+                required_credential(&target),
+                (product == Some("observation-wide")).then_some("api_key")
+            );
+        }
+
+        let mut registry = SourceRegistry::default();
+        registry.register(Arc::new(crate::source::tw::TwSourceAdapter)).unwrap();
+        let engine = Engine::new(CoreConfig::default(), registry).unwrap();
+        let targets =
+            SourceCatalog::builtin().unwrap().spatial_targets(Some(&["tw".into()])).unwrap();
+        assert_eq!(targets.len(), 3);
+        assert!(!local_view_policy(&engine, &targets).source_exclusions.contains_key("tw"));
+    }
+
+    #[tokio::test]
+    async fn single_target_discovery_uses_the_session_deadline() {
+        let active = Arc::new(AtomicUsize::new(0));
+        let maximum = Arc::new(AtomicUsize::new(0));
+        let adapter = Arc::new(FixtureAdapter { id: "ca", active: active.clone(), maximum });
+        let mut registry = SourceRegistry::default();
+        registry.register(adapter.clone()).unwrap();
+        let engine = Engine::new(CoreConfig::default(), registry).unwrap();
+        let target = DiscoveryTarget {
+            source: "ca".into(),
+            product: Some("rain".into()),
+            station: Some("CA01".into()),
+        };
+        let query = Query { source: Some("ca".into()), ..Query::default() };
+        let session = DiscoverySession::new(Instant::now() + Duration::from_secs(1));
+        let result = engine
+            .discover_target_until(target.clone(), adapter.clone(), query.clone(), &session)
+            .await;
+        assert!(matches!(
+            result,
+            DiscoveryOutcome::Completed(Ok(ref frames)) if frames.len() == 1
+        ));
+        assert_eq!(active.load(Ordering::SeqCst), 0);
+
+        let expired = DiscoverySession::new(Instant::now() - Duration::from_secs(1));
+        assert!(matches!(
+            engine.discover_target_until(target, adapter, query, &expired).await,
+            DiscoveryOutcome::NotStarted
+        ));
+        assert_eq!(active.load(Ordering::SeqCst), 0);
     }
 
     #[test]
@@ -2814,6 +4384,49 @@ mod tests {
             added.metadata.as_ref().unwrap().extensions["live_catalog_state"],
             "new_from_live_directory"
         );
+    }
+
+    #[test]
+    fn local_view_directory_coordinate_conflict_drops_the_site_point() {
+        let mut catalog = SourceCatalog::builtin().unwrap();
+        let snapshot = catalog
+            .source("rdcap")
+            .unwrap()
+            .stations
+            .iter()
+            .find(|station| station.id == "TWRCHL")
+            .unwrap()
+            .clone();
+        let mut live = snapshot.clone();
+        live.longitude = Some(121.0);
+        live.latitude = Some(24.0);
+        live.metadata = Some(CatalogMetadata {
+            directory_conflicts: vec![CatalogDirectoryConflict {
+                station_id: "TWRCHL".into(),
+                field: "Longitude/Latitude".into(),
+                values: vec![json!([121.620079, 23.990305]), json!([121.0, 24.0])],
+                provenance: vec![],
+            }],
+            ..CatalogMetadata::default()
+        });
+        merge_station_catalog_update(
+            &mut catalog,
+            StationCatalogUpdate {
+                source_id: "rdcap".into(),
+                stations: vec![live],
+                metadata: None,
+            },
+        )
+        .unwrap();
+
+        let spatial = catalog
+            .spatial_targets(Some(&["rdcap".into()]))
+            .unwrap()
+            .into_iter()
+            .find(|target| target.target.station.as_deref() == Some("TWRCHL"))
+            .unwrap();
+        assert!(spatial.site.is_none());
+        assert_eq!(spatial.site_status, SpatialEvidenceStatus::Unknown);
     }
 
     #[tokio::test]
@@ -3300,7 +4913,7 @@ mod tests {
 
         assert_eq!(maximum.load(Ordering::SeqCst), 2);
         assert_eq!(report.counts.success, 70);
-        assert_eq!(report.items.len(), 74);
+        assert_eq!(report.items.len(), 75);
         assert_eq!(report.items.first().unwrap().target.source, "au");
     }
 

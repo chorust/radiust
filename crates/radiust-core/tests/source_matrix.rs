@@ -76,7 +76,7 @@ const NATIVE_ADAPTER_IDS: [&str; 25] = [
     "wunderground",
 ];
 
-const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 74] = [
+const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 75] = [
     ("au", "composite", None),
     ("bmkg", "composite", None),
     ("ca", "rain", None),
@@ -146,6 +146,7 @@ const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 74] = [
     ("th_royalrain", "cappi", None),
     ("tw", "grid", None),
     ("tw", "observation", None),
+    ("tw", "observation-wide", None),
     ("tw-http", "observation", None),
     ("uk", "rain", None),
     ("vn", "cmax", None),
@@ -154,8 +155,8 @@ const DISCOVERY_TARGETS: [(&str, &str, Option<&str>); 74] = [
 ];
 
 const RAW_HOOK_SOURCES: [&str; 7] = ["au", "ph", "rainviewer", "rdcap", "th", "tw", "windy"];
-const CREDENTIALS: [(&str, &str); 3] =
-    [("id", "token"), ("id_sidarma", "api_key"), ("wunderground", "api_key")];
+const CREDENTIALS: [(&str, &str); 4] =
+    [("id", "token"), ("id_sidarma", "api_key"), ("tw", "api_key"), ("wunderground", "api_key")];
 
 fn offline_engine(config: CoreConfig) -> Engine {
     assert!(!config.runtime.allow_network, "source matrix tests must stay offline");
@@ -304,7 +305,7 @@ fn catalog_lists_all_sources_and_expands_the_exact_discovery_target_matrix() {
         })
         .collect::<Vec<_>>();
     assert_eq!(actual, DISCOVERY_TARGETS);
-    assert_eq!(targets.len(), 74);
+    assert_eq!(targets.len(), DISCOVERY_TARGETS.len());
 }
 
 #[test]
@@ -496,10 +497,16 @@ async fn offline_discovery_preserves_retirement_credentials_and_network_prefligh
         .await
         .expect("offline discover all");
 
-    assert_eq!(report.counts.total, 74);
+    assert_eq!(report.counts.total, DISCOVERY_TARGETS.len());
     for item in &report.items {
         let expected = if item.target.source == "uk" {
             DiscoveryStatus::Retired
+        } else if item.target.source == "tw" {
+            if item.target.product.as_deref() == Some("observation-wide") {
+                DiscoveryStatus::MissingCredentials
+            } else {
+                DiscoveryStatus::NetworkRestricted
+            }
         } else if CREDENTIALS.iter().any(|(source, _)| *source == item.target.source) {
             DiscoveryStatus::MissingCredentials
         } else {
@@ -508,7 +515,7 @@ async fn offline_discovery_preserves_retirement_credentials_and_network_prefligh
         assert_eq!(item.status, expected, "unexpected preflight for {:?}", item.target);
     }
     assert_eq!(report.counts.retired, 1);
-    assert_eq!(report.counts.missing_credentials, 3);
+    assert_eq!(report.counts.missing_credentials, 4);
     assert_eq!(report.counts.network_restricted, 70);
 
     let mut configured = CoreConfig::default();
@@ -526,7 +533,7 @@ async fn offline_discovery_preserves_retirement_credentials_and_network_prefligh
         .await
         .expect("credentialed offline discover all");
     assert_eq!(credentialed.counts.retired, 1);
-    assert_eq!(credentialed.counts.network_restricted, 73);
+    assert_eq!(credentialed.counts.network_restricted, 74);
     assert_eq!(credentialed.counts.missing_credentials, 0);
     let serialized = serde_json::to_string(&credentialed).unwrap();
     for (source, _) in CREDENTIALS {

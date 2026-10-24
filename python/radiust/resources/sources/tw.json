@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source": "tw",
-  "adapter_version": "2",
+  "adapter_version": "3",
   "historical": false,
   "bucket_base": "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation",
   "object": "O-A0058-005",
@@ -13,5 +13,10 @@
   "station": "CV1_3600",
   "geometry_status": "unverified",
   "png_metadata": "provider-declared extent and image dimensions; pixel registration, datum and RGB-to-dBZ remain unverified",
-  "scientific_decode": "observation PNG blocked pending verified palette; grid decodes native TWD67 dBZ"
+  "scientific_decode": "observation PNG blocked pending verified palette; grid decodes native TWD67 dBZ",
+  "membership_product": "observation-wide",
+  "membership_object": "O-A0058-001",
+  "membership_endpoint": "https://opendata.cwa.gov.tw/fileapi/v1/opendataapi/O-A0058-001",
+  "membership_configuration": "sources.tw.api_key",
+  "membership_capability": "raw image only; geometry and physical palette unverified"
 }

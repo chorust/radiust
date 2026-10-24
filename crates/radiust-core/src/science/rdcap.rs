@@ -1,7 +1,8 @@
 //! Bounded decoder for the verified RDCAP single-station CSR envelope.
 
+use super::BudgetedRadarField;
 use crate::errors::{CoreError, CoreResult, ProviderError};
-use crate::limits::Limits;
+use crate::limits::{Limits, RasterMemoryBudget, RasterWorkControl};
 use crate::model::{Grid, RadarField, RawFrame};
 use sha2::{Digest, Sha256};
 
@@ -17,6 +18,34 @@ fn invalid_grid() -> CoreError {
 
 /// Decode a retained RDCAP raw frame only after its content binding verifies.
 pub fn decode_rdcap(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField> {
+    let memory = limits.raster_memory_budget();
+    Ok(decode_rdcap_with_memory(raw, limits, &memory)?.field)
+}
+
+pub(crate) fn decode_rdcap_with_memory(
+    raw: &RawFrame,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+) -> CoreResult<BudgetedRadarField> {
+    decode_rdcap_inner(raw, limits, memory, None)
+}
+
+pub(crate) fn decode_rdcap_with_memory_and_control(
+    raw: &RawFrame,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+    control: &RasterWorkControl,
+) -> CoreResult<BudgetedRadarField> {
+    decode_rdcap_inner(raw, limits, memory, Some(control))
+}
+
+fn decode_rdcap_inner(
+    raw: &RawFrame,
+    limits: &Limits,
+    memory: &RasterMemoryBudget,
+    control: Option<&RasterWorkControl>,
+) -> CoreResult<BudgetedRadarField> {
+    check_raster_work(control)?;
     crate::source::rdcap::validate_binding(&raw.frame, &raw.artifacts)?;
     let artifact = raw
         .artifacts
@@ -36,27 +65,44 @@ pub fn decode_rdcap(raw: &RawFrame, limits: &Limits) -> CoreResult<RadarField> {
     if !metadata.is_file() || metadata.len() != artifact.receipt.size_bytes {
         return Err(invalid_grid());
     }
+    let input_bytes = metadata
+        .len()
+        .checked_mul(3)
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP input buffer size overflow".into()))?;
+    let _input_lease = memory.reserve(input_bytes)?;
     let payload = std::fs::read(&artifact.path)
         .map_err(|_| CoreError::Storage("RDCAP response is unavailable".into()))?;
+    check_raster_work(control)?;
     if hex::encode(Sha256::digest(&payload)) != artifact.receipt.sha256 {
         return Err(invalid_grid());
     }
     let content: String = serde_json::from_slice(&payload).map_err(|_| unverified())?;
-    decode_csr_text(raw, &content, limits, &artifact.receipt.sha256)
+    check_raster_work(control)?;
+    decode_csr_text_with_memory(raw, &content, limits, memory, &artifact.receipt.sha256, control)
 }
 
-fn decode_csr_text(
+fn decode_csr_text_with_memory(
     raw: &RawFrame,
     content: &str,
     limits: &Limits,
+    memory: &RasterMemoryBudget,
     content_sha256: &str,
-) -> CoreResult<RadarField> {
+    control: Option<&RasterWorkControl>,
+) -> CoreResult<BudgetedRadarField> {
+    check_raster_work(control)?;
     let palette = crate::rdcap_palette::palette();
-    let lines = content.lines().collect::<Vec<_>>();
-    if lines.len() != 7 {
+    let mut lines = content.lines();
+    let line0 = lines.next().ok_or_else(invalid_grid)?;
+    let line1 = lines.next().ok_or_else(invalid_grid)?;
+    let line2 = lines.next().ok_or_else(invalid_grid)?;
+    let line3 = lines.next().ok_or_else(invalid_grid)?;
+    let line4 = lines.next().ok_or_else(invalid_grid)?;
+    let line5 = lines.next().ok_or_else(invalid_grid)?;
+    let line6 = lines.next().ok_or_else(invalid_grid)?;
+    if lines.next().is_some() {
         return Err(invalid_grid());
     }
-    let header = lines[0].split(',').collect::<Vec<_>>();
+    let header = line0.split(',').take(12).collect::<Vec<_>>();
     if header.len() != 11 {
         return Err(invalid_grid());
     }
@@ -88,7 +134,7 @@ fn decode_csr_text(
         return Err(invalid_grid());
     }
 
-    let transform = lines[1]
+    let transform = line1
         .strip_prefix("linearTransform(")
         .and_then(|value| value.strip_suffix(')'))
         .ok_or_else(unverified)?;
@@ -98,43 +144,59 @@ fn decode_csr_text(
     if scale != 0.1 || offset != 0.0 {
         return Err(unverified());
     }
-    validate_legend(lines[2])?;
+    validate_legend(line2)?;
 
     let cells = width.checked_mul(height).ok_or_else(invalid_grid)?;
     let cells_u64 = u64::try_from(cells).map_err(|_| invalid_grid())?;
     limits.validate_pixels(cells_u64)?;
-    let ndv = parse_prefixed_usize(lines[3], "ndv")?;
+    let ndv = parse_prefixed_usize(line3, "ndv")?;
     if ndv > cells {
         return Err(invalid_grid());
     }
     let expected_row_ptr = height.checked_add(1).ok_or_else(invalid_grid)?;
     let ndv_u64 = u64::try_from(ndv).map_err(|_| invalid_grid())?;
     let row_ptr_u64 = u64::try_from(expected_row_ptr).map_err(|_| invalid_grid())?;
-    let decoded_bytes = cells_u64
-        .checked_mul(
-            (std::mem::size_of::<i16>() + std::mem::size_of::<f32>() + std::mem::size_of::<u16>())
-                as u64,
-        )
-        .and_then(|bytes| {
-            ndv_u64
-                .checked_mul((std::mem::size_of::<usize>() + std::mem::size_of::<i16>()) as u64)
-                .and_then(|sparse_bytes| bytes.checked_add(sparse_bytes))
-        })
-        .and_then(|bytes| {
-            row_ptr_u64
-                .checked_mul(std::mem::size_of::<usize>() as u64)
-                .and_then(|row_bytes| bytes.checked_add(row_bytes))
-        })
+    let dense_bytes = cells_u64
+        .checked_mul(std::mem::size_of::<i16>() as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP decoded buffer size overflow".into()))?;
+    let output_plane_bytes = cells_u64
+        .checked_mul((std::mem::size_of::<f32>() + std::mem::size_of::<u16>()) as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP decoded buffer size overflow".into()))?;
+    let sparse_bytes = ndv_u64
+        .checked_mul((std::mem::size_of::<usize>() + std::mem::size_of::<i16>()) as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP decoded buffer size overflow".into()))?;
+    let row_ptr_bytes = row_ptr_u64
+        .checked_mul(std::mem::size_of::<usize>() as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP decoded buffer size overflow".into()))?;
+    let axis_count = width
+        .checked_add(height)
+        .and_then(|count| u64::try_from(count).ok())
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP axis buffer size overflow".into()))?;
+    let axes_bytes = axis_count
+        .checked_mul(std::mem::size_of::<f64>() as u64)
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP axis buffer size overflow".into()))?;
+    let scratch_bytes = dense_bytes
+        .checked_add(sparse_bytes)
+        .and_then(|bytes| bytes.checked_add(row_ptr_bytes))
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP decoded buffer size overflow".into()))?;
+    let output_bytes = output_plane_bytes
+        .checked_add(axes_bytes)
+        .ok_or_else(|| CoreError::ResourceLimit("RDCAP decoded buffer size overflow".into()))?;
+    let decoded_bytes = scratch_bytes
+        .checked_add(output_bytes)
         .ok_or_else(|| CoreError::ResourceLimit("RDCAP decoded buffer size overflow".into()))?;
     if decoded_bytes > limits.max_frame_bytes || decoded_bytes > limits.max_temp_bytes {
         return Err(CoreError::ResourceLimit(
             "RDCAP decoded buffers exceed configured limits".into(),
         ));
     }
+    let scratch_lease = memory.reserve(scratch_bytes)?;
+    let output_lease = memory.reserve(output_bytes)?;
 
-    let columns = parse_prefixed_list::<usize>(lines[4], "colIdx", ndv)?;
-    let row_ptr = parse_prefixed_list::<usize>(lines[5], "rowPtr", expected_row_ptr)?;
-    let sparse_values = parse_prefixed_list::<i16>(lines[6], "vals", ndv)?;
+    let columns = parse_prefixed_list_with_control::<usize>(line4, "colIdx", ndv, control)?;
+    let row_ptr =
+        parse_prefixed_list_with_control::<usize>(line5, "rowPtr", expected_row_ptr, control)?;
+    let sparse_values = parse_prefixed_list_with_control::<i16>(line6, "vals", ndv, control)?;
     if row_ptr.first() != Some(&0)
         || row_ptr.last() != Some(&ndv)
         || row_ptr.windows(2).any(|pair| pair[0] > pair[1] || pair[1] > ndv)
@@ -149,10 +211,14 @@ fn decode_csr_text(
     })?;
     dense.resize(cells, default_raw);
     for row in 0..height {
+        check_raster_work(control)?;
         let start = row_ptr[row];
         let end = row_ptr[row + 1];
         let mut previous = None;
         for position in start..end {
+            if position % 65_536 == 0 {
+                check_raster_work(control)?;
+            }
             let column = columns[position];
             if previous.is_some_and(|value| column <= value) {
                 return Err(invalid_grid());
@@ -163,12 +229,16 @@ fn decode_csr_text(
     }
     if first_lat < last_lat {
         for row in 0..height / 2 {
+            check_raster_work(control)?;
             let opposite = height - row - 1;
             for column in 0..width {
                 dense.swap(row * width + column, opposite * width + column);
             }
         }
     }
+    drop(columns);
+    drop(row_ptr);
+    drop(sparse_values);
 
     let mut values = Vec::new();
     let mut quality = Vec::new();
@@ -180,7 +250,10 @@ fn decode_csr_text(
     })?;
     let mut annotation_cells = 0_usize;
     let mut missing_cells = 0_usize;
-    for value in dense {
+    for (index, value) in dense.into_iter().enumerate() {
+        if index % 65_536 == 0 {
+            check_raster_work(control)?;
+        }
         if value == invalid_raw {
             values.push(f32::NAN);
             quality.push(QUALITY_MISSING);
@@ -194,6 +267,7 @@ fn decode_csr_text(
             quality.push(0);
         }
     }
+    drop(scratch_lease);
 
     let dx = (last_lon - first_lon) / (width - 1) as f64;
     let dy = (last_lat - first_lat).abs() / (height - 1) as f64;
@@ -201,8 +275,19 @@ fn decode_csr_text(
     let north = first_lat.max(last_lat);
     let east = west + width as f64 * dx;
     let south = north - height as f64 * dy;
-    let x = (0..width).map(|column| west + (column as f64 + 0.5) * dx).collect();
-    let y = (0..height).map(|row| north - (row as f64 + 0.5) * dy).collect();
+    let mut x = Vec::new();
+    let mut y = Vec::new();
+    x.try_reserve_exact(width)
+        .map_err(|_| CoreError::ResourceLimit("RDCAP x-axis allocation failed".into()))?;
+    y.try_reserve_exact(height)
+        .map_err(|_| CoreError::ResourceLimit("RDCAP y-axis allocation failed".into()))?;
+    for column in 0..width {
+        x.push(west + (column as f64 + 0.5) * dx);
+    }
+    for row in 0..height {
+        check_raster_work(control)?;
+        y.push(north - (row as f64 + 0.5) * dy);
+    }
     let shape = vec![height, width];
     let station = raw.frame.station.as_deref().unwrap_or_default();
     let country = raw.frame.locator["country"].as_str().unwrap_or_default();
@@ -245,21 +330,27 @@ fn decode_csr_text(
         ],
     };
     field.validate().map_err(|_| invalid_grid())?;
-    Ok(field)
+    Ok(BudgetedRadarField { field, _leases: vec![output_lease] })
 }
 
 fn validate_legend(line: &str) -> CoreResult<()> {
     let palette = crate::rdcap_palette::palette();
-    let tokens = line.split(',').map(parse_i32).collect::<CoreResult<Vec<_>>>()?;
-    if tokens.len() != palette.classes.len() * 4 {
-        return Err(unverified());
-    }
-    for (entry, class) in tokens.chunks_exact(4).zip(&palette.classes) {
-        if entry[..3] != class.rgb.map(i32::from)
-            || entry[3] != i32::from(class.raw_lower_threshold)
-        {
-            return Err(unverified());
+    let mut tokens = line.split(',');
+    for class in &palette.classes {
+        let expected = [
+            i32::from(class.rgb[0]),
+            i32::from(class.rgb[1]),
+            i32::from(class.rgb[2]),
+            i32::from(class.raw_lower_threshold),
+        ];
+        for expected in expected {
+            if parse_i32(tokens.next().ok_or_else(unverified)?)? != expected {
+                return Err(unverified());
+            }
         }
+    }
+    if tokens.next().is_some() {
+        return Err(unverified());
     }
     Ok(())
 }
@@ -272,10 +363,20 @@ fn parse_prefixed_usize(line: &str, prefix: &str) -> CoreResult<usize> {
     parse_usize(value)
 }
 
+#[cfg(test)]
 fn parse_prefixed_list<T: std::str::FromStr>(
     line: &str,
     prefix: &str,
     expected_count: usize,
+) -> CoreResult<Vec<T>> {
+    parse_prefixed_list_with_control(line, prefix, expected_count, None)
+}
+
+fn parse_prefixed_list_with_control<T: std::str::FromStr>(
+    line: &str,
+    prefix: &str,
+    expected_count: usize,
+    control: Option<&RasterWorkControl>,
 ) -> CoreResult<Vec<T>> {
     let (name, values) = line.split_once(':').ok_or_else(invalid_grid)?;
     if name != prefix {
@@ -294,11 +395,21 @@ fn parse_prefixed_list<T: std::str::FromStr>(
         CoreError::ResourceLimit("RDCAP sparse buffer could not be allocated".into())
     })?;
     if expected_count != 0 {
-        for value in values.split(',') {
+        for (index, value) in values.split(',').enumerate() {
+            if index % 65_536 == 0 {
+                check_raster_work(control)?;
+            }
             parsed.push(value.parse().map_err(|_| invalid_grid())?);
         }
     }
     Ok(parsed)
+}
+
+fn check_raster_work(control: Option<&RasterWorkControl>) -> CoreResult<()> {
+    if let Some(control) = control {
+        control.check()?;
+    }
+    Ok(())
 }
 
 fn parse_usize(value: &str) -> CoreResult<usize> {

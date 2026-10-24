@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-10",
+  "source": "pt/composite/PTST2",
+  "scope": "IPMA Madeira page-rendered image placement; not a quantitative native radar grid or coverage claim",
+  "official_page": {
+    "url": "https://www.ipma.pt/pt/otempo/obs.remote/index-md.jsp",
+    "http_status": 200,
+    "sha256": "bd51fa68b9cdb284e979c1b9662eae93dfce252c4be7a6c5e9909677514bc2eb",
+    "leaflet_version": "1.9.4",
+    "leaflet_asset_integrity": "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  },
+  "official_map_script": {
+    "url": "https://www.ipma.pt/pt/otempo/obs.remote/mapbuilder-md.js",
+    "http_status": 200,
+    "content_type": "application/x-javascript",
+    "last_modified": "2025-03-20T15:48:37Z",
+    "size_bytes": 7701,
+    "sha256": "b6201ea5046aa5ba712b90f9351c64098371b79a209ddee249535978e8907acb",
+    "summary": "Madeira timeline images are passed directly to L.ImageOverlay with bounds SW=(30.01467,-19.87034), NE=(35.96053,-12.89697); L.map omits crs and therefore uses the page's Leaflet 1.9.4 default EPSG:3857. The overlay uses the whole image rectangle."
+  },
+  "projection": {
+    "crs": "EPSG:3857",
+    "registration": "edge",
+    "bounds_wsen": [-19.87034, 30.01467, -12.89697, 35.96053],
+    "fixture_shape_height_width": [1526, 1500],
+    "fixture_sha256": "fc44efba8f3c2b8ddfd71b9ba25d54282a2311c423044133a483d7a83eab18fa",
+    "data_window_xywh": [0, 0, 1500, 1526],
+    "affine_edge_origin_step": [-2211956.1306892154, 517.5146650087266, 0.0, 4295191.719145755, 0.0, -517.5334498787525],
+    "derived_pixel_center_controls": [
+      {"column": 0, "row": 0, "longitude": -19.868015543, "latitude": 35.958648444},
+      {"column": 750, "row": 763, "longitude": -16.381330543, "latitude": 33.035786075},
+      {"column": 1499, "row": 1525, "longitude": -12.899294457, "latitude": 30.016682794}
+    ],
+    "control_limit": "The three interior/pixel-center controls are calculated from the official overlay rectangle and Leaflet's projected corner placement; IPMA does not publish independent per-pixel tie points. Runtime support is restricted to the retained 1500x1526 shape and receipt-verified bytes."
+  },
+  "decision": {
+    "geometry_model": "verified for the IPMA webpage's EPSG:3857 image-overlay placement",
+    "scientific_decode": "existing ordinal rainfall-intensity categories remain separate; no continuous mm/h field is inferred",
+    "observation_coverage": "unknown",
+    "automatic_admission": false,
+    "historical_evidence": "Older validation notes describe linear EPSG:4326 pixel centers. They are retained as historical evidence; this dated record supersedes that display-geometry interpretation for new local views."
+  }
+}

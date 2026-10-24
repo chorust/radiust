@@ -45,6 +45,35 @@ radiust config show --json
 radiust cache status --json
 ```
 
+### 位置驱动的局部视图
+
+`radiust cat`（不带 `SOURCE` 或 `--file`）读取配置中的 `location`，默认生成用户居中的 WGS84 椭球 AEQD 网格，半径 50 km、请求间距 1 km。输出坐标以用户为原点，x 向东、y 向北，单位为米；终端摘要以公里显示。显式参数可覆盖默认范围与间距：
+
+```yaml
+location:
+  longitude: 121.60
+  latitude: 24.00
+local_view:
+  radius_km: 50
+  resolution_m: 1000
+runtime:
+  allow_network: false
+```
+
+```bash
+radiust --conf ./config.yaml cat --json
+radiust --conf ./config.yaml cat --radius-km 25 --resolution-m 500 --renderer text --json
+radiust --conf ./config.yaml cat rdcap --station TWRCHL --local --dbz --json
+```
+
+网络仍默认为关闭；使用真实来源前，需由用户在配置或 `RADIUST_RUNTIME__ALLOW_NETWORK=true` 中显式开启，并提供该来源所需配置。RainViewer `composite` 已按个人用途开放裸 `cat` 自动选择；人类可读的局部视图报告会显示 `Weather data by RainViewer` 及来源链接。当前观测覆盖仍为 unknown，自动选择不代表位置一定有雷达观测。显式 `SOURCE --local` 只限制到该来源；缺位置、未准入、无数据、几何不支持、失败、超时和取消会分别保留状态。未配置位置时裸 `cat` 返回 `location_missing`。`cat SOURCE` 仍是原有非局部原图流程；`cat --file PATH` 保持文件预览，不能与局部参数组合。
+
+局部入口支持 `--raw`、`--decoded`、`--dbz` 和 `--resampling nearest|bilinear`；`--gray`/`--legacy-display`、历史时间选择与局部文件图像会明确拒绝。bilinear 只用于支持的连续数值产品，dBZ 在 Z 域插值。raw 局部投影目前限于有 receipt 绑定 EPSG:3857 边缘注册几何的 PT 图像，按最近邻保留 RGBA；该几何只表示官方网页叠图位置，不证明像元定量含义或观测覆盖，PT 自动准入与当前在线链路仍未验证。`--width`/`--height` 只影响终端显示尺寸，不改变结果网格。
+
+JSON 结果包含投影参数、实际间距、选择/排除原因、覆盖状态及绑定输入 receipt 的 `processing` 身份，不含像元数组或私有 locator。每个选择记录保留目录中的 `spatial_evidence` 与 `observation_coverage`；结果级 `observation_coverage` 来自最终选中的候选，没有选中候选或缺少覆盖证据时为 `null`。Python SDK 返回数值字段或 `raw_rgba` 字节，并提供局部 `CartesianGrid`；配置、选择和投影仍由共享 Rust Engine 完成。
+
+局部视图退出码按状态区分：`selected` 为 0；`no_candidate` 为 3（没有来源满足位置与模式要求）；网络关闭导致其余可用候选都被排除时同样为 `no_candidate` 状态，但 `error.code` 为 `network_disabled`，退出码为 2，与 `download --dry-run` 在网络全被限制时一致。已退役、缺凭证或无适配器的来源不影响这一网络分类；仅有这些不可用来源而没有网络受限候选时仍为 `no_candidate`/3。`failed` 与 `timed_out` 为 5；`interrupted` 为 130；缺位置（`location_missing`）和非法参数组合（`invalid_request`）为 2。
+
 ### 查询、配置与网络
 
 `discover SOURCE...` 接受一个或多个 source ID；单来源查询可选 `--product`、重复的 `--station`、`--at TIME`、成对的 `--start TIME --end TIME` 和 `--base-time TIME`。未指定时间选择器时使用 latest。`--max-age SECONDS` 只用于 latest，必须是正数。多来源查询（两个以上 ID 或 `all`）只支持 latest 和 `--max-age`，不接受产品、站点、起报时间或时间范围过滤。`all` 遍历目录中的 24 个 source ID（当前展开为 26 个目标）；目录登记仅代表可查询元数据，不代表有可用原生 adapter、可成功获取或科学解码已验收。
@@ -93,7 +122,7 @@ SIDARMA latest 通过 `https://api.bmkg.go.id/radar/v1/arsip` 查询最近一小
 - `download SOURCE --dry-run` 执行发现并报告 `planned` 帧，不下载 artifact、不解码、不写正式输出。发现阶段仍受 `runtime.allow_network` 控制，因此 dry-run 不保证离线。原生批量下载的获取、解码和输出编码按 `runtime.frame_concurrency` 有界派发，解码与编码共享 `runtime.decode_workers` CPU 上限；结果和 manifest-last 提交保持输入顺序。`download SOURCE --raw-only` 已接通有界获取和正式提交；可用 `--output`、`--format`、`--overwrite` 和 `--on-error collect|continue|stop|raise`。未指定 `--format` 时使用配置中的 `output.format`（默认 `netcdf`），显式参数优先；这是原生 CLI 的配置优先级，旧 Python Click 命令的固定 `netcdf` 默认值曾遮蔽该配置。`--raw-only` 保存原始 artifact 与 `raw-manifest.json`，不做科学解码。普通解码下载支持已验收的 RainViewer composite 与 TW grid，可选择 `--format png|netcdf|geotiff|zarr`；`--raw` 会把已校验的来源 artifact 一并纳入解码成果。远端 `s3://bucket/prefix` 或 `oss://bucket/prefix` 可用 `--access-key`、`--secret-key`、`--endpoint` 覆盖 storage 配置；凭据必须成对提供并会由 `config show` 脱敏。远端提交使用 generation/pointer 协议，但真实 S3/OSS provider 尚未验收。四种格式均支持本地 manifest-last 提交；PNG 含 render sidecar，GeoTIFF 含数据/quality/provenance 三件组，Zarr store 文件列入清单。四种格式已有独立 fixture 读回合同。GeoTIFF 只接受规则坐标；EPSG:4326 的非规则纬度仅在转为规则 EPSG:3857 后输出，其他无法证明仿射的网格会拒绝。
 - `cat --file PATH` 预览 PNG/WebP 原始像素，并可读取 Rust 生成的 NetCDF4、GeoTIFF 三件组和 Zarr v2 科学场。NetCDF4 使用 `--variable NAME` 选变量，`--at TIME` 选多时次中的帧；GeoTIFF/Zarr 的单时次成果可用 `--variable NAME` 校验或选择变量，并用 `--at TIME` 校验成果时间。Zarr 多变量成果必须指定变量；NetCDF4/Zarr 的歧义会在读取数据数组前拒绝。GeoTIFF 读取要求数据栅格、`_quality.tif` 和 `_provenance.json` sidecar 完整匹配；Zarr 读取要求受支持的 Radiust consolidated v2 布局。科学场支持 `--palette default`、`--vmin` 和 `--vmax`；ANSI 与 iTerm2 renderer 可用 `--width`/`--height` 指定显示范围，最多分别 1024 列和 512 行。`cat SOURCE` 只在发现出唯一帧后获取并预览原始图像，不进行科学解码；多帧歧义会报错。使用 `--json` 时，成功的 `discover` 条目和来源预览结果都包含 `source_urls` 数组，列出 locator 中的主 URL 和 artifact URL；为避免泄露，URL 的 userinfo、query 和 fragment 会被移除，保留 scheme、host、port 与 path。原图预览不接受 palette/value range 选项。renderer 支持 `auto`、`text`、`ansi`、`kitty`、`iterm2`：`auto` 在彩色 TTY（且未设置 `NO_COLOR`）中选择可用图形 renderer，否则输出文字摘要；`text` 始终输出摘要。`--quiet` 不会隐藏预览。原图像素不能解释为反射率或雨强。
 - 图像 `cat` 模式显式区分 `--raw`、`--gray` 和 `--dbz`。本地 `--gray` 只检查并显示灰度像素；本地 `--dbz` 需要调用者声明 `gray-dbz-v1`，验证可见整数码在 0–224 后按 `gray × 5/16` 计算 dBZ。alpha 为零的像素是 missing，alpha 非零不缩放数值，黑色零码有效。普通灰度图不会因值域或外观自动变成 dBZ；本地模式不推断观测时间或地理定位。已有 NetCDF/GeoTIFF/Zarr 用 `--dbz` 时只接受变量 `reflectivity` 且实际单位为 `dBZ`，不会把其他变量或单位重标成 dBZ。
-- 来源 `cat SOURCE --gray` 使用已验证的逐路径 gray 显示规则；没有适用规则时保留原图并在 `mode_info.actual` 报告 `raw`。`cat SOURCE --dbz` 先保留已验证的 native reflectivity/dBZ 路径；没有 direct 数据时，只对逐路径证据通过的来源图像使用 gray-dBZ 规则。blocked 路径失败关闭。TW 默认 `observation` 图像产品使用 `radiust cat tw --product observation --latest --dbz` 进行编码反算；配套 JSON 与图像一并保留和校验。`--decoded` 使用原生科学解码，TW 需要明确指定 `--product grid`。旧 `--legacy-display` 仍可用于原来源预览，作为 `--gray` 兼容参数；人类输出会在 stderr 提示迁移，JSON 管道不写入提示文本。报告继续使用 Envelope v1，并用 `mode_schema_version: 1` 和 `mode_info` 添加实际模式、单位、时间/定位状态和限制。
+- 来源 `cat SOURCE --gray` 使用已验证的逐路径 gray 显示规则；没有适用规则时保留原图并在 `mode_info.actual` 报告 `raw`。`cat SOURCE --dbz` 先保留已验证的 native reflectivity/dBZ 路径；没有 direct 数据时，只对逐路径证据通过的来源图像使用 gray-dBZ 规则。blocked 路径失败关闭。TW 的会员图像产品 `observation-wide`（`O-A0058-001`）要求 `sources.tw.api_key`，当前仅支持原图预览与 `--raw-only`，不接受 `--dbz`／`--decoded`；配置及逐产品科学边界见 [CWA 产品说明](cwa-radar-products.md)。TW 默认 `observation` 图像产品使用 `radiust cat tw --product observation --latest --dbz` 进行编码反算；配套 JSON 与图像一并保留和校验。`--decoded` 使用原生科学解码，TW 需要明确指定 `--product grid`。旧 `--legacy-display` 仍可用于原来源预览，作为 `--gray` 兼容参数；人类输出会在 stderr 提示迁移，JSON 管道不写入提示文本。报告继续使用 Envelope v1，并用 `mode_schema_version: 1` 和 `mode_info` 添加实际模式、单位、时间/定位状态和限制。
 - 本地 `download --file IMAGE --dbz` 显式声明 `gray-dbz-v1`，成功后通过 manifest-last 事务保存 Pixel dBZ 数值；当前 NetCDF、Zarr 保存数值和质量数组，PNG 是带 sidecar 的显示成果，Pixel GeoTIFF writer 尚未实现而会拒绝请求。缺少可信几何的 geographic/regrid 请求也会失败。`download SOURCE --dbz` 与 `replay MANIFEST --dbz` 使用同一 Core 分派：direct native reflectivity 优先，之后才尝试适用且已验证的来源 gray 路径。`--raw` 仍表示将同次获取的来源 artifact 附在解码成果中，不能与 `--raw-only` 同用。dBZ 解码失败会保留失败状态，不回退成成功的 raw 结果。省略 `--dbz` 时保留原 generic/native scientific 行为。具体编码、NZ clip 和验证边界见 [gray/dBZ 指南](gray-dbz.md)。
 - 多帧本地图片必须明确选择帧，例如 `radiust cat --file ./frames.gif --gray --frame-index 0`；没有 `--frame-index` 且输入包含多帧时拒绝。读取已保存的数值反射率可用 `radiust cat --file ./reflectivity.nc --dbz --variable reflectivity`，Python SDK 的 `read_dbz()` / `write()` 可在没有来源 `FrameRef` 时读回和另存。旧 `--legacy-display` 是来源 gray 的兼容别名；新命令使用 `--gray`。JSON 沿用 Envelope v1，并通过 `mode_schema_version: 1` 与 `mode_info` 标识实际模式；未指定 `--dbz` 时其他科学变量继续 generic 解码并保留其真实单位。
 - `doctor` 检查本机运行时、目录和可写性。指定来源时会报告相关可选能力：TH 的 Tesseract、PH 的自动会话及 Chromium 状态、Windy 的 HTTP/Playwright 原生支持状态。可选依赖缺失不会改变本机健康检查的 `checks.ok`。`--network` 明确选择后会报告 `requested_but_source_probe_is_adapter_specific`，并附带目录中的 `source_availability`；当前没有来源会声称已完成连通性探测，也不会发出网络请求。

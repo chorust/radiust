@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "evidence_kind": "independent_numpy_xarray_native_numerical_readback",
+  "source": "tw",
+  "product": "O-A0059-001",
+  "valid_time": "2026-10-10T06:20:00+00:00",
+  "shape": [
+    881,
+    921
+  ],
+  "cells_compared": 811401,
+  "finite_cells": 6898,
+  "missing_cells": 604200,
+  "outside_or_quality_removed_cells": 200303,
+  "native_crs": "EPSG:3821",
+  "units": "dBZ",
+  "values_quality_coordinates_exact": true,
+  "raw_sha256": "31b720650361d405aa7eff1de0959e310ff70aa12bb5e798f6d384310514763f",
+  "netcdf_sha256": "2e96af619f422673653c240740f5fe8827b1bf00871ff7ce52405ff1e9b152cf",
+  "unverified": [
+    "external physical calibration",
+    "TWD67 to WGS84 conversion",
+    "image product mapping/geometry",
+    "real coverage and default source admission",
+    "other times and three-entry numerical replay"
+  ],
+  "raw_data_distribution": false
+}

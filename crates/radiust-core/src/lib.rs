@@ -15,9 +15,11 @@ pub mod grid;
 pub mod identity;
 pub mod legacy_display;
 pub mod limits;
+pub mod local_view;
 pub mod model;
 pub mod output;
 pub mod preview;
+pub mod projection;
 pub mod raster;
 pub mod raw_manifest;
 mod rdcap_palette;
@@ -26,6 +28,8 @@ pub mod safety;
 pub mod science;
 pub mod source;
 pub mod storage;
+#[cfg(feature = "test-support")]
+pub mod test_support;
 pub mod tiles;
 pub mod transport;
 

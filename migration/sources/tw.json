@@ -11,7 +11,9 @@
     "The companion JSON states longitude 115.00-126.50, latitude 17.75-29.25 and image size 3600x3600, but does not independently establish pixel registration, native datum or physical palette.",
     "The separate grid product reads O-A0059-001 JSON and decodes native TWD67 (EPSG:3821) 921x881 dBZ values, southwest-first then east/north, with -99 invalid and -999 outside/removed flags.",
     "The PNG product retains its own metadata and remains blocked for scientific decoding until its pixel geometry and RGB-to-dBZ mapping are independently established; O-A0059-001 has a different shape and datum.",
-    "The O-A0059-001 S3 JSON URL remains live. Full-body discovery could time out on its approximately 8.9 MB response; grid discovery now reads a bounded header, and acquisition streams ordered 256 KiB ranges with at most four concurrent requests, strong ETag/If-Match binding, exact Content-Range checks, byte limits and automatic staging cleanup."
+    "The O-A0059-001 S3 JSON URL remains live. Full-body discovery could time out on its approximately 8.9 MB response; grid discovery now reads a bounded header, and acquisition streams ordered 256 KiB ranges with at most four concurrent requests, strong ETag/If-Match binding, exact Content-Range checks, byte limits and automatic staging cleanup.",
+    "The observation-wide product reads O-A0058-001 metadata through CWA membership fileapi v1 with sources.tw.api_key; the existing observation/grid anonymous S3 products retain their identities and behavior.",
+    "Membership image requests verify product identity and provider metadata before/after acquisition, preserve PNG+JSON receipts, and never persist the Authorization query or include it in public frame identity. observation-wide remains raw-only with science and pixel geometry blocked."
   ],
   "evidence": [
     "tests/fixtures/sources/tw/fixture.json",
@@ -26,7 +28,9 @@
     "https://opendata.cwa.gov.tw/dataset/observation/O-A0059-001",
     "https://opendata.cwa.gov.tw/dataset/observation/O-A0058-005",
     "https://www.cwa.gov.tw/Data/data_catalog/3-6-5.pdf",
-    "validation-results/live-cli-tw-grid-range.json"
+    "validation-results/live-cli-tw-grid-range.json",
+    "validation-results/cwa-membership-acceptance-20261010.json",
+    "validation-results/cwa-grid-native-readback-20261010.json"
   ],
   "official_image_metadata_audit": {
     "checked_at": "2026-09-21",
@@ -47,7 +51,8 @@
     "conclusion": "Official metadata confirms product identity, update interval, nominal extent and image dimensions. The published material does not establish pixel registration or an RGB-to-dBZ mapping; the image stays raw-only, and the numeric grid georeference must not be applied to it."
   },
   "blockers": [
-    "PNG O-A0058-005 geometry and physical palette are still unverified; numerical O-A0059-001 coordinates must not be applied directly to the 3600x3600 PNG."
+    "PNG O-A0058-005 geometry and physical palette are still unverified; numerical O-A0059-001 coordinates must not be applied directly to the 3600x3600 PNG.",
+    "O-A0058-001: exact physical RGB mapping, annotation masks, pixel registration/datum, mutable metadata-image version binding, and default-source admission remain unverified."
   ],
   "display_migration": {
     "schema_version": 1,

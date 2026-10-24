@@ -1,6 +1,6 @@
 [package]
 name = "radiust-python"
-version = "0.1.1"
+version = "0.1.8"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -13,8 +13,9 @@ crate-type = ["cdylib"]
 
 [features]
 extension-module = ["radiust-core/extension-module"]
+test-support = ["radiust-core/test-support"]
 
 [dependencies]
 pyo3.workspace = true
-radiust-cli = { path = "../radiust-cli", version = "=0.1.1" }
-radiust-core = { path = "../radiust-core", version = "=0.1.1" }
+radiust-cli = { path = "../radiust-cli", version = "=0.1.8" }
+radiust-core = { path = "../radiust-core", version = "=0.1.8" }

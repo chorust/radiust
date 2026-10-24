@@ -65,6 +65,8 @@ cargo install --locked --path crates/radiust-cli
 radiust --help
 ```
 
+更新已安装的源码版本时加 `--force`，确保同版本号下的本地改动也重新安装。可用 `command -v radiust` 确认实际执行路径，并用 `radiust list products tw --json` 等产品目录检查确认新增产品已编入；版本号本身不能区分尚未发布的源码改动。
+
 也可指定隔离安装根目录：
 
 ```bash

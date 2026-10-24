@@ -22,6 +22,123 @@ async fn read_request(stream: &mut (impl AsyncRead + Unpin)) -> String {
 }
 
 #[tokio::test]
+async fn reviewed_metadata_redirects_strip_cross_origin_headers_and_reject_other_urls() {
+    let source = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let source_base = format!("http://{}", source.local_addr().unwrap());
+    let target_url = format!("http://{}/metadata.json", target.local_addr().unwrap());
+    let redirect_url = target_url.clone();
+    let server = tokio::spawn(async move {
+        for destination in
+            [redirect_url.clone(), format!("{redirect_url}?Authorization=private-key")]
+        {
+            let (mut socket, _) = source.accept().await.unwrap();
+            let request = read_request(&mut socket).await;
+            assert!(request.to_lowercase().contains("authorization: private-key"));
+            socket.write_all(format!(
+                "HTTP/1.1 302 Found\r\nLocation: {destination}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            ).as_bytes()).await.unwrap();
+        }
+    });
+    let target_server = tokio::spawn(async move {
+        let (mut socket, _) = target.accept().await.unwrap();
+        let request = read_request(&mut socket).await;
+        assert!(!request.to_lowercase().contains("authorization"));
+        socket
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+            .await
+            .unwrap();
+    });
+    let transport = HttpTransport::new(Limits::default(), false).unwrap();
+    let address = format!("{source_base}/fileapi?Authorization=private-key");
+    let allowed = [target_url.as_str()];
+    assert_eq!(
+        transport
+            .get_bytes_with_redirect_urls(
+                &address,
+                &[("Authorization", "private-key")],
+                Some(&allowed)
+            )
+            .await
+            .unwrap(),
+        b"{}"
+    );
+    target_server.await.unwrap();
+    let error = transport
+        .get_bytes_with_redirect_urls(&address, &[("Authorization", "private-key")], Some(&allowed))
+        .await
+        .unwrap_err();
+    assert!(!error.to_string().contains("private-key"));
+    assert!(error.to_string().contains("outside the reviewed URLs"));
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn network_disabled_errors_never_contain_credentials() {
+    let transport = HttpTransport::new(Limits::default(), false).unwrap();
+    let error = transport
+        .get_bytes("https://user:pw-secret@example.com/fileapi?Authorization=query-secret#frag-secret")
+        .await
+        .unwrap_err();
+    assert!(matches!(error, CoreError::NetworkDisabled(_)));
+    let text = error.to_string();
+    for secret in ["pw-secret", "query-secret", "frag-secret", "user"] {
+        assert!(!text.contains(secret), "{text}");
+    }
+    assert!(text.contains("example.com/fileapi"));
+}
+
+async fn serve_redirects(listener: TcpListener, locations: Vec<String>, final_body: &'static str) {
+    for location in locations {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        read_request(&mut socket).await;
+        socket.write_all(format!(
+            "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        ).as_bytes()).await.unwrap();
+    }
+    let (mut socket, _) = listener.accept().await.unwrap();
+    read_request(&mut socket).await;
+    socket.write_all(format!(
+        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{final_body}",
+        final_body.len()
+    ).as_bytes()).await.unwrap();
+}
+
+#[tokio::test]
+async fn relative_and_multi_hop_redirects_are_followed() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(serve_redirects(
+        listener,
+        vec!["/second".into(), "third?x=1".into()],
+        "done",
+    ));
+    let transport = HttpTransport::new(Limits::default(), false).unwrap();
+    assert_eq!(transport.get_bytes(&format!("{base}/first")).await.unwrap(), b"done");
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn redirect_chains_beyond_the_hop_limit_fail() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        // 11 redirects exhaust the 10-hop budget; the client must stop without a 12th request.
+        for _ in 0..11 {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            read_request(&mut socket).await;
+            socket.write_all(
+                b"HTTP/1.1 302 Found\r\nLocation: /loop\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            ).await.unwrap();
+        }
+    });
+    let transport = HttpTransport::new(Limits::default(), false).unwrap();
+    let error = transport.get_bytes(&format!("{base}/loop")).await.unwrap_err();
+    assert!(error.to_string().contains("too many HTTP redirects"), "{error}");
+    server.await.unwrap();
+}
+
+#[tokio::test]
 async fn head_metadata_follows_checked_redirects_and_returns_only_selected_headers() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -66,7 +183,7 @@ async fn head_metadata_rejects_public_redirects_when_network_is_disabled() {
         let _ = read_request(&mut stream).await;
         stream
             .write_all(
-                b"HTTP/1.1 302 Found\r\nLocation: https://example.invalid/private\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                b"HTTP/1.1 302 Found\r\nLocation: https://redirect-user:redirect-password@example.invalid/private?token=redirect-token#redirect-fragment\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
             )
             .await
             .unwrap();
@@ -77,6 +194,11 @@ async fn head_metadata_rejects_public_redirects_when_network_is_disabled() {
     server.await.unwrap();
 
     assert!(matches!(error, CoreError::NetworkDisabled(_)));
+    let message = error.to_string();
+    assert!(message.contains("example.invalid/private"), "{message}");
+    for secret in ["redirect-user", "redirect-password", "redirect-token", "redirect-fragment"] {
+        assert!(!message.contains(secret), "{message}");
+    }
 }
 
 #[tokio::test]

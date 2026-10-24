@@ -47,12 +47,12 @@ Radiust 的软件采用 [Apache-2.0](LICENSE)。上游雷达观测、图像、�
 | `opensnow` | 第三方 OpenSnow 产品；底层观测归属未确认 | 旧 `opensnow.com/tiles/rvp/v2/radar/` 路由 | 原始证据与访问条件未齐；原生适配器保持受限 |
 | `ph` | 菲律宾 · PAGASA 产品 | `www.panahon.gov.ph`，本地 Chromium 会话 | 需系统 Chromium 与网络许可；占位图和真实帧应区分 |
 | `pt` | 葡萄牙 · IPMA Madeira 产品 | `www.ipma.pt/resources.www/transf/radar/`，官方时间线／图像 | 有序降雨强度类别有证据，不提供精确逐像素雨强 |
-| `rainviewer` | 第三方 RainViewer 产品；底层观测机构按覆盖核实 | `api.rainviewer.com/public/weather-maps.json`、`tilecache.rainviewer.com` | 时间线／瓦片有证据；其产品生成时间不等同单站扫描时间 |
+| `rainviewer` | 第三方 RainViewer 产品；底层观测机构按覆盖核实 | `api.rainviewer.com/public/weather-maps.json`、`tilecache.rainviewer.com` | 2026-10-24 安装后裸 `cat` 在个人用途下成功默认选择并生成局部 dBZ 视图，终端显示署名链接；Madeira 测试点观测覆盖仍 unknown；产品生成时间不等同单站扫描时间 |
 | `rdcap` | 台湾、日本、菲律宾 · CWA RDCAP 分发；观测机构按站点记录 | `rdcap.cwa.gov.tw`，目录／索引与临时文件票据 | 25 来源中新增的多国来源；目录不等于当前有数据，三国 live 能力仍标未验证 |
 | `sg` | 新加坡 · NEA／MSS | `www.weather.gov.sg/weather-rain-area-240km`；另有 `api-open.data.gov.sg` 对照 API | 当前原图渠道与参考 API 分开记录授权；仅有序强度类别 |
 | `th` | 泰国 · TMD | `weather.tmd.go.th`，官方 GIF | 读取图内时间；过期样本不可当最新降雨 |
 | `th_royalrain` | 泰国 · Royal Rainmaking | `file.royalrain.go.th/opendata/radar_data/cappi` | 既有成功与失败记录；当前可达性需独立验证 |
-| `tw` | 台湾 · CWA observation／grid | `cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation`，官方匿名对象存储 | 数值 grid 与 observation PNG 的科学／几何能力不同 |
+| `tw` | 台湾 · CWA observation／grid | `cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation`，官方匿名对象存储 | 数值 grid 与 observation PNG 的科学／几何能力不同；`observation-wide` 使用会员 fileapi v1，需要 `sources.tw.api_key` |
 | `tw-http` | 台湾 · CWA observation | `www.cwa.gov.tw/Data/js/obs_img/Observe_radar.js`、`/Data/radar/` | 官方 HTTP 原图；科学与像素定位待验收 |
 | `uk` | 英国 · Met Office DataPoint | 退役渠道，原生发现先拒绝联网 | 不可在线获取；不作为默认来源 |
 | `vn` | 越南 · Hymetnet CMAX | `hymetnet.gov.vn`，官方页面／图像 | 已有原始获取证据；科学能力待验收 |
@@ -92,11 +92,11 @@ RDCAP 在同一 Engine 生命周期内保留上游设置的匿名会话 cookie�
 | `opensnow` | OpenSnow 瓦片 | 上游 HTTP 403；需授权访问 | 原始获取受阻；科学解码未验收 |
 | `ph` | 菲律宾 PAGASA | 自动会话 / 系统 Chromium | timeline 已恢复；原始图返回占位 PNG，科学解码未验收 |
 | `pt` | 葡萄牙 IPMA | 已实测 | **支持有序降雨强度类别**；不提供逐像素数值雨强 |
-| `rainviewer` | RainViewer 瓦片 | 已实测 | **支持经提供方色表验证的 dBZ 解码** |
+| `rainviewer` | RainViewer 瓦片 | 已实测；2026-10-24 安装后裸 `cat` 当前帧链路成功（仅一次运行、一个 Madeira 测试点） | **支持经提供方色表验证的 dBZ 解码；个人用途 `local_view` 自动准入已开启，该准入仅基于上述单次单点运行**；测试点及其他地区的观测覆盖仍 unknown |
 | `sg` | 新加坡 NEA | 已实测并对照官方 API | **支持有序降雨强度类别**；不提供定量 mm/h |
 | `th` | 泰国 TMD | 已实测 | 原始 GIF；时次、色标与几何待验证 |
 | `th_royalrain` | 泰国 Royal Rainmaking | 曾实测；近期请求失败 | 原始资料；色标与原生几何待验证 |
-| `tw` | 台湾 CWA | 已实测 | **`grid` 支持原生 TWD67 数值 dBZ**；`observation` 支持原图、gray 与 005 约定编码对应的像素 dBZ；PNG+JSON 解码已有离线回归，独立物理色标、像素定位和在线 dBZ 验收仍待验证 |
+| `tw` | 台湾 CWA | 按产品已实测 | **`grid` 支持原生 TWD67 数值 dBZ**，一次在线数值／质量／坐标独立读回通过；`observation` 支持原图、gray 与 005 约定编码对应的像素 dBZ；`observation-wide` 会员渠道三入口原图获取通过，科学解码关闭。PNG 独立物理色标、像素定位、真实覆盖和默认准入仍待验证 |
 | `tw-http` | 台湾 CWA HTTP 图片 | 已实测 | 原始图像；色标与原生几何待验证 |
 | `uk` | 英国 Met Office DataPoint | 上游已停运（保留例外） | 不支持在线获取 |
 | `vn` | 越南 Hymetnet CMAX | 已实测 | 原始资料；色标与原生几何待验证 |
@@ -128,13 +128,13 @@ RDCAP 在同一 Engine 生命周期内保留上游设置的匿名会话 cookie�
 | `nz` | 条款与强制署名未确认 | 未确认 | 未确认 | [fixture 依据](tests/fixtures/sources/nz/fixture.json)仅涉及迁移验证 |
 | `opensnow` | 条款、访问权与强制署名未确认 | 未确认 | 未确认 | [阻塞记录](migration/sources/opensnow.json) |
 | `ph` | 条款与强制署名未确认；自动会话不构成授权 | 未确认 | 未确认 | [既有迁移记录](migration/sources/ph.json)不能替代当前授权核实 |
-| `pt` | 条款与强制署名未确认 | 未确认 | 未确认 | [fixture 依据](tests/fixtures/sources/pt/fixture.json)仅涉及迁移验证 |
-| `rainviewer` | 公开 API 与色表不是商业授权结论；条款和强制署名未确认 | 未确认 | 未确认 | [fixture](tests/fixtures/sources/rainviewer/fixture.json)、[产品渠道记录](migration/sources/rainviewer.json) |
+| `pt` | [IPMA 通用使用条件](https://api.ipma.pt/)允许免费个人/公共用途，但不得营利或冒犯且须注明来源；雷达图像的具体复用范围仍待确认 | 通用条件不允许营利性用途 | 未确认 | [2026-10-17 条款复核及 2026-10-10 live 尝试](validation-results/006-local-view-live.json)、[fixture](tests/fixtures/sources/pt/fixture.json) |
+| `rainviewer` | 按官方个人用途条款开放 `local_view`；CLI 应用内显示带链接的 RainViewer 署名；不据此准许底层观测资料再分发 | 商业或高流量集成需另行协商；服务不提供 SLA；本准入不覆盖此类用途 | 未确认 | [官方 API 条款](https://www.rainviewer.com/api.html)（2026-10-24 核对）、[T052 裸 cat 记录](validation-results/006-local-view-live.json)、[fixture](tests/fixtures/sources/rainviewer/fixture.json) |
 | `rdcap` | 各国观测、产品与分发条款及强制署名未确认 | 未确认 | 未确认 | [004 规格](specs/004-rdcap-single-station/spec.md)、[研究记录](docs/rdcap-single-station-analysis.md)不构成许可 |
 | `sg` | 参考 data.gov.sg API 有 Singapore Open Data Licence 依据；当前原页面图像的适用许可与强制署名仍待核实 | 当前渠道未确认 | 当前渠道未确认 | [fixture 区分](tests/fixtures/sources/sg/fixture.json)；[参考 API 许可](https://data.gov.sg/open-data-licence)于 2026-10-06 核对，不能自动套用到另一渠道 |
 | `th` | 条款与强制署名未确认 | 未确认 | 未确认 | [fixture](tests/fixtures/sources/th/fixture.json)、[时间与过期说明](docs/tmd-source.md) |
 | `th_royalrain` | 路径名含 opendata 不替代许可文本；强制署名未确认 | 未确认 | 未确认 | [fixture 依据](tests/fixtures/sources/th_royalrain/fixture.json)仅涉及迁移验证 |
-| `tw` | observation 与 grid 的适用条款、强制署名分别待核实 | 未确认 | 未确认 | [fixture](tests/fixtures/sources/tw/fixture.json)、[产品区别](docs/cwa-radar-products.md) |
+| `tw` | observation 与 grid 的适用条款、强制署名分别待核实；会员 API 访问成功不替代数据使用许可 | 未确认 | 未确认 | [fixture](tests/fixtures/sources/tw/fixture.json)、[产品区别](docs/cwa-radar-products.md)；`O-A0058-001` 会员渠道已接入为原图产品 `observation-wide`；[用户回放](validation-results/cwa-o-a0058-001-user-replay-20261010.json)、[三入口原图证据](validation-results/cwa-membership-acceptance-20261010.json)及[独立数值读回](validation-results/cwa-grid-native-readback-20261010.json)，图片科学能力仍未准入 |
 | `tw-http` | HTTP 原图适用条款与强制署名未确认 | 未确认 | 未确认 | [fixture 依据](tests/fixtures/sources/tw-http/fixture.json)仅涉及迁移验证 |
 | `uk` | 历史 DataPoint 条款与署名未确认；不因退役改变旧授权 | 未确认 | 未确认 | [退役记录](migration/sources/uk.json)，无在线支持声明 |
 | `vn` | 条款与强制署名未确认 | 未确认 | 未确认 | [fixture 依据](tests/fixtures/sources/vn/fixture.json)仅涉及迁移验证 |
@@ -149,6 +149,22 @@ RDCAP 在同一 Engine 生命周期内保留上游设置的匿名会话 cookie�
 | --- | --- | --- | --- | --- | --- | --- |
 | `br_cptec` | 巴西 · CPTEC／INPE；`data.inpe.br/big/geoserver/dissm/wms` | 既有历史帧成功、最新帧上游错误记录 | 条款与强制署名未确认 | 未确认 | 未确认 | [迁移记录](migration/sources/br_cptec.json)、[fixture](tests/fixtures/sources/br_cptec/fixture.json) |
 | `br_sipam` | 巴西 · SIPAM；`apihidro.sipam.gov.br/radares/`、`siger.sipam.gov.br/radar/` | 既有原始获取记录；科学与几何待验证 | 条款与强制署名未确认 | 未确认 | 未确认 | [迁移记录](migration/sources/br_sipam.json)、[fixture](tests/fixtures/sources/br_sipam/fixture.json) |
+
+## 局部视图的空间证据
+
+位置驱动的局部视图使用 WGS84 椭球 AEQD，按输出点反查输入格点；Core、CLI 与 Python SDK 共用同一流程。RainViewer 于 2026-10-24 完成安装后裸 `cat` 的当前发现、获取及投影，默认准入仅限个人用途的 `local_view`；人类可读 CLI 摘要显示 `Weather data by RainViewer` 和来源链接。官方条款要求个人／教育用途并要求应用中显示署名；商业或高流量集成需另行协商，底层观测资料再分发权限未确认。[T052 记录](validation-results/006-local-view-live.json)保存安装包、请求与选中帧证据。Madeira 测试点的 observation coverage 仍为 unknown，其他地区的覆盖也未因此验收；网络仍须显式 opt-in。显式 source/local 仍受网络、来源配置及几何检查限制。
+
+IPMA 的 Madeira radar timeline 本次安装后显式 CLI 返回 `no_data`，没有发生图像获取或投影。其公开使用条件允许个人或公共用途且不得用于营利，并要求注明来源；API 页面也请求使用者告知用途。[官方条款](https://api.ipma.pt/)于 2026-10-17 复核。该页面的许可范围、商业复用及最新雷达图访问权限未解决，不能据此自动准入。
+
+PT Madeira 的图像定位改用 IPMA 官方网页 Leaflet `ImageOverlay` 的 EPSG:3857 bounds、实际宽高推导边缘注册 affine，并绑定到输入 artifact receipt。记录见 [PT 几何验证材料](validation-results/006-pt-geometry.json)。该结果描述网页显示几何；没有独立像素控制点，不能解释为物理观测覆盖、定量反射率或雨强，也没有通过 PT 当前在线获取和自动展示准入。raw 局部图只做最近邻 RGBA 映射。
+
+RDCAP 站址坐标仍是目录声明，坐标基准/精度及逐站观测覆盖未知；SIDARMA 的 47 个经纬度和 bbox 是历史值，保留在 `id` 与 `id_sidarma` 两条不同查询通道，不能据此判断当前站址、像元几何或扫描范围。选择器、发布域、覆盖、像元几何和自动准入分别存储；unknown/conflicting 不会升级。来源 frame 的已知产品域可用于筛除域外位置，但不会转成观测覆盖声明。
+
+## 站点参考目录
+
+[Tropical Globe 雷达数据库](https://tropicalglobe.com/radar_database/#show_export=1)于 2026-10-09 用于现有站表的交叉核对，只作为 95 个本地站址候选的外部审计材料（另记录 Sorong 的可能后继候选），属于第三方站点参考材料；未注册为观测 source，也未增加在线覆盖。完整 CSV 导出 1,867 条，包含隐藏的关闭、私有及不可用类别；默认显示导出为 1,615 条。快照 hash、过滤条件、距离方法、95 条站址候选与未确认关系见 [006 核对报告](specs/006-location-radar-view/tropicalglobe-crosscheck.md)；外部 `range` 保存在独立 claim 中，不作为产品 coverage。
+
+同次 JSON 导出头声明作者 Tropical Globe、许可 LGPL-3.0-or-later。本次原始目录仅留作本机临时比对材料，未写入内置站表；实际分发、署名与目录许可边界尚未完成核对。目录许可不能代替各雷达图像/数值产品的访问或再利用条件；其 range、状态和外链也不自动成为 Radiust 已验证的覆盖或可用性。
 
 ## 更新与责任
 

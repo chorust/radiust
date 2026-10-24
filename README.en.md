@@ -21,7 +21,7 @@ The project currently provides a CLI, a Python SDK, and the reusable Rust `radiu
   <a href="DATA_SOURCES.md">Data source policy</a> · <a href="TRADEMARKS.md">Brand usage rules</a>
 </p>
 
-The current version is **0.1.7 alpha**.
+The source version is **0.1.8 alpha** (unreleased); the registry installation examples below still use the published **0.1.7**.
 
 [Features](#features) · [Install](#install) · [Usage](#usage) · [Project and licensing](#project-and-licensing) · [Dev](#dev)
 
@@ -29,6 +29,7 @@ The current version is **0.1.7 alpha**.
 
 - Radar acquisition from multiple sources: 25 catalog entries, with source, product, station, and latest-frame queries; availability and access requirements are listed in [Data sources](DATA_SOURCES.md).
 - Terminal previews: view original source images, rule-generated gray codes, or dBZ values from supported products.
+- Location-centered local views: project around a configured position into Cartesian coordinates, defaulting to a 50 km radius and 1 km spacing; personal use can select RainViewer automatically with visible credit and a link in the terminal report, while network access remains opt-in.
 - Numeric reflectivity: Taiwan CWA `tw/grid` and RainViewer have [online acquisition and numeric readback records](DATA_SOURCES.md#历史获取与科学验证记录); RDCAP single-station decoding is implemented, while online capabilities remain unaccepted for all three countries.
 - Data export: save raw artifacts, PNG, NetCDF, GeoTIFF, or Zarr with source, time, and processing records; scientific formats depend on product and geometry support.
 - Local data read/write: read numeric files and convert explicitly declared gray-code images to dBZ; [gray conversion](docs/gray-dbz.md) does not establish a validated physical palette.

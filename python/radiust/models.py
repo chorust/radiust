@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+import numbers
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from datetime import datetime, timedelta, timezone
@@ -103,9 +104,8 @@ class ProductInfo:
         object.__setattr__(self, "units", _freeze_mapping(self.units))
         object.__setattr__(self, "metadata", _freeze_mapping(self.metadata))
         validate_identifier(self.id, "product id")
-        if not self.variables:
-            raise ValueError("product must declare at least one variable")
-        if self.native_grid_kind not in {"geographic", "cartesian", "polar", "curvilinear"}:
+        # Raw-only products may have no established scientific variable.
+        if self.native_grid_kind not in {"geographic", "cartesian", "polar", "curvilinear", "pixel"}:
             raise ValueError(f"unsupported native grid kind: {self.native_grid_kind}")
         if self.cadence is not None and self.cadence <= timedelta(0):
             raise ValueError("cadence must be positive")
@@ -620,3 +620,169 @@ class DiscoveryReport:
 
     def to_json(self) -> str:
         return json.dumps(safe_value(self.as_dict()), ensure_ascii=False, sort_keys=True)
+
+
+@dataclass(frozen=True, slots=True)
+class LocalViewRequest:
+    center: tuple[float, float] | Mapping[str, float] | None = None
+    radius_km: float | None = None
+    resolution_m: float | None = None
+    source: str | None = None
+    product: str | None = None
+    station: str | None = None
+    mode: str = "auto"
+    resampling: str = "nearest"
+
+    def as_dict(self) -> dict[str, Any]:
+        center = self.center
+        if isinstance(center, Mapping):
+            if set(center) != {"longitude", "latitude"}:
+                raise ValueError("center must contain longitude and latitude")
+            longitude, latitude = center["longitude"], center["latitude"]
+        elif center is None:
+            longitude = latitude = None
+        elif isinstance(center, Sequence) and not isinstance(center, (str, bytes)) and len(center) == 2:
+            longitude, latitude = center
+        else:
+            raise ValueError("center must be a (longitude, latitude) pair")
+        if center is not None:
+            if any(isinstance(value, bool) or not isinstance(value, numbers.Real) for value in (longitude, latitude)):
+                raise ValueError("center longitude and latitude must be real numbers")
+            longitude, latitude = float(longitude), float(latitude)
+        return {
+            "center": None if center is None else {"longitude": longitude, "latitude": latitude},
+            "radius_km": self.radius_km,
+            "resolution_m": self.resolution_m,
+            "source": self.source,
+            "product": self.product,
+            "station": self.station,
+            "mode": self.mode,
+            "resampling": self.resampling,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class LocalViewGrid:
+    center: Mapping[str, float]
+    radius_m: float
+    requested_resolution_m: float
+    actual_resolution_m: float
+    shape: tuple[int, int]
+    x: tuple[float, ...]
+    y: tuple[float, ...]
+    crs: str | None
+    affine: tuple[float, ...] | None
+    in_view: bytes = dc_field(repr=False, compare=False)
+    source_domain: bytes | None = dc_field(default=None, repr=False, compare=False)
+    _native_owner: Any = dc_field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "center", _freeze_mapping(self.center))
+        object.__setattr__(self, "shape", tuple(self.shape))
+        object.__setattr__(self, "x", tuple(self.x))
+        object.__setattr__(self, "y", tuple(self.y))
+        object.__setattr__(self, "affine", tuple(self.affine) if self.affine is not None else None)
+        pixels = math.prod(self.shape)
+        if len(self.shape) != 2 or self.shape[0] != len(self.y) or self.shape[1] != len(self.x):
+            raise ValueError("local grid axes do not match its shape")
+        if len(self.in_view) != pixels or (
+            self.source_domain is not None and len(self.source_domain) != pixels
+        ):
+            raise ValueError("local grid masks do not match its shape")
+
+    @property
+    def x_units(self) -> str:
+        return "m"
+
+    @property
+    def y_units(self) -> str:
+        return "m"
+
+    @property
+    def cartesian(self) -> Any:
+        """Return the projected x/y axes as the SDK's CartesianGrid type."""
+        from .grids.models import CartesianGrid
+
+        return CartesianGrid(self.x, self.y, crs=self.crs)
+
+
+@dataclass(frozen=True, slots=True)
+class LocalViewResult:
+    status: str
+    selected: Mapping[str, Any] | None
+    grid: LocalViewGrid | None
+    fields: tuple[Any, ...] = ()
+    processing: Mapping[str, Any] | None = None
+    selection: tuple[Mapping[str, Any], ...] = ()
+    candidate_limit_reached: bool = False
+    error: Mapping[str, Any] | None = None
+    observation_coverage: Mapping[str, Any] | None = None
+    raw_rgba: bytes | None = dc_field(default=None, repr=False, compare=False)
+    _native_result: Any = dc_field(default=None, repr=False, compare=False)
+    _selected_frame: Any = dc_field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.status not in {"selected", "no_candidate", "failed", "interrupted", "timed_out"}:
+            raise ValueError(f"invalid local-view status: {self.status}")
+        object.__setattr__(self, "selected", _freeze_mapping(self.selected) if self.selected else None)
+        object.__setattr__(self, "fields", tuple(self.fields))
+        object.__setattr__(self, "processing", _freeze_mapping(self.processing) if self.processing else None)
+        if self.raw_rgba is not None:
+            object.__setattr__(self, "raw_rgba", bytes(self.raw_rgba))
+        object.__setattr__(self, "selection", tuple(_freeze_mapping(item) for item in self.selection))
+        object.__setattr__(self, "error", _freeze_mapping(self.error) if self.error else None)
+        object.__setattr__(self, "observation_coverage", _freeze_mapping(self.observation_coverage) if self.observation_coverage is not None else None)
+        selected = self.status == "selected"
+        has_data = bool(self.fields) or self.raw_rgba is not None
+        if selected != (self.selected is not None and self.grid is not None and has_data):
+            raise ValueError("selected local view requires frame, grid, and data")
+        if self.raw_rgba is not None and (
+            self.fields or self.grid is None or len(self.raw_rgba) != math.prod(self.grid.shape) * 4
+        ):
+            raise ValueError("raw image bytes do not match the local grid")
+        if not selected and self.error is None:
+            raise ValueError("non-selected local view requires a diagnostic")
+
+    @property
+    def data(self) -> Any:
+        if self.raw_rgba is not None:
+            return self.raw_rgba
+        if len(self.fields) == 1:
+            return self.fields[0]
+        return self.fields or None
+
+    @property
+    def frame(self) -> Any:
+        """Return the in-process frame handle for follow-up Engine operations."""
+        if self._selected_frame is None:
+            raise ValueError("local view has no selected native frame")
+        return self._selected_frame
+
+    def field(self, index: int = 0) -> Any:
+        return self.fields[index]
+
+    def as_dict(self) -> dict[str, Any]:
+        return safe_value({
+            "schema_version": 1,
+            "status": self.status,
+            "selected": dict(self.selected) if self.selected is not None else None,
+            "processing": dict(self.processing) if self.processing is not None else None,
+            "grid": None if self.grid is None else {
+                "center": dict(self.grid.center),
+                "radius_m": self.grid.radius_m,
+                "requested_resolution_m": self.grid.requested_resolution_m,
+                "actual_resolution_m": self.grid.actual_resolution_m,
+                "shape": self.grid.shape,
+                "crs": self.grid.crs,
+                "affine": self.grid.affine,
+                "x_units": self.grid.x_units,
+                "y_units": self.grid.y_units,
+            },
+            "selection": [dict(item) for item in self.selection],
+            "candidate_limit_reached": self.candidate_limit_reached,
+            "observation_coverage": dict(self.observation_coverage) if self.observation_coverage is not None else None,
+            "error": dict(self.error) if self.error is not None else None,
+        })
+
+    def to_json(self) -> str:
+        return json.dumps(self.as_dict(), ensure_ascii=False, sort_keys=True)

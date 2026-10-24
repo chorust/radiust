@@ -12,7 +12,7 @@ from __future__ import annotations
 from importlib import import_module
 from typing import Any
 
-__version__ = "0.1.1"
+__version__ = "0.1.8"
 
 _EXPORTS = {
     # Public convenience functions.
@@ -39,6 +39,9 @@ _EXPORTS = {
     "DownloadReport": (".models", "DownloadReport"),
     "DiscoveryItem": (".models", "DiscoveryItem"),
     "DiscoveryReport": (".models", "DiscoveryReport"),
+    "LocalViewGrid": (".models", "LocalViewGrid"),
+    "LocalViewRequest": (".models", "LocalViewRequest"),
+    "LocalViewResult": (".models", "LocalViewResult"),
     "FrameRef": (".models", "FrameRef"),
     "FrameResult": (".models", "FrameResult"),
     "OutputRequest": (".models", "OutputRequest"),
@@ -98,6 +101,9 @@ __all__ = [
     "DownloadReport",
     "DiscoveryItem",
     "DiscoveryReport",
+    "LocalViewRequest",
+    "LocalViewGrid",
+    "LocalViewResult",
     "RadarField",
     "RadarDataset",
     "Grid",

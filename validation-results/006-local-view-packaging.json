@@ -1,0 +1,1067 @@
+{
+  "schema_version": 2,
+  "feature": "006-location-radar-view",
+  "recorded_at": "2026-10-24",
+  "scope": "Production release wheel, installed CLI and sync/async SDK, fully offline; no selected frame or live-provider acceptance.",
+  "evidence_status": "current_production_offline_smoke_passed",
+  "build": {
+    "started_at": "2026-10-24T04:33:52Z",
+    "git_head": "fee15193ec9d69d08bf27c9405f7c501486d17e9",
+    "worktree_state": "Existing uncommitted fixes included; git_head alone does not identify the built source.",
+    "source_manifest_sha256": "eee002d1fd8219b234d8a3199a942aa72145c4b80f5897eb6440ac93732c71d3",
+    "source_manifest_file_count": 290,
+    "source_manifest_algorithm": "SHA256 of json.dumps(relative_path_to_file_sha256, sort_keys=True). Includes Cargo.lock, workspace and crate Cargo.toml files, pyproject.toml, crates/**/*.rs, python/**/*.py, python/**/*.json, python/**/*.yaml.",
+    "source_changed_during_build": false,
+    "source_changed_before_final_evidence": false,
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "python": "Python 3.12.7",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "wheel": "radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_path": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/wheels/radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+    "wheel_size_bytes": 15571848,
+    "wheel_sha256": "52d55f778739de5e33a0f653a5c6eda7832521de6c5b3296042c30095acc8f3a",
+    "profile": "release (optimized; pyproject.toml strip=true)",
+    "maturin": "maturin 1.15.0",
+    "features": {
+      "radiust-python": {
+        "path": "target/release/.fingerprint/radiust-python-a5e7f5643357a35e/lib-_core.json",
+        "features": [
+          "extension-module"
+        ],
+        "declared_features": [
+          "extension-module",
+          "test-support"
+        ]
+      },
+      "radiust-core": {
+        "path": "target/release/.fingerprint/radiust-core-0a33f60c940410e0/lib-radiust_core.json",
+        "features": [
+          "extension-module"
+        ],
+        "declared_features": [
+          "extension-module",
+          "test-support"
+        ]
+      },
+      "radiust-cli": {
+        "path": "target/release/.fingerprint/radiust-cli-54c34d823d649d05/lib-radiust_cli.json",
+        "features": [],
+        "declared_features": [
+          "test-support"
+        ]
+      }
+    },
+    "feature_tree_command": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)",
+      "/Users/blizhan/.cargo/bin/cargo",
+      "tree",
+      "--offline",
+      "--locked",
+      "-p",
+      "radiust-python",
+      "-e",
+      "features",
+      "--no-default-features",
+      "--features",
+      "extension-module"
+    ],
+    "feature_tree_exit_code": 0,
+    "feature_tree_sha256": "f43cc76013c834733d5e70a164f1735818fc3891b4661843b1bc315d1595979f",
+    "feature_tree_contains_test_support": false,
+    "build_command": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)",
+      "/Users/blizhan/data/code/github/radiust/.venv/bin/maturin",
+      "build",
+      "--offline",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--features",
+      "extension-module",
+      "--interpreter",
+      "/Users/blizhan/data/code/github/radiust/.venv/bin/python",
+      "--out",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/wheels"
+    ],
+    "build_exit_code": 0,
+    "build_stdout": "",
+    "build_stderr": "\ud83d\udce6 Including license file `LICENSE`\n\ud83c\udf79 Building a mixed python/rust project\n\ud83d\udc0d Found CPython 3.12 at /Users/blizhan/data/code/github/radiust/.venv/bin/python\n\ud83d\udd17 Found pyo3 bindings\n\ud83d\udce1 Using build options bindings from pyproject.toml\n   Compiling radiust-core v0.1.1 (/Users/blizhan/data/code/github/radiust/crates/radiust-core)\n   Compiling radiust-cli v0.1.1 (/Users/blizhan/data/code/github/radiust/crates/radiust-cli)\n   Compiling radiust-python v0.1.1 (/Users/blizhan/data/code/github/radiust/crates/radiust-python)\n    Finished `release` profile [optimized] target(s) in 48.98s\n\ud83d\udce6 Including files matching \"python/radiust/resources/**/*.json\"\n\ud83d\udce6 Including files matching \"python/radiust/resources/**/*.yaml\"\n\ud83d\udce6 Including files matching \"python/radiust/resources/catalog.json\"\n\ud83d\udce6 Including files matching \"python/radiust/decoders/__init__.py\"\n\ud83d\udce6 Including files matching \"python/radiust/decoders/gray_dbz.py\"\n\ud83d\udce6 Built wheel for CPython 3.12 to /var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/wheels/radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl\n"
+  },
+  "isolation": {
+    "environment": {
+      "HOME": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/home",
+      "PATH": "/Users/blizhan/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+      "CARGO_HOME": "/Users/blizhan/.cargo",
+      "RUSTUP_HOME": "/Users/blizhan/.rustup",
+      "CARGO_NET_OFFLINE": "true",
+      "PIP_NO_INDEX": "1",
+      "PYTHONNOUSERSITE": "1",
+      "MACOSX_DEPLOYMENT_TARGET": "11.0",
+      "RADIUST_RUNTIME__ALLOW_NETWORK": "false"
+    },
+    "environment_policy": "Constructed from an explicit allowlist; no inherited RADIUST, provider, cloud, proxy, Python path, or user credential variables. Only RADIUST_RUNTIME__ALLOW_NETWORK=false is set for smoke; fixture comparison additionally sets RADIUST_TEST_LOCAL_VIEW_FIXTURE=1.",
+    "home": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/home",
+    "cwd": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/work",
+    "outside_checkout": true,
+    "venv": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv",
+    "network_sandbox": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)"
+    ],
+    "public_network_used": false,
+    "user_credentials_used": false,
+    "dependency_policy": "Rust dependencies came from the local Cargo cache with CARGO_NET_OFFLINE=true and --offline --locked. Base wheel has no mandatory Python dependencies; venv uses bundled ensurepip, and pip install used --no-index --no-deps. pytest and its dependencies were added from the uv cache only after the dependency-free smoke."
+  },
+  "install": {
+    "venv_command": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)",
+      "/Users/blizhan/data/code/github/radiust/.venv/bin/python",
+      "-m",
+      "venv",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv"
+    ],
+    "venv_exit_code": 0,
+    "command": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/python",
+      "-m",
+      "pip",
+      "--isolated",
+      "install",
+      "--no-index",
+      "--no-deps",
+      "--force-reinstall",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/wheels/radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl"
+    ],
+    "exit_code": 0,
+    "stdout": "Processing /var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/wheels/radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl\nInstalling collected packages: radiust\n  Attempting uninstall: radiust\n    Found existing installation: radiust 0.1.1\n    Uninstalling radiust-0.1.1:\n      Successfully uninstalled radiust-0.1.1\nSuccessfully installed radiust-0.1.1\n",
+    "stderr": "",
+    "version_replacement_note": "The same clean temporary venv first held the historical pre-parity wheel. --force-reinstall replaced that wheel; imports and tests below identify the final installed package."
+  },
+  "smoke": {
+    "command": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/python",
+      "-I",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/smoke.py",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd"
+    ],
+    "exit_code": 0,
+    "stderr": "",
+    "assertions": "passed: production import identity; installed CLI version; missing location; configured offline CLI and sync/async SDK; network_disabled parity; raw-only metadata; fixture constructor and packaged fixtures absent; fixture environment preserves CLI and SDK output",
+    "installed": {
+      "python_file": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/lib/python3.12/site-packages/radiust/__init__.py",
+      "extension_file": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/lib/python3.12/site-packages/radiust/_core.cpython-312-darwin.so",
+      "distribution_version": "0.1.1",
+      "sdk_version": "0.1.1",
+      "core_version": "0.1.1",
+      "numpy_present": false,
+      "xarray_present": false,
+      "python_adapters_present": false,
+      "fixture_constructor_present": false,
+      "source_count": 25
+    },
+    "cli": [
+      {
+        "name": "installed_console_version",
+        "command": [
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/radiust",
+          "--version"
+        ],
+        "exit_code": 0,
+        "stderr": "",
+        "fixture_environment": false,
+        "stdout_bytes": 14,
+        "stdout_sha256": "770327d0bda533be024216930c2a8f2ba84336f48b008ca7c6737be3a15754cb",
+        "stdout": "radiust 0.1.1\n"
+      },
+      {
+        "name": "missing_location",
+        "command": [
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/radiust",
+          "--conf",
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/missing-location.json",
+          "cat",
+          "--json"
+        ],
+        "exit_code": 2,
+        "stderr": "",
+        "fixture_environment": false,
+        "stdout_bytes": 1254,
+        "stdout_sha256": "61e426884abbd8cd25f44602bfa84a6874b04fc975933d3e7264e9f670d25b56",
+        "output_excerpt": {
+          "schema_version": 1,
+          "command": "cat",
+          "run_id": null,
+          "query": null,
+          "counts": {
+            "items": 0
+          },
+          "items": [],
+          "result": {
+            "projection": {
+              "method": "azimuthal_equidistant",
+              "ellipsoid": "WGS84",
+              "axes": {
+                "x": "east",
+                "y": "north",
+                "units": "m"
+              },
+              "row_order": "north_to_south"
+            },
+            "center": null,
+            "radius_m": 1000.0,
+            "x_extent_km": [
+              -1.0,
+              1.0
+            ],
+            "y_extent_km": [
+              -1.0,
+              1.0
+            ],
+            "requested_resolution_m": 1000.0,
+            "actual_resolution_m": null,
+            "shape": null,
+            "affine": null,
+            "requested_scope": {
+              "source": null,
+              "product": null,
+              "station": null,
+              "mode": "auto",
+              "resampling": "nearest"
+            },
+            "selected": null,
+            "processing": null,
+            "candidate_limit_reached": false,
+            "coverage_evidence": null,
+            "observation_coverage": null,
+            "legend": null,
+            "error": {
+              "code": "location_missing",
+              "message": "location is required: set `location` in the config or pass --center",
+              "stage": "validate",
+              "retryable": false
+            },
+            "selection_summary": {
+              "count": 0,
+              "states": {},
+              "reasons": {}
+            }
+          },
+          "error": {
+            "code": "location_missing",
+            "message": "location is required: set `location` in the config or pass --center",
+            "stage": "validate",
+            "retryable": false
+          },
+          "interrupted": false,
+          "local_view_schema_version": 1,
+          "status": "failed",
+          "mode_schema_version": 1,
+          "mode_info": {
+            "requested": "auto",
+            "actual": null,
+            "variable": null,
+            "units": null,
+            "method": null,
+            "encoding": null,
+            "range_policy": null,
+            "time_status": "unknown",
+            "geolocation": "unknown",
+            "limitations": []
+          }
+        },
+        "output_excerpt_note": "Exact parsed stdout fields, with the selection array summarized by count/state/reason. Full stdout digest recorded above."
+      },
+      {
+        "name": "configured_location_network_disabled",
+        "command": [
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/radiust",
+          "--conf",
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/configured-location.json",
+          "cat",
+          "--json"
+        ],
+        "exit_code": 2,
+        "stderr": "",
+        "fixture_environment": false,
+        "stdout_bytes": 43795,
+        "stdout_sha256": "03a6f2d9182d90a55aaada8ca2681bc052ca226ac732947d99e3dd9d7e315e24",
+        "output_excerpt": {
+          "schema_version": 1,
+          "command": "cat",
+          "run_id": null,
+          "query": null,
+          "counts": {
+            "items": 0
+          },
+          "items": [],
+          "result": {
+            "projection": {
+              "method": "azimuthal_equidistant",
+              "ellipsoid": "WGS84",
+              "axes": {
+                "x": "east",
+                "y": "north",
+                "units": "m"
+              },
+              "row_order": "north_to_south"
+            },
+            "center": {
+              "longitude": 121.6,
+              "latitude": 24.0
+            },
+            "radius_m": 1000.0,
+            "x_extent_km": [
+              -1.0,
+              1.0
+            ],
+            "y_extent_km": [
+              -1.0,
+              1.0
+            ],
+            "requested_resolution_m": 1000.0,
+            "actual_resolution_m": null,
+            "shape": null,
+            "affine": null,
+            "requested_scope": {
+              "source": null,
+              "product": null,
+              "station": null,
+              "mode": "auto",
+              "resampling": "nearest"
+            },
+            "selected": null,
+            "processing": null,
+            "candidate_limit_reached": false,
+            "coverage_evidence": null,
+            "observation_coverage": null,
+            "legend": null,
+            "error": {
+              "code": "network_disabled",
+              "message": "network access is disabled; every otherwise eligible candidate requires network",
+              "stage": "selection",
+              "retryable": false
+            },
+            "selection_summary": {
+              "count": 75,
+              "states": {
+                "excluded": 75
+              },
+              "reasons": {
+                "network_restricted": 71,
+                "missing_credentials": 3,
+                "source_retired": 1
+              }
+            }
+          },
+          "error": {
+            "code": "network_disabled",
+            "message": "network access is disabled; every otherwise eligible candidate requires network",
+            "stage": "selection",
+            "retryable": false
+          },
+          "interrupted": false,
+          "local_view_schema_version": 1,
+          "status": "no_candidate",
+          "mode_schema_version": 1,
+          "mode_info": {
+            "requested": "auto",
+            "actual": null,
+            "variable": null,
+            "units": null,
+            "method": null,
+            "encoding": null,
+            "range_policy": null,
+            "time_status": "unknown",
+            "geolocation": "unknown",
+            "limitations": []
+          }
+        },
+        "output_excerpt_note": "Exact parsed stdout fields, with the selection array summarized by count/state/reason. Full stdout digest recorded above."
+      },
+      {
+        "name": "fixture_environment_stays_production",
+        "command": [
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/radiust",
+          "--conf",
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/configured-location.json",
+          "cat",
+          "--json"
+        ],
+        "exit_code": 2,
+        "stderr": "",
+        "fixture_environment": true,
+        "stdout_bytes": 43795,
+        "stdout_sha256": "03a6f2d9182d90a55aaada8ca2681bc052ca226ac732947d99e3dd9d7e315e24",
+        "output_excerpt": {
+          "schema_version": 1,
+          "command": "cat",
+          "run_id": null,
+          "query": null,
+          "counts": {
+            "items": 0
+          },
+          "items": [],
+          "result": {
+            "projection": {
+              "method": "azimuthal_equidistant",
+              "ellipsoid": "WGS84",
+              "axes": {
+                "x": "east",
+                "y": "north",
+                "units": "m"
+              },
+              "row_order": "north_to_south"
+            },
+            "center": {
+              "longitude": 121.6,
+              "latitude": 24.0
+            },
+            "radius_m": 1000.0,
+            "x_extent_km": [
+              -1.0,
+              1.0
+            ],
+            "y_extent_km": [
+              -1.0,
+              1.0
+            ],
+            "requested_resolution_m": 1000.0,
+            "actual_resolution_m": null,
+            "shape": null,
+            "affine": null,
+            "requested_scope": {
+              "source": null,
+              "product": null,
+              "station": null,
+              "mode": "auto",
+              "resampling": "nearest"
+            },
+            "selected": null,
+            "processing": null,
+            "candidate_limit_reached": false,
+            "coverage_evidence": null,
+            "observation_coverage": null,
+            "legend": null,
+            "error": {
+              "code": "network_disabled",
+              "message": "network access is disabled; every otherwise eligible candidate requires network",
+              "stage": "selection",
+              "retryable": false
+            },
+            "selection_summary": {
+              "count": 75,
+              "states": {
+                "excluded": 75
+              },
+              "reasons": {
+                "network_restricted": 71,
+                "missing_credentials": 3,
+                "source_retired": 1
+              }
+            }
+          },
+          "error": {
+            "code": "network_disabled",
+            "message": "network access is disabled; every otherwise eligible candidate requires network",
+            "stage": "selection",
+            "retryable": false
+          },
+          "interrupted": false,
+          "local_view_schema_version": 1,
+          "status": "no_candidate",
+          "mode_schema_version": 1,
+          "mode_info": {
+            "requested": "auto",
+            "actual": null,
+            "variable": null,
+            "units": null,
+            "method": null,
+            "encoding": null,
+            "range_policy": null,
+            "time_status": "unknown",
+            "geolocation": "unknown",
+            "limitations": []
+          }
+        },
+        "output_excerpt_note": "Exact parsed stdout fields, with the selection array summarized by count/state/reason. Full stdout digest recorded above."
+      },
+      {
+        "name": "taiwan_products",
+        "command": [
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/radiust",
+          "--conf",
+          "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/configured-location.json",
+          "list",
+          "products",
+          "tw",
+          "--json"
+        ],
+        "exit_code": 0,
+        "stderr": "",
+        "fixture_environment": false,
+        "stdout_bytes": 2320,
+        "stdout_sha256": "e5896cac175db600f14af63399f6c89704e2c87ae4d14a21e52d692a9c6ee8f8",
+        "output_excerpt": {
+          "schema_version": 1,
+          "command": "list",
+          "run_id": null,
+          "query": null,
+          "counts": {
+            "items": 3
+          },
+          "items": [
+            {
+              "id": "observation",
+              "variables": [
+                "reflectivity"
+              ],
+              "units": {
+                "reflectivity": "dBZ"
+              },
+              "historical": false,
+              "default": true,
+              "mutable": true,
+              "metadata": {
+                "spatial": {
+                  "schema_version": 1,
+                  "kind": "product_selector",
+                  "source_class": "unknown",
+                  "product_domain": {
+                    "status": "unknown"
+                  },
+                  "observation_coverage": {
+                    "kind": "unknown",
+                    "status": "unknown"
+                  },
+                  "geometry": {
+                    "status": "unknown",
+                    "registration": "unknown"
+                  },
+                  "admission": {
+                    "status": "unverified",
+                    "automatic": false,
+                    "purposes": [
+                      "local_view"
+                    ]
+                  },
+                  "selector_evidence": "existing adapter query selector; see station-inventory.md",
+                  "selector_ids": [
+                    "CV1_3600"
+                  ]
+                },
+                "gray_dbz_encoding": {
+                  "encoding": "gray-dbz-v1",
+                  "status": "offline_verified",
+                  "physical_calibration": "unverified",
+                  "geolocation": "unknown",
+                  "live_decode": "not_tested",
+                  "evidence": [
+                    "validation-results/gray-dbz-paths.json",
+                    "validation-results/gray-dbz-companions.json"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "grid",
+              "variables": [
+                "reflectivity"
+              ],
+              "units": {
+                "reflectivity": "dBZ"
+              },
+              "historical": false,
+              "default": false,
+              "mutable": true,
+              "metadata": {
+                "spatial": {
+                  "schema_version": 1,
+                  "kind": "product_selector",
+                  "source_class": "unknown",
+                  "product_domain": {
+                    "status": "unknown"
+                  },
+                  "observation_coverage": {
+                    "kind": "unknown",
+                    "status": "unknown"
+                  },
+                  "geometry": {
+                    "status": "unknown",
+                    "registration": "unknown"
+                  },
+                  "admission": {
+                    "status": "unverified",
+                    "automatic": false,
+                    "purposes": [
+                      "local_view"
+                    ]
+                  },
+                  "selector_evidence": "existing adapter query selector; see station-inventory.md",
+                  "selector_ids": [
+                    "CV1_3600"
+                  ]
+                }
+              }
+            },
+            {
+              "id": "observation-wide",
+              "variables": [],
+              "units": {},
+              "historical": false,
+              "default": false,
+              "mutable": true,
+              "metadata": {
+                "spatial": {
+                  "schema_version": 1,
+                  "kind": "product_selector",
+                  "source_class": "unknown",
+                  "product_domain": {
+                    "status": "unknown"
+                  },
+                  "observation_coverage": {
+                    "kind": "unknown",
+                    "status": "unknown"
+                  },
+                  "geometry": {
+                    "status": "unknown",
+                    "registration": "unknown"
+                  },
+                  "admission": {
+                    "status": "unverified",
+                    "automatic": false,
+                    "purposes": [
+                      "local_view"
+                    ]
+                  },
+                  "selector_evidence": "CWA observation-wide adapter selector; geometry and observation coverage remain unknown",
+                  "selector_ids": [
+                    "CV1_3600"
+                  ]
+                },
+                "acquisition_channel": "cwa_membership_fileapi_v1",
+                "automatic_admission": false,
+                "dataset_id": "O-A0058-001",
+                "geometry_status": "unverified",
+                "requires_configuration": "sources.tw.api_key",
+                "scientific_decode": "blocked"
+              }
+            }
+          ],
+          "result": null,
+          "error": null,
+          "interrupted": false
+        },
+        "output_excerpt_note": "Exact parsed stdout fields, with the selection array summarized by count/state/reason. Full stdout digest recorded above."
+      }
+    ],
+    "sdk": [
+      {
+        "name": "missing_location",
+        "fixture_environment": false,
+        "api": "Client.local_view()",
+        "config": {
+          "runtime": {
+            "allow_network": false
+          },
+          "cache": {
+            "enabled": false,
+            "dir": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/cache"
+          },
+          "storage": {
+            "output": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/output"
+          },
+          "local_view": {
+            "radius_km": 1,
+            "resolution_m": 1000
+          }
+        },
+        "exception": {
+          "class": "RadiustError",
+          "message": "invalid query: local view requires a configured or explicit location",
+          "context": "ErrorContext(stage='validate', source=None, frame_id=None, retryable=False, code='invalid_query')"
+        }
+      },
+      {
+        "name": "configured_location_network_disabled",
+        "fixture_environment": false,
+        "api": "Client.local_view()",
+        "config": {
+          "runtime": {
+            "allow_network": false
+          },
+          "cache": {
+            "enabled": false,
+            "dir": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/cache"
+          },
+          "storage": {
+            "output": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/output"
+          },
+          "local_view": {
+            "radius_km": 1,
+            "resolution_m": 1000
+          },
+          "location": {
+            "longitude": 121.6,
+            "latitude": 24.0
+          }
+        },
+        "as_dict_sha256": "a213348a5a5c6f0c78e87db750c499d3115b3cbb9c0113b6f853338ab782b770",
+        "output_excerpt": {
+          "schema_version": 1,
+          "status": "no_candidate",
+          "selected": null,
+          "processing": null,
+          "grid": null,
+          "candidate_limit_reached": false,
+          "observation_coverage": null,
+          "error": {
+            "code": "network_disabled",
+            "message": "network access is disabled; every otherwise eligible candidate requires network",
+            "stage": "selection",
+            "retryable": false
+          },
+          "selection_summary": {
+            "count": 75,
+            "states": {
+              "excluded": 75
+            },
+            "reasons": {
+              "network_restricted": 71,
+              "missing_credentials": 3,
+              "source_retired": 1
+            }
+          }
+        },
+        "output_excerpt_note": "Exact LocalViewResult.as_dict() fields, with the selection array summarized by count/state/reason; digest is SHA256 of sorted compact JSON."
+      },
+      {
+        "name": "configured_location_network_disabled",
+        "fixture_environment": false,
+        "api": "AsyncClient.local_view()",
+        "as_dict_sha256": "a213348a5a5c6f0c78e87db750c499d3115b3cbb9c0113b6f853338ab782b770",
+        "output_excerpt": {
+          "schema_version": 1,
+          "status": "no_candidate",
+          "selected": null,
+          "processing": null,
+          "grid": null,
+          "candidate_limit_reached": false,
+          "observation_coverage": null,
+          "error": {
+            "code": "network_disabled",
+            "message": "network access is disabled; every otherwise eligible candidate requires network",
+            "stage": "selection",
+            "retryable": false
+          },
+          "selection_summary": {
+            "count": 75,
+            "states": {
+              "excluded": 75
+            },
+            "reasons": {
+              "network_restricted": 71,
+              "missing_credentials": 3,
+              "source_retired": 1
+            }
+          }
+        },
+        "output_excerpt_note": "Exact LocalViewResult.as_dict() fields, with the selection array summarized by count/state/reason; digest is SHA256 of sorted compact JSON."
+      },
+      {
+        "name": "missing_location",
+        "fixture_environment": true,
+        "api": "Client.local_view()",
+        "config": {
+          "runtime": {
+            "allow_network": false
+          },
+          "cache": {
+            "enabled": false,
+            "dir": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/cache"
+          },
+          "storage": {
+            "output": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/output"
+          },
+          "local_view": {
+            "radius_km": 1,
+            "resolution_m": 1000
+          }
+        },
+        "exception": {
+          "class": "RadiustError",
+          "message": "invalid query: local view requires a configured or explicit location",
+          "context": "ErrorContext(stage='validate', source=None, frame_id=None, retryable=False, code='invalid_query')"
+        }
+      },
+      {
+        "name": "configured_location_network_disabled",
+        "fixture_environment": true,
+        "api": "Client.local_view()",
+        "config": {
+          "runtime": {
+            "allow_network": false
+          },
+          "cache": {
+            "enabled": false,
+            "dir": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/cache"
+          },
+          "storage": {
+            "output": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/output"
+          },
+          "local_view": {
+            "radius_km": 1,
+            "resolution_m": 1000
+          },
+          "location": {
+            "longitude": 121.6,
+            "latitude": 24.0
+          }
+        },
+        "as_dict_sha256": "a213348a5a5c6f0c78e87db750c499d3115b3cbb9c0113b6f853338ab782b770",
+        "output_excerpt": {
+          "schema_version": 1,
+          "status": "no_candidate",
+          "selected": null,
+          "processing": null,
+          "grid": null,
+          "candidate_limit_reached": false,
+          "observation_coverage": null,
+          "error": {
+            "code": "network_disabled",
+            "message": "network access is disabled; every otherwise eligible candidate requires network",
+            "stage": "selection",
+            "retryable": false
+          },
+          "selection_summary": {
+            "count": 75,
+            "states": {
+              "excluded": 75
+            },
+            "reasons": {
+              "network_restricted": 71,
+              "missing_credentials": 3,
+              "source_retired": 1
+            }
+          }
+        },
+        "output_excerpt_note": "Exact LocalViewResult.as_dict() fields, with the selection array summarized by count/state/reason; digest is SHA256 of sorted compact JSON."
+      },
+      {
+        "name": "configured_location_network_disabled",
+        "fixture_environment": true,
+        "api": "AsyncClient.local_view()",
+        "as_dict_sha256": "a213348a5a5c6f0c78e87db750c499d3115b3cbb9c0113b6f853338ab782b770",
+        "output_excerpt": {
+          "schema_version": 1,
+          "status": "no_candidate",
+          "selected": null,
+          "processing": null,
+          "grid": null,
+          "candidate_limit_reached": false,
+          "observation_coverage": null,
+          "error": {
+            "code": "network_disabled",
+            "message": "network access is disabled; every otherwise eligible candidate requires network",
+            "stage": "selection",
+            "retryable": false
+          },
+          "selection_summary": {
+            "count": 75,
+            "states": {
+              "excluded": 75
+            },
+            "reasons": {
+              "network_restricted": 71,
+              "missing_credentials": 3,
+              "source_retired": 1
+            }
+          }
+        },
+        "output_excerpt_note": "Exact LocalViewResult.as_dict() fields, with the selection array summarized by count/state/reason; digest is SHA256 of sorted compact JSON."
+      }
+    ],
+    "sdk_product": {
+      "id": "observation-wide",
+      "variables": [],
+      "units": {},
+      "native_grid_kind": "pixel",
+      "metadata": {
+        "spatial": {
+          "schema_version": 1,
+          "kind": "product_selector",
+          "source_class": "unknown",
+          "product_domain": {
+            "status": "unknown"
+          },
+          "observation_coverage": {
+            "kind": "unknown",
+            "status": "unknown"
+          },
+          "geometry": {
+            "status": "unknown",
+            "registration": "unknown"
+          },
+          "admission": {
+            "status": "unverified",
+            "automatic": false,
+            "purposes": [
+              "local_view"
+            ]
+          },
+          "selector_evidence": "CWA observation-wide adapter selector; geometry and observation coverage remain unknown",
+          "selector_ids": [
+            "CV1_3600"
+          ]
+        },
+        "acquisition_channel": "cwa_membership_fileapi_v1",
+        "automatic_admission": false,
+        "dataset_id": "O-A0058-001",
+        "geometry_status": "unverified",
+        "requires_configuration": "sources.tw.api_key",
+        "scientific_decode": "blocked"
+      }
+    },
+    "cli_fixture_environment_output_identical": true,
+    "sync_async_fixture_environment_outputs_identical": true,
+    "wheel_audit": {
+      "embedded_fixture_paths": [],
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.15.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-macosx_11_0_arm64\n"
+    },
+    "harness_note": "An initial temporary recorder failed to JSON-serialize immutable mappingproxy metadata after exercising smoke calls. The recorder was corrected with default=dict; this was a harness issue, and the final recorded assertion run exited 0."
+  },
+  "installed_contract": {
+    "dependency_install_command": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)",
+      "/Users/blizhan/miniforge3/bin/uv",
+      "--offline",
+      "--cache-dir",
+      "/Users/blizhan/.cache/uv",
+      "pip",
+      "install",
+      "--python",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/python",
+      "pytest>=8,<9"
+    ],
+    "dependency_install_exit_code": 0,
+    "dependency_install_stdout": "",
+    "dependency_install_stderr": "Using Python 3.12.7 environment at: /var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv\nResolved 5 packages in 8ms\nInstalled 5 packages in 31ms\n + iniconfig==2.3.1\n + packaging==26.3\n + pluggy==1.7.0\n + pygments==2.21.0\n + pytest==8.4.2\n",
+    "command": [
+      "/usr/bin/sandbox-exec",
+      "-p",
+      "(version 1) (allow default) (deny network*)",
+      "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/bin/python",
+      "-I",
+      "-c",
+      "import pathlib,sys,radiust,pytest; from radiust import _core; assert pathlib.Path(radiust.__file__).is_relative_to(pathlib.Path(sys.prefix)); assert not hasattr(_core.Engine,'for_local_view_test_fixture'); print('installed_package='+radiust.__file__); sys.exit(pytest.main(['-q','-c','/dev/null','--confcutdir=/Users/blizhan/data/code/github/radiust/tests/contract','--import-mode=importlib','-p','no:cacheprovider','/Users/blizhan/data/code/github/radiust/tests/contract/test_local_view.py']))"
+    ],
+    "environment_addition": {
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"
+    },
+    "cwd": "/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/work",
+    "exit_code": 0,
+    "stdout": "installed_package=/var/folders/1v/v409h6n51dsgwgyj53l2cgmr0000gp/T/radiust-production-wheel-s90wzucd/venv/lib/python3.12/site-packages/radiust/__init__.py\n...................                                                      [100%]\n19 passed in 0.13s\n",
+    "stderr": "",
+    "test_file": "tests/contract/test_local_view.py",
+    "import_isolation": "python -I, import-mode=importlib, confcutdir=tests/contract, -c /dev/null, plugin autoload disabled; preimport assertion verifies site-packages under the temporary venv. Fresh-interpreter subprocesses inherit the isolated HOME/cwd/environment."
+  },
+  "historical_evidence": [
+    {
+      "status": "historical_superseded",
+      "note": "Original 2026-10-10 pre-admission evidence preserved verbatim below; its stale limitations and no_candidate exit 3 describe only that old wheel.",
+      "record": {
+        "schema_version": 1,
+        "feature": "006-location-radar-view",
+        "recorded_at": "2026-10-10",
+        "scope": "Installed-wheel offline smoke for exported types, embedded catalog resources, and no-candidate local-view behavior; not selected-frame provider acceptance.",
+        "historical_note": "Pre-admission smoke: ran on wheel sha256 07b1fb3a217184d75564cd3a1ea70825130130e60f2b2e5f4d6f785b09fe858a when no source was automatically admitted. The no-network bare-cat no_candidate behaviour was not repeated on the final T052 wheel (sha256 3278ea9afc182f7d1f53c545e19486eb6c6ac2ec56880d947d1f897756d0f68b, recorded in 006-local-view-live.json), so installed no-network behaviour with RainViewer admitted is unrecorded here.",
+        "superseded_by": "006-local-view-live.json#t052_personal_local_view_default.build",
+        "build": {
+          "git_head": "fee15193ec9d69d08bf27c9405f7c501486d17e9",
+          "worktree_dirty": true,
+          "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+          "python": "CPython 3.12.7",
+          "platform": "macOS 26.6.2 arm64",
+          "wheel": "radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+          "wheel_size_bytes": 15623900,
+          "wheel_sha256": "07b1fb3a217184d75564cd3a1ea70825130130e60f2b2e5f4d6f785b09fe858a",
+          "build_command": "env -u CONDA_PREFIX uv run --group dev maturin build --release --out /tmp/radiust-local-view-wheel",
+          "build_exit_code": 0,
+          "install_command": "/tmp/radiust-local-view-venv/bin/pip install --no-deps --force-reinstall /tmp/radiust-local-view-wheel/radiust-0.1.1-cp312-cp312-macosx_11_0_arm64.whl",
+          "install_exit_code": 0,
+          "extension_build_exit_code": 0
+        },
+        "smoke": {
+          "python_command": "/tmp/radiust-local-view-venv/bin/python (installed-wheel smoke; isolated HOME; allow_network=false)",
+          "python_exit_code": 0,
+          "assertions": [
+            "radiust imported from the isolated venv site-packages",
+            "PyO3 LocalViewRequest and LocalViewResult classes are present",
+            "Python LocalViewGrid/Request/Result imports succeed in a fresh process",
+            "embedded registry contains 25 source IDs",
+            "Client.local_view returns no_candidate with selected=null while networking is disabled"
+          ],
+          "cli_command": "radiust --conf <isolated>/config.yaml cat --json",
+          "cli_exit_code": 3,
+          "cli_expected_status": "no_candidate",
+          "cli_center": {
+            "longitude": 121.6,
+            "latitude": 24.0
+          },
+          "cli_selected": null,
+          "stderr_empty": true,
+          "outcome": "passed; status and exit code reflect no eligible candidate, not a selected frame"
+        },
+        "limitations": [
+          "No source is automatically admitted, so installed-wheel successful frame/value/raw conversion was not exercised.",
+          "Cancellation and selected numeric/raw modes are covered by controlled Core/SDK tests rather than this no-candidate package smoke.",
+          "No public upstream request, credential use, or live provider claim was made."
+        ],
+        "resolved_issue": {
+          "initial_failure": "A fresh import of radiust.models exposed a circular import through safety and _bridge.",
+          "resolution": "Defer local-view model imports inside CoreEngineSession.local_view; add a fresh-interpreter regression test and rebuild the wheel.",
+          "post_fix_test": "env -u CONDA_PREFIX uv run --group dev pytest -q tests/contract/test_local_view.py -k fresh_interpreter \u2014 1 passed"
+        }
+      }
+    },
+    {
+      "status": "historical_superseded",
+      "recorded_at": "2026-10-24T04:26:03Z",
+      "wheel_sha256": "fa46dfcaa80fc54e5a5de76015aae6e8dd5ca148486f63141204d8122904c384",
+      "source_manifest_sha256": "59216e97e2211b4921c5cb14997433aeea131b0754e1a3e29169327025ebfc42",
+      "note": "Initial production build exposed a CLI/SDK diagnostic difference. CLI returned no_candidate/network_disabled exit 2, while sync/async SDK returned no_candidate/no_candidate. The final wheel above incorporates the shared LocalViewResult classification repair and verifies matching network_disabled/selection diagnostics.",
+      "cli_error": {
+        "code": "network_disabled",
+        "message": "network access is disabled; every otherwise eligible candidate requires network",
+        "stage": "selection",
+        "retryable": false
+      },
+      "sdk_error": {
+        "code": "no_candidate",
+        "message": "no candidate satisfies the selected access, mode, and spatial evidence",
+        "stage": "local_view",
+        "retryable": false
+      }
+    }
+  ],
+  "limitations": [
+    "Single local CPython 3.12.7/macOS arm64 wheel; no hosted CI, other Python/OS wheels, or publishing performed.",
+    "All smoke and contract calls were offline. No selected numeric field, raw image, canonical provider payload, successful live acquisition, or live-provider acceptance is claimed.",
+    "Missing-location interfaces deliberately differ: CLI emits location_missing with exit 2; SDK raises RadiustError with invalid_query at validate.",
+    "The wheel and complete temporary build/smoke records remain at the recorded temporary paths; selection arrays in checked-in smoke excerpts are summarized and original stdout/as_dict digests are retained."
+  ]
+}

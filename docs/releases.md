@@ -2,6 +2,14 @@
 
 `.github/workflows/release.yml` 在推送 `vMAJOR.MINOR.PATCH` tag 时执行。tag 必须包含这套发布代码；仅接受三段稳定版本号，不接受前导零、预发布或任意分支名。版本 `0.x` 仍可作为明确标注能力范围的预览版，不代表所有来源或迁移规格已经验收。
 
+## v0.1.8 位置局部视图（待发布）
+
+新增共享 Rust Engine、CLI 与同步/异步 Python SDK 的位置局部视图，默认半径 50 km、请求间距 1 km，使用 WGS84 椭球 AEQD。个人用途可自动选择 RainViewer，终端显示署名；网络仍需显式开启。新增 CWA `tw/observation-wide` 授权原图入口，未开放其科学解码。
+
+修复时效回退、按需 RDCAP 目录刷新、取消与资源限制、原图中心域、边缘采样质量和 URL 错误脱敏；三入口共享覆盖与空间依据及禁网诊断。验收脚本在 `python -O` 下仍校验损坏输入，PT fixture 更新为网页 EPSG:3857 边缘注册。
+
+评审后的离线验证包括 Core 422 项通过/1 项忽略、CLI 54 项与 HTTP metadata 21 项通过、Python 合同/集成 355 项通过/3 项跳过；后续验收脚本 20 项、正式安装包位置合同 19 项通过。正式 wheel 的构建与隔离安装记录见 [006 packaging](../validation-results/006-local-view-packaging.json)，其验证构建版本为升版前的 0.1.1。该记录不等于 0.1.8 已发布，也不构成修复后真实上游验收；006 保持 `implemented`。
+
 ## v0.1.7 下载与输出路径收敛
 
 相较 `v0.1.6`，本版本清理 Rust 迁移后不再使用的 Python 模块、recovery/scraping 可选依赖、旧扩展回退和未使用的 Rust helper。Python/PyO3 科学下载统一经过格式感知的 Rust 方法，并复用输入解析、科学输出编码、raw manifest 序列化和 Zarr 输出枚举逻辑。来源时间选择和取消策略保持原有行为；本次没有新增来源在线能力。

@@ -19,12 +19,26 @@ cache:
   enabled: true
 
 sources: {}
-  # rdcap:
-  #   insecure_tls: true  # Optional: disable verification only for RDCAP HTTPS requests.
-  # provider:
-  #   endpoint: https://example.invalid
-  #   access_key: set-through-your-secret-store
-  #   secret_key: set-through-your-secret-store
+  # To configure a source, replace `sources: {}` above with a `sources:` block, e.g.:
+  # sources:
+  #   tw:
+  #     api_key: set-through-your-secret-store  # Required for observation-wide (O-A0058-001).
+  #   rdcap:
+  #     insecure_tls: true  # Optional: disable verification only for RDCAP HTTPS requests.
+  #   provider:
+  #     endpoint: https://example.invalid
+  #     access_key: set-through-your-secret-store
+  #     secret_key: set-through-your-secret-store
+
+# Location-driven local view (optional). Coordinates below are placeholders for
+# illustration; use your own. Setting a location does not imply that any source
+# passes default admission, and network access still requires runtime.allow_network.
+# location:
+#   longitude: 121.60
+#   latitude: 24.00
+# local_view:
+#   radius_km: 50
+#   resolution_m: 1000
 
 storage:
   output: ./data

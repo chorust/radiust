@@ -27,6 +27,38 @@ with radiust.Client() as client:
 
 `discover`、`fetch`、`fetch_many` 和 `download` 接受同步 `progress(stage, completed, total)` 回调。进度由 Engine 的安全生命周期事件驱动：`discover_targets` 表示 Rust 正在处理发现目标，`discover` 表示返回帧数，`acquire`/`decode` 表示单帧获取和解码，`resolve`/`fetch` 表示批量解析与获取，`download` 表示下载报告进度。事件不包含 locator、凭据或错误详情，进度为尽力通知；同一 Client 上带回调的操作会串行隔离事件流，未带回调的操作仍可并发。异步客户端的回调在其事件循环线程运行。
 
+## 位置驱动的局部视图
+
+`Client.local_view()` 和 `await AsyncClient.local_view()` 委托共享 Engine，以配置位置为原点生成 WGS84 椭球 AEQD 局部网格。默认半径为 50 km、请求间距为 1 km；显式参数可覆盖范围、间距、来源、产品、站点、模式和采样方式。
+
+两种入口都接受 `progress(stage, completed, total)`；位置操作使用 `local_view` 阶段，开始时为 `(0, None)`，探测期间报告已处理候选数，成功完成时为 `(1, 1)`。取消和超时保留已有选择诊断。
+
+```python
+import radiust
+
+config = {
+    "location": {"longitude": 121.60, "latitude": 24.00},
+    "local_view": {"radius_km": 50, "resolution_m": 1000},
+    "runtime": {"allow_network": False},
+}
+with radiust.Client(config=config) as client:
+    view = client.local_view()
+    if view.status == "selected":
+        print(view.selected["source"], view.grid.shape, view.grid.x[0], view.grid.y[0])
+        cartesian = view.grid.cartesian  # x/y in meters, centered on the configured point
+        print(view.processing["processing_id"])
+```
+
+`LocalViewResult.fields` 保存数值结果，`raw_rgba` 保存受支持原图的 RGBA 字节；`data` 按实际类型返回其中之一。`grid.in_view` 与可选 `grid.source_domain` 是不同掩码，`grid.cartesian` 是 SDK 的 `CartesianGrid`。`processing` 记录处理算法、输入 frame/revision/receipt、中心、范围、请求及实际间距、网格、注册与重采样，并通过参数和 receipt 计算 `processing_id`；它不改变源 frame 的时间或缓存身份。`as_dict()`/`to_json()` 暴露安全元数据，不复制栅格数组。
+
+`observation_coverage` 保留选中候选的覆盖声明（kind、status、geometry、evidence），没有可信声明时保持 `unknown` 或 `None`，不能从 `source_domain` 推导真实扫描覆盖。每条 `selection` 也保留其 `observation_coverage` 和 `spatial_evidence`：实体类别、来源类别、站址可信度及距离、发布域、几何与自动准入依据，以及排序理由；排除、失败和未开始候选同样保留这些依据。
+
+网络关闭阻止所有原本可尝试的候选时，CLI、同步与异步 SDK 共享 `status="no_candidate"`、`error.code="network_disabled"` 和 `error.stage="selection"`；真正没有适用候选时保留 `error.code="no_candidate"`。CLI 对前者退出 2，后者退出 3。
+
+目录中的 raw-only 产品可以有空的 `ProductInfo.variables`；例如 `tw/observation-wide` 尚未建立科学解码路径，不声明反射率或其他未经验证的物理量。
+
+CLI 裸 `cat` 同样使用配置位置；显式 `SOURCE --local` 会把候选限制到指定来源。网络仍需显式 opt-in，自动选择还要求产品目录中的可信准入依据。raw 局部视图只支持已有 receipt 绑定且具有 EPSG:3857 边缘注册几何的 PT 显示图，不表示定量观测覆盖；`gray`/`legacy_display`、不支持的 CRS/几何及局部文件投影会明确拒绝。局部结果不能直接作为 `write()` 的投影输出。
+
 ## 获取、批量和输出
 
 ```python

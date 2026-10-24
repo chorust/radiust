@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-10T07:11:31.624351+00:00",
+  "evidence_kind": "primary_checkout_editable_extension_refresh_and_original_cli_replay",
+  "checkout": "/Users/blizhan/data/code/github/radiust",
+  "python_version": "3.12.7",
+  "python_source": "/Users/blizhan/data/code/github/radiust/python/radiust/__init__.py",
+  "extension": "/Users/blizhan/data/code/github/radiust/python/radiust/_core.cpython-312-darwin.so",
+  "source": "tw",
+  "product": "observation-wide",
+  "original_command": "RADIUST_RUNTIME__ALLOW_NETWORK=true .venv/bin/radiust cat tw --product observation-wide --latest --raw",
+  "initial_result": {
+    "exit_code": 2,
+    "message": "radiust: error: source returned no matching frame",
+    "tw_products": [
+      "observation",
+      "grid"
+    ]
+  },
+  "cause": "The primary checkout editable install had neither the new CWA source/catalog code nor its rebuilt native extension. Updating a different worktree or the global Cargo binary did not update this entry point.",
+  "fix": {
+    "merge_scope": "CWA adapter, reviewed redirects, product-scoped preflight/catalog and related tests/docs; existing uncommitted location-view implementation retained",
+    "build_command": "env -u CONDA_PREFIX VIRTUAL_ENV=\"$PWD/.venv\" .venv/bin/maturin develop --release --offline --skip-install",
+    "build_exit_code": 0,
+    "dependencies_modified": false,
+    "installation_mode": "existing editable installation retained",
+    "extension_sha256": "d2a83971476dd31b4e33fb7917ded3b7ed7f9b24495ef2c9e347c57806d49f9e"
+  },
+  "original_command_replay": {
+    "exit_code": 0,
+    "valid_time": "2026-10-10T06:50:00.000000Z",
+    "shape": [
+      3600,
+      3600
+    ],
+    "image_sha256": "8a0e1ca65fb17c6011f7b5128dcb01541886ab6df8d30988bde430c41a2f40be",
+    "display": "raw",
+    "renderer": "auto selected text for captured non-TTY output"
+  },
+  "regression": {
+    "python_contract_tests": {
+      "passed": 36
+    },
+    "rust_checks": {
+      "tw_unit": {
+        "exit_code": 0,
+        "summaries": [
+          "ok. 14 passed; 0 failed; 0 ignored; 0 measured; 374 filtered out; finished in 15.95s"
+        ]
+      },
+      "credential_scope": {
+        "exit_code": 0,
+        "summaries": [
+          "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 387 filtered out; finished in 0.01s"
+        ]
+      },
+      "catalog_unit": {
+        "exit_code": 0,
+        "summaries": [
+          "ok. 9 passed; 0 failed; 0 ignored; 0 measured; 379 filtered out; finished in 0.01s"
+        ]
+      },
+      "core_integration": {
+        "exit_code": 0,
+        "summaries": [
+          "ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s",
+          "ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+          "ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.90s"
+        ]
+      },
+      "local_view_flow": {
+        "exit_code": 0,
+        "summaries": [
+          "ok. 17 passed; 0 failed; 0 ignored; 0 measured; 371 filtered out; finished in 0.23s"
+        ]
+      },
+      "cli_unit": {
+        "exit_code": 0,
+        "summaries": [
+          "ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s"
+        ]
+      },
+      "cli_local_view": {
+        "exit_code": 0,
+        "summaries": [
+          "ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.29s"
+        ]
+      }
+    },
+    "local_view_python_entry_points_retained": true,
+    "rust_format": "passed",
+    "python_ruff_no_cache": "passed",
+    "git_diff_check": "passed",
+    "catalogs_equal": true
+  },
+  "resolved_validation_setup_failures": [
+    "maturin rejected simultaneous CONDA_PREFIX and VIRTUAL_ENV; the build succeeded with CONDA_PREFIX removed only for that process.",
+    "ruff cache writes were restricted; read-only --no-cache checking passed."
+  ],
+  "scientific_admission": false,
+  "raw_data_distribution": false,
+  "limits": [
+    "Single raw-image replay; physical image mapping, pixel geometry, real coverage and default source admission remain unverified.",
+    "The captured auto-renderer used text output, not an interactive terminal image protocol."
+  ]
+}
