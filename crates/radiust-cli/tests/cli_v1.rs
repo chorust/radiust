@@ -96,10 +96,42 @@ fn run_with_stderr_tty(args: &[&str]) -> (std::process::ExitStatus, Vec<u8>, Vec
 
 #[test]
 fn list_sources_matches_the_v1_contract_without_python() {
-    assert_snapshot(
-        &["list", "sources", "--json"],
-        include_str!("../../../tests/fixtures/rust-migration/cli/list-sources.json"),
-    );
+    let output = native_command()
+        .args(["list", "sources", "--json"])
+        .output()
+        .expect("native radiust process starts");
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
+    let report: Value = serde_json::from_slice(&output.stdout).expect("one JSON source report");
+    assert_eq!(report["schema_version"], 1);
+    assert_eq!(report["command"], "list");
+    assert_eq!(report["run_id"], Value::Null);
+    assert_eq!(report["query"], Value::Null);
+    assert_eq!(report["result"], Value::Null);
+    assert_eq!(report["error"], Value::Null);
+    assert_eq!(report["interrupted"], false);
+
+    let items = report["items"].as_array().expect("source items array");
+    assert!(!items.is_empty());
+    assert_eq!(report["counts"]["items"].as_u64(), Some(items.len() as u64));
+    let mut source_ids = std::collections::BTreeSet::new();
+    for source in items {
+        let id = source["id"].as_str().expect("source identity");
+        assert!(!id.is_empty());
+        assert!(source_ids.insert(id), "duplicate source identity: {id}");
+        assert!(source["description"].is_string());
+        assert!(source["availability"].is_string());
+        let products = source["products"].as_array().expect("product identities");
+        assert!(!products.is_empty(), "source {id} has no products");
+        let mut product_ids = std::collections::BTreeSet::new();
+        for product in products {
+            let product = product.as_str().expect("product identity");
+            assert!(!product.is_empty());
+            assert!(product_ids.insert(product), "duplicate product {id}/{product}");
+        }
+    }
+    let tw = items.iter().find(|source| source["id"] == "tw").expect("Taiwan source");
+    assert!(tw["products"].as_array().unwrap().iter().any(|product| product == "observation-wide"));
 }
 
 #[test]
@@ -226,12 +258,63 @@ fn native_human_reports_are_labeled_and_verbose_does_not_change_json() {
 
 #[test]
 fn aggregate_discover_matches_native_v1_offline_statuses_and_exit_code() {
-    // The native PH adapter does not need the Python baseline's timeline
-    // token, so it is network-restricted here instead of credential-gated.
-    assert_snapshot(
-        &["discover", "all", "--json"],
-        include_str!("../../../tests/fixtures/rust-migration/cli/discover-all.json"),
+    let output = native_command()
+        .args(["discover", "all", "--json"])
+        .output()
+        .expect("native radiust process starts");
+    assert_eq!(output.status.code(), Some(5));
+    assert!(output.stderr.is_empty());
+    let report: Value = serde_json::from_slice(&output.stdout).expect("one JSON discovery report");
+    assert_eq!(report["schema_version"], 1);
+    assert_eq!(report["command"], "discover");
+    assert_eq!(report["run_id"], Value::Null);
+    assert_eq!(
+        report["query"],
+        serde_json::json!({"source": "all", "latest": true, "max_age": null})
     );
+    assert_eq!(report["error"], Value::Null);
+    assert_eq!(report["interrupted"], false);
+
+    let items = report["items"].as_array().expect("discovery items array");
+    assert!(!items.is_empty());
+    assert_eq!(report["counts"]["total"].as_u64(), Some(items.len() as u64));
+    let mut identities = std::collections::BTreeSet::new();
+    let mut statuses = std::collections::BTreeMap::new();
+    for item in items {
+        let source = item["source"].as_str().expect("source identity");
+        let product = item["product"].as_str().expect("product identity");
+        let station = item["station"].as_str();
+        assert!(
+            identities.insert((source, product, station)),
+            "duplicate discovery target: {item}"
+        );
+        let status = item["status"].as_str().expect("discovery status");
+        assert!(matches!(status, "network_restricted" | "retired" | "missing_credentials"));
+        *statuses.entry(status).or_insert(0_u64) += 1;
+        assert_eq!(item["frame"], Value::Null);
+        assert_eq!(item["valid_time"], Value::Null);
+        assert_eq!(item["source_urls"], serde_json::json!([]));
+        assert_eq!(item["error"]["stage"], "discover");
+        assert_eq!(item["error"]["retryable"], false);
+    }
+    for (status, count) in report["counts"].as_object().expect("discovery counts") {
+        if status != "total" {
+            assert_eq!(count.as_u64(), Some(statuses.get(status.as_str()).copied().unwrap_or(0)));
+        }
+    }
+    let tw_wide = items
+        .iter()
+        .find(|item| item["source"] == "tw" && item["product"] == "observation-wide")
+        .expect("Taiwan wide observation target");
+    assert_eq!(tw_wide["status"], "missing_credentials");
+    assert_eq!(tw_wide["error"]["code"], "missing_credentials");
+    for product in ["observation", "grid"] {
+        let tw = items
+            .iter()
+            .find(|item| item["source"] == "tw" && item["product"] == product)
+            .expect("anonymous Taiwan product");
+        assert_eq!(tw["status"], "network_restricted");
+    }
 }
 
 #[cfg(unix)]

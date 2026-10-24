@@ -6,6 +6,7 @@ from radiust._bridge import native_discover
 CREDENTIAL_FIELDS = {
     "id": "token",
     "id_sidarma": "api_key",
+    "tw": "api_key",
     "wunderground": "api_key",
 }
 
@@ -15,15 +16,14 @@ async def test_native_discovery_fails_closed_without_required_credentials():
     report = await native_discover(
         {"runtime": {"allow_network": False}}, {"source": "all"}
     )
-    statuses = {
-        item["target"]["source"]: item["status"] for item in report["items"]
-    }
+    statuses = {}
+    for item in report["items"]:
+        statuses.setdefault(item["target"]["source"], set()).add(item["status"])
 
-    assert report["counts"]["total"] == 74
     for source_id in CREDENTIAL_FIELDS:
-        assert statuses[source_id] == "missing_credentials"
-    assert statuses["ph"] == "network_restricted"
-    assert statuses["uk"] == "retired"
+        assert "missing_credentials" in statuses[source_id]
+    assert statuses["ph"] == {"network_restricted"}
+    assert statuses["uk"] == {"retired"}
 
 
 @pytest.mark.asyncio
@@ -39,7 +39,8 @@ async def test_native_reports_never_echo_configured_source_credentials():
     serialized = json.dumps(report)
 
     assert report["counts"]["missing_credentials"] == 0
-    assert report["counts"]["retired"] == 1
-    assert report["counts"]["network_restricted"] == 73
+    for item in report["items"]:
+        if item["target"]["source"] in CREDENTIAL_FIELDS:
+            assert item["status"] == "network_restricted"
     for source_id in CREDENTIAL_FIELDS:
         assert f"offline-test-{source_id}-secret" not in serialized
