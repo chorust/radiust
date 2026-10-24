@@ -1303,7 +1303,9 @@ mod tests {
             mode: crate::model::PreviewMode::Raw,
             rule_version: None,
         };
-        let center = GeographicPoint { longitude: 0.0, latitude: 0.0 };
+        // Keep the control inside the northwest pixel: the four-pixel junction
+        // is sensitive to platform-dependent Mercator rounding at latitude zero.
+        let center = GeographicPoint { longitude: -0.001, latitude: 0.001 };
         let target = build_local_view_grid(center, 2.0, 1000.0, 100).unwrap();
         let control = RasterWorkControl::new(
             CancellationToken::new(),
