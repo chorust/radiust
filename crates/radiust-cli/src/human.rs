@@ -113,7 +113,7 @@ pub(crate) fn render(value: &Value, hint: Option<&str>, verbose: bool) -> String
 }
 
 pub(crate) fn local_view_caption(value: &Value) -> String {
-    local_view_summary(value)
+    local_view_summary(value, false)
 }
 
 fn render_with(value: &Value, hint: Option<&str>, verbose: bool, p: &Presentation) -> String {
@@ -125,7 +125,7 @@ fn render_with(value: &Value, hint: Option<&str>, verbose: bool, p: &Presentatio
     };
     let mut sections = vec![p.title(&heading)];
     if value["local_view_schema_version"] == 1 {
-        sections.push(local_view_summary(value));
+        sections.push(local_view_summary(value, verbose));
         if verbose {
             sections.push(
                 "diagnostics:\n  runtime: rust\n  report_schema: 1\n  secrets: redacted".into(),
@@ -239,7 +239,7 @@ fn render_with(value: &Value, hint: Option<&str>, verbose: bool, p: &Presentatio
     )
 }
 
-fn local_view_summary(value: &Value) -> String {
+fn local_view_summary(value: &Value, verbose: bool) -> String {
     let result = &value["result"];
     let mut lines = vec![format!("Status: {}", field(value, "status"))];
     let center = &result["center"];
@@ -313,7 +313,14 @@ fn local_view_summary(value: &Value) -> String {
         }
     }
     if let Some(attempts) = result["selection"].as_array() {
+        // Excluded candidates are routine; summarize them unless --verbose.
+        let excluded = |attempt: &Value| attempt["state"] == "excluded";
+        let mut reasons = std::collections::BTreeMap::<String, usize>::new();
         for attempt in attempts {
+            if !verbose && excluded(attempt) {
+                *reasons.entry(field(attempt, "reason")).or_default() += 1;
+                continue;
+            }
             let target = ["source", "product", "station"]
                 .into_iter()
                 .filter_map(|key| {
@@ -326,6 +333,15 @@ fn local_view_summary(value: &Value) -> String {
                 target,
                 field(attempt, "reason"),
                 field(attempt, "state"),
+            ));
+        }
+        if !reasons.is_empty() {
+            let total: usize = reasons.values().sum();
+            let detail =
+                reasons.iter().map(|(reason, n)| format!("{reason} {n}")).collect::<Vec<_>>();
+            lines.push(format!(
+                "Excluded {total} other candidates ({}); use --verbose for the list",
+                detail.join(", ")
             ));
         }
     }
@@ -669,6 +685,29 @@ mod tests {
     }
 
     #[test]
+    fn local_view_summary_collapses_excluded_candidates_unless_verbose() {
+        let report = json!({
+            "local_view_schema_version": 1,
+            "status": "selected",
+            "result": {"selection": [
+                {"source": "au", "product": "composite", "state": "excluded", "reason": "unsupported_mode_or_geometry"},
+                {"source": "nz", "product": "rain", "state": "excluded", "reason": "unsupported_mode_or_geometry"},
+                {"source": "id", "product": "composite", "state": "excluded", "reason": "missing_credentials"},
+                {"source": "rainviewer", "product": "composite", "state": "selected", "reason": "selected:needs_probe_coverage_unknown"}
+            ]}
+        });
+        let brief = local_view_summary(&report, false);
+        assert!(!brief.contains("au/composite"));
+        assert!(brief.contains("rainviewer/composite"));
+        assert!(brief.contains(
+            "Excluded 3 other candidates (missing_credentials 1, unsupported_mode_or_geometry 2)"
+        ));
+        let full = local_view_summary(&report, true);
+        assert!(full.contains("Selection: au/composite"));
+        assert!(!full.contains("Excluded 3"));
+    }
+
+    #[test]
     fn local_view_summary_names_the_centered_axes_range_time_and_legend() {
         let report = json!({
             "command": "cat",
@@ -702,7 +741,7 @@ mod tests {
 
         let mut rainviewer = report;
         rainviewer["result"]["selected"]["source"] = json!("rainviewer");
-        let credit = local_view_summary(&rainviewer);
+        let credit = local_view_summary(&rainviewer, false);
         assert!(credit.contains("Weather data by RainViewer"));
         assert!(credit.contains("https://www.rainviewer.com/"));
     }
