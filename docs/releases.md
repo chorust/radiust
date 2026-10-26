@@ -2,17 +2,21 @@
 
 `.github/workflows/release.yml` 在推送 `vMAJOR.MINOR.PATCH` tag 时执行。tag 必须包含这套发布代码；仅接受三段稳定版本号，不接受前导零、预发布或任意分支名。版本 `0.x` 仍可作为明确标注能力范围的预览版，不代表所有来源或迁移规格已经验收。
 
-## v0.1.9 视图瓦片选择与精简 cat 输出（待发布）
+## v0.1.9 视图瓦片选择与精简 cat 输出
 
 RainViewer、Windy、BMKG 的视图瓦片选择：可指定或自动选择 zoom，只下载相交瓦片（最多 64 片且拼图不超过 1500 万像素），RainViewer 解码几何与所选瓦片一致，Windy/BMKG 仍为 raw-only；未传瓦片参数时保持 zoom=1 全球默认与帧身份。新 zoom 级别只有离线合同验证，未逐级在线验收，Wunderground 仍为仅发现，详见 [验证记录](../validation-results/tile-viewport-offline.json)。`radiust cat` 默认把被排除的候选折叠为一行摘要，`--verbose` 显示完整清单。
 
+[`v0.1.9 发布工作流`](https://github.com/chorust/radiust/actions/runs/40261459130)全部通过：Linux/macOS crate 打包与安装验证、8 个 CPython 3.10–3.13 wheel 构建与隔离安装、发布和随后从公开 registry 的安装检查均成功；crates.io 的 `radiust-core`、`radiust-cli` 与 PyPI 上 8 个 wheel 均已显示 0.1.9。tag 所在提交的离线 CI 通过；此前同一代码的数轮离线 CI 曾因 `local_view_flow` 中两个 0.5 秒截止时间的测试偶发 `TimedOut` 失败，该测试稳定性尚未改进。GitHub Release 页面因令牌权限不足未能创建。
+
 离线验证：Core lib 414 项通过/1 项忽略，集成与 CLI 套件通过，fmt／ruff 通过；未运行 live 上游验证。`test_cli_cat.py` 中一项测试原先会读取开发者的 `~/.config/radiust/config.yaml` 而在有位置配置的机器上失败，现已隔离 HOME 与工作目录。
 
-## v0.1.8 位置局部视图（待发布）
+## v0.1.8 位置局部视图
 
 新增共享 Rust Engine、CLI 与同步/异步 Python SDK 的位置局部视图，默认半径 50 km、请求间距 1 km，使用 WGS84 椭球 AEQD。个人用途可自动选择 RainViewer，终端显示署名；网络仍需显式开启。新增 CWA `tw/observation-wide` 授权原图入口，未开放其科学解码。
 
 修复时效回退、按需 RDCAP 目录刷新、取消与资源限制、原图中心域、边缘采样质量和 URL 错误脱敏；三入口共享覆盖与空间依据及禁网诊断。验收脚本在 `python -O` 下仍校验损坏输入，PT fixture 更新为网页 EPSG:3857 边缘注册。
+
+[`v0.1.8 发布工作流`](https://github.com/chorust/radiust/actions/runs/40075996021)已通过，crates.io 与 PyPI 均已显示 0.1.8（8 个 wheel）。
 
 评审后的离线验证包括 Core 422 项通过/1 项忽略、CLI 54 项与 HTTP metadata 21 项通过、Python 合同/集成 355 项通过/3 项跳过；后续验收脚本 20 项、正式安装包位置合同 19 项通过。正式 wheel 的构建与隔离安装记录见 [006 packaging](../validation-results/006-local-view-packaging.json)，其验证构建版本为升版前的 0.1.1。该记录不等于 0.1.8 已发布，也不构成修复后真实上游验收；006 保持 `implemented`。
 

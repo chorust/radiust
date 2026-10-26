@@ -21,7 +21,7 @@ The project currently provides a CLI, a Python SDK, and the reusable Rust `radiu
   <a href="DATA_SOURCES.md">Data source policy</a> · <a href="TRADEMARKS.md">Brand usage rules</a>
 </p>
 
-The source version is **0.1.8 alpha** (unreleased); the registry installation examples below still use the published **0.1.7**.
+The latest published version is **0.1.9** (alpha preview). The release workflow syncs version numbers only in its source snapshot, so manifests on main still read 0.1.8. The registry installation examples below use **0.1.9**.
 
 [Features](#features) · [Install](#install) · [Usage](#usage) · [Project and licensing](#project-and-licensing) · [Dev](#dev)
 
@@ -44,25 +44,25 @@ The source version is **0.1.8 alpha** (unreleased); the registry installation ex
 The native CLI needs no Python. Cargo compiles it from source, requiring Rust **1.92+**, CMake, a C/C++ compiler, and build tools:
 
 ```bash
-cargo install --locked --version 0.1.7 radiust-cli
+cargo install --locked --version 0.1.9 radiust-cli
 radiust --version
 ```
 
-The Cargo package is `radiust-cli`; its executable is `radiust`. Cargo's `~/.cargo/bin` directory must be on PATH. Rust projects can use the matching core library with `cargo add radiust-core@0.1.7`. On macOS, use `xcode-select --install` for compiler tools and `brew install cmake` for CMake; see the [source build guide](docs/installation.md#从源码构建或使用-cargo-安装) and [release record](docs/releases.md) for complete prerequisites and v0.1.7 verification details.
+The Cargo package is `radiust-cli`; its executable is `radiust`. Cargo's `~/.cargo/bin` directory must be on PATH. Rust projects can use the matching core library with `cargo add radiust-core@0.1.9`. On macOS, use `xcode-select --install` for compiler tools and `brew install cmake` for CMake; see the [source build guide](docs/installation.md#从源码构建或使用-cargo-安装) and [release record](docs/releases.md) for complete prerequisites and v0.1.9 verification details.
 
 ### Python SDK
 
-Use CPython **3.10–3.13**. Prebuilt `0.1.7` wheels cover macOS Apple Silicon (macOS 11+) and Linux x86_64 (glibc ≥ 2.28); no Rust or CMake installation is required:
+Use CPython **3.10–3.13**. Prebuilt `0.1.9` wheels cover macOS Apple Silicon (macOS 11+) and Linux x86_64 (glibc ≥ 2.28); no Rust or CMake installation is required:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install "radiust==0.1.7"
+python -m pip install "radiust==0.1.9"
 python -m radiust --version
 radiust --help
 ```
 
-The Python package provides both the `radiust` command and the SDK. Install `"radiust[science]==0.1.7"` for NumPy/xarray conversion; see the [installation guide](docs/installation.md#python-包) for GeoTIFF, Zarr, and other optional dependencies. If you also install the standalone CLI, use `python -m radiust` to select the version in your virtual environment.
+The Python package provides both the `radiust` command and the SDK. Install `"radiust[science]==0.1.9"` for NumPy/xarray conversion; see the [installation guide](docs/installation.md#python-包) for GeoTIFF, Zarr, and other optional dependencies. If you also install the standalone CLI, use `python -m radiust` to select the version in your virtual environment.
 
 ### Standalone prebuilt CLI
 
@@ -83,7 +83,7 @@ radiust --help
 
 Only extract and install after verification succeeds. If a new terminal cannot find `radiust`, add the `export PATH` line to `~/.zshrc`. This preview is not notarized by Apple and may trigger Gatekeeper on first launch; see the [installation guide](docs/installation.md#macos-apple-silicon-预编译版本预览) for details and scope.
 
-This older `v0.1.0` preview does not include all changes in `0.1.7`. Install the current version through PyPI or Cargo using the commands above.
+This older `v0.1.0` preview does not include all changes in `0.1.9`. Install the current version through PyPI or Cargo using the commands above.
 
 ### Install from source
 
