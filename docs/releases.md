@@ -8,6 +8,8 @@
 
 修复时效回退、按需 RDCAP 目录刷新、取消与资源限制、原图中心域、边缘采样质量和 URL 错误脱敏；三入口共享覆盖与空间依据及禁网诊断。验收脚本在 `python -O` 下仍校验损坏输入，PT fixture 更新为网页 EPSG:3857 边缘注册。
 
+另含 RainViewer、Windy、BMKG 的视图瓦片选择：可指定或自动选择 zoom，只下载相交瓦片（最多 64 片且拼图不超过 1500 万像素），RainViewer 解码几何与所选瓦片一致，Windy/BMKG 仍为 raw-only；未传瓦片参数时保持 zoom=1 全球默认与帧身份。新 zoom 级别只有离线合同验证，未逐级在线验收，Wunderground 仍为仅发现，详见 [验证记录](../validation-results/tile-viewport-offline.json)。`radiust cat` 默认把被排除的候选折叠为一行摘要，`--verbose` 显示完整清单。
+
 评审后的离线验证包括 Core 422 项通过/1 项忽略、CLI 54 项与 HTTP metadata 21 项通过、Python 合同/集成 355 项通过/3 项跳过；后续验收脚本 20 项、正式安装包位置合同 19 项通过。正式 wheel 的构建与隔离安装记录见 [006 packaging](../validation-results/006-local-view-packaging.json)，其验证构建版本为升版前的 0.1.1。该记录不等于 0.1.8 已发布，也不构成修复后真实上游验收；006 保持 `implemented`。
 
 ## v0.1.7 下载与输出路径收敛
