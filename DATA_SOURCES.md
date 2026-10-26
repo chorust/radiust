@@ -152,6 +152,8 @@ RDCAP 在同一 Engine 生命周期内保留上游设置的匿名会话 cookie�
 
 ## 局部视图的空间证据
 
+RainViewer、Windy、BMKG 现支持指定视图和 zoom 或自动选级别，只获取相交的完整瓦片；普通无参数查询保留 zoom=1 全球默认值。RainViewer 实现 zoom 0–7，Windy/BMKG 实现 0–10；最多 64 片，仍受现有资源和请求预算约束。RainViewer 数值解码与原图预览使用实际瓦片范围，日期变更线处保持连续经度轴；Windy/BMKG 科学解码及局部投影仍未验收。局部 RainViewer 按位置、半径及目标间距自动选片，可手动覆盖 zoom。新增级别仅完成[离线合同验证](validation-results/tile-viewport-offline.json)，不扩展既有单次单点在线验收范围；上游访问、署名和用途条款不变。
+
 位置驱动的局部视图使用 WGS84 椭球 AEQD，按输出点反查输入格点；Core、CLI 与 Python SDK 共用同一流程。RainViewer 于 2026-10-24 完成安装后裸 `cat` 的当前发现、获取及投影，默认准入仅限个人用途的 `local_view`；人类可读 CLI 摘要显示 `Weather data by RainViewer` 和来源链接。官方条款要求个人／教育用途并要求应用中显示署名；商业或高流量集成需另行协商，底层观测资料再分发权限未确认。[T052 记录](validation-results/006-local-view-live.json)保存安装包、请求与选中帧证据。Madeira 测试点的 observation coverage 仍为 unknown，其他地区的覆盖也未因此验收；网络仍须显式 opt-in。显式 source/local 仍受网络、来源配置及几何检查限制。
 
 IPMA 的 Madeira radar timeline 本次安装后显式 CLI 返回 `no_data`，没有发生图像获取或投影。其公开使用条件允许个人或公共用途且不得用于营利，并要求注明来源；API 页面也请求使用者告知用途。[官方条款](https://api.ipma.pt/)于 2026-10-17 复核。该页面的许可范围、商业复用及最新雷达图访问权限未解决，不能据此自动准入。

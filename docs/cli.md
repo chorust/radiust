@@ -45,6 +45,21 @@ radiust config show --json
 radiust cache status --json
 ```
 
+### 瓦片视图与 zoom
+
+RainViewer、Windy 和 BMKG 的 `discover`、`cat SOURCE`、`download SOURCE` 支持 `--tile-bbox west,south,east,north`、`--zoom N` 和 `--tile-resolution-m METERS`。只获取与视图相交的完整瓦片；`west > east` 表示跨日期变更线。`--tile-bbox` 控制上游获取范围，现有 `--bbox`/`--resolution` 控制解码后的输出重网格，两者独立。
+
+```bash
+radiust discover rainviewer --latest --tile-bbox 120,23,122,25 --zoom 6
+radiust cat rainviewer --tile-bbox 120,23,122,25 --tile-resolution-m 1000 --decoded
+radiust download windy --raw-only --tile-bbox 120,23,122,25 --zoom 5
+radiust cat rainviewer --local --radius-km 50 --resolution-m 1000 --zoom 6
+```
+
+视图未指定 zoom 时，根据中心纬度和目标地面间距自动选择；没有目标间距时以约 1024 像素的横向视图选择。RainViewer 实现范围为 0–7，Windy/BMKG 为 0–10，实际在线可用范围尚未逐级验收。单帧最多 64 张瓦片；自动模式必要时降低 zoom，显式 zoom 超限则报错，并继续遵守像素、字节、超时和请求预算。无瓦片参数且非局部视图时保留 zoom=1 全球四片默认值。Web Mercator 限制纬度约 ±85.0511°，不生成极区观测。
+
+局部视图按中心、半径和 `--resolution-m` 自动生成瓦片视图并加入采样边缘；`--zoom` 可覆盖级别。局部入口使用 `--radius-km`/`--resolution-m`，不接受 `--tile-bbox`/`--tile-resolution-m`。RainViewer 数值解码按实际瓦片偏移、zoom、行列数生成 EPSG:4326 像元中心，跨线经度保持连续。Windy/BMKG 只支持所选原图瓦片获取与预览，科学解码和局部投影未因此开放。瓦片选择进入帧身份与正式输出清单；原图缺片、重复片或 receipt 不一致均会失败。新增能力的离线证据见 [验证记录](../validation-results/tile-viewport-offline.json)。
+
 ### 位置驱动的局部视图
 
 `radiust cat`（不带 `SOURCE` 或 `--file`）读取配置中的 `location`，默认生成用户居中的 WGS84 椭球 AEQD 网格，半径 50 km、请求间距 1 km。输出坐标以用户为原点，x 向东、y 向北，单位为米；终端摘要以公里显示。显式参数可覆盖默认范围与间距：

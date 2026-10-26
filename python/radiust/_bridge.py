@@ -177,6 +177,7 @@ def _native_query_payload(query: Any) -> dict[str, Any]:
                 "end",
                 "base_time",
                 "max_age",
+                "tiles",
             )
             if hasattr(query, name)
         }
@@ -209,6 +210,8 @@ def _native_query_payload(query: Any) -> dict[str, Any]:
     payload["selector"] = selector
     payload["base_time"] = time_text(values.get("base_time"))
     payload["max_age_secs"] = max_age
+    if values.get("tiles") is not None:
+        payload["tiles"] = _json_safe(values["tiles"])
     return payload
 
 

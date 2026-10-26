@@ -2330,6 +2330,16 @@ impl Engine {
                 source: Some(target.source.clone()),
                 product: target.product.clone(),
                 stations: target.station.clone().into_iter().collect(),
+                tiles: matches!(target.source.as_str(), "rainviewer" | "windy" | "bmkg").then(
+                    || {
+                        crate::source::tile_plan::TileRequest::local(
+                            center,
+                            radius_km,
+                            resolution_m,
+                            request.zoom,
+                        )
+                    },
+                ),
                 max_age_secs,
                 ..Query::default()
             };
@@ -3479,6 +3489,38 @@ fn local_frame_geometry(
     field: &RadarField,
     target: &CatalogSpatialTarget,
 ) -> Result<RasterGeometryEvidence, CoreError> {
+    if raw.frame.source == "rainviewer" {
+        let plan = crate::source::rainviewer::validate_science_frame(&raw.frame)?;
+        let mut geometry = target
+            .geometry
+            .clone()
+            .filter(|g| {
+                g.status == SpatialEvidenceStatus::Verified
+                    && !g.evidence.is_empty()
+                    && g.crs.as_deref() == Some("EPSG:4326")
+                    && g.registration == PixelRegistration::Center
+            })
+            .ok_or_else(|| CoreError::Storage("RainViewer geometry evidence is missing".into()))?;
+        geometry.shape = Some([plan.rows * 512, plan.columns * 512]);
+        geometry.affine = None;
+        geometry.data_window = None;
+        let source = if plan.zoom == crate::source::rainviewer::ONLINE_VERIFIED_ZOOM {
+            "Receipt-bound RainViewer XYZ tile selection".to_owned()
+        } else {
+            // The catalog's online geometry evidence covers only the zoom-1 world view.
+            format!(
+                "Receipt-bound RainViewer XYZ tile selection at zoom {}: analytic Web Mercator \
+                 pixel centers, offline contract tests only, no online comparison at this zoom",
+                plan.zoom
+            )
+        };
+        geometry.evidence.push(CatalogProvenance {
+            source,
+            reference: Some(format!("frame:{}", raw.frame.logical_id)),
+            observed_at: None,
+        });
+        return Ok(geometry);
+    }
     if raw.frame.source == "rdcap" {
         let artifact = raw
             .artifacts

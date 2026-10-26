@@ -56,6 +56,13 @@ impl SourceAdapter for FixtureAdapter {
                 frame.locator.get("fixture_corrupt").and_then(Value::as_bool) == Some(true);
             let mut artifacts = Vec::with_capacity(fixtures.len());
             for fixture in fixtures {
+                if let Some(plan) = frame.locator.get("tile_selection") {
+                    let x = plan["x_start"].as_u64().unwrap();
+                    let y = plan["y_start"].as_u64().unwrap();
+                    if fixture.name != format!("tile-z1-x{x}-y{y}.png") {
+                        continue;
+                    }
+                }
                 let bytes: &[u8] = if corrupt && fixture.media_type == "image/png" {
                     b"broken fixture tile"
                 } else {
@@ -246,6 +253,62 @@ async fn rainviewer_composite_download_roundtrips_through_netcdf_and_manifest_la
     assert_eq!(
         radiust_core::model::parse_utc_time(&field.valid_time).unwrap(),
         radiust_core::model::parse_utc_time(&frame.valid_time).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn selected_tile_netcdf_commit_readback_and_identity_are_local_to_the_view() {
+    let root = tempfile::tempdir().unwrap();
+    let engine = engine(root.path(), 1);
+    let mut frame = rainviewer_frame(0, false);
+    frame.locator["tile_selection"] =
+        json!({"zoom": 1, "x_start": 1, "y_start": 0, "columns": 1, "rows": 1});
+    frame.logical_id = logical_id(&frame).unwrap();
+    assert_ne!(frame.logical_id, rainviewer_frame(0, false).logical_id);
+    let report = engine
+        .download_decoded_to_with_template_and_raw(
+            vec![frame.clone()],
+            FetchErrorPolicy::Collect,
+            false,
+            false,
+            root.path().join("output"),
+            "netcdf",
+            None,
+            true,
+        )
+        .await
+        .unwrap();
+    assert_eq!((report.written, report.failed), (1, 0), "{:?}", report.items);
+    let path = PathBuf::from(report.items[0].output_uri.as_ref().unwrap());
+    let field = read_selected_field(&path, "reflectivity", None, &Limits::default()).unwrap();
+    assert_eq!(field.shape, [512, 512]);
+    assert_eq!(field.grid.x[0], 0.17578125);
+    assert!((field.grid.y[215] - 71.58053179556501).abs() < 1e-12);
+    assert_eq!(field.values[215 * 512 + 64], 10.0);
+    let repeat = engine
+        .download_decoded_to_with_template_and_raw(
+            vec![frame.clone()],
+            FetchErrorPolicy::Collect,
+            false,
+            false,
+            root.path().join("output"),
+            "netcdf",
+            None,
+            true,
+        )
+        .await
+        .unwrap();
+    assert_eq!(repeat.skipped, 1);
+    let manifest: Value =
+        serde_json::from_slice(&fs::read(path.with_file_name("decoded.nc.manifest.json")).unwrap())
+            .unwrap();
+    assert_eq!(manifest["logical_id"], frame.logical_id);
+    assert!(
+        manifest["artifacts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|a| a["relative_uri"].as_str().unwrap().ends_with("tile-z1-x1-y0.png"))
     );
 }
 

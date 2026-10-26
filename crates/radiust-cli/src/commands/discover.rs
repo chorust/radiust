@@ -11,10 +11,11 @@ pub(crate) struct Args {
     pub end: Option<String>,
     pub base_time: Option<String>,
     pub max_age_secs: Option<f64>,
+    pub tiles: crate::TileArgs,
 }
 
 pub(crate) fn run(args: Args, context: &Context<'_>) -> Result<u8, String> {
-    let query = crate::build_query(
+    let mut query = crate::build_query(
         args.sources.clone(),
         args.product,
         args.stations,
@@ -25,6 +26,7 @@ pub(crate) fn run(args: Args, context: &Context<'_>) -> Result<u8, String> {
         args.base_time,
         args.max_age_secs,
     )?;
+    query.tiles = args.tiles.request()?;
     let config = crate::load_config(context.config_path)?;
     let result = crate::discover(config, query, context.progress_enabled)
         .map_err(|error| error.to_string())?;

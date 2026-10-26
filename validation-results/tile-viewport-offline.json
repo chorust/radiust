@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "scope": "Offline viewport tile selection, raw composition, RainViewer numeric geometry, CLI and Python plumbing",
+  "network": "No live provider requests; embedded provider fixtures and synthetic tiles only. Dependency installation is not provider validation.",
+  "capabilities": {
+    "rainviewer": {
+      "zoom_range": [
+        0,
+        7
+      ],
+      "tile_size": 512,
+      "scheme": "xyz",
+      "numeric_decode": true
+    },
+    "windy": {
+      "zoom_range": [
+        0,
+        10
+      ],
+      "tile_size": 256,
+      "scheme": "xyz",
+      "numeric_decode": false
+    },
+    "bmkg": {
+      "zoom_range": [
+        0,
+        10
+      ],
+      "tile_size": 256,
+      "scheme": "tms_urls_xyz_composition",
+      "numeric_decode": false
+    },
+    "max_tiles_per_frame": 64,
+    "ordinary_query_without_tile_parameters": "Legacy zoom=1 global four-tile plan and identity retained",
+    "automatic_zoom": "Ground resolution at viewport center, or approximately 1024 horizontal pixels; reduce zoom if the 64-tile cap is exceeded",
+    "local_view": "RainViewer derives a conservative viewport and sampling halo from position, radius and resolution; optional explicit zoom override",
+    "identity": "Selected zoom and tile extent are serialized in frame locator and logical identity; raw receipts and formal manifests retain the selected tile names"
+  },
+  "checks": [
+    {
+      "command": "cargo check --workspace --all-targets",
+      "result": "passed"
+    },
+    {
+      "command": "cargo test -p radiust-core --lib",
+      "result": "414 passed, 1 ignored",
+      "note": "Rerun after review fixes: shared PlanTile, default-plan identity, mosaic pixel budget, wrapped-span rejection, zoom-aware geometry evidence"
+    },
+    {
+      "command": "cargo test -p radiust-core --lib tile_plan",
+      "result": "4 passed"
+    },
+    {
+      "command": "cargo test -p radiust-core --lib source::rainviewer",
+      "result": "9 passed"
+    },
+    {
+      "command": "cargo test -p radiust-core --test source_tile_preview --test source_matrix --test download_netcdf --test local_view_sampling --test local_view_evidence --test dbz_native",
+      "result": "36 passed",
+      "note": "Existing full-world pixel/quality fixtures, four-format writers and preview safety checks retained"
+    },
+    {
+      "command": "cargo test -p radiust-core --test download_netcdf",
+      "result": "13 passed",
+      "note": "Adds selected single-tile NetCDF write/readback, raw manifest attachment, logical identity separation and repeat skip"
+    },
+    {
+      "command": "cargo test -p radiust-cli --lib --test local_view_cli --test cli_v1 --test cat_first_frame --test config_files",
+      "result": "101 passed"
+    },
+    {
+      "command": ".venv/bin/pytest -q tests/contract/test_bridge.py tests/contract/test_local_view.py tests/integration/test_local_view.py tests/contract/test_discovery_models.py",
+      "result": "28 passed, 6 skipped",
+      "note": "Six cross-entry fixture replays require extension-module,test-support; the installed extension was built without test-support; tests/contract/test_cli_cat.py::test_bare_cat_uses_local_view_and_source_file_conflict_stays_invalid fails identically with these changes stashed (expects location_missing, gets network_disabled)"
+    },
+    {
+      "command": "Python public Query to native Rust Query JSON round-trip",
+      "result": "passed; bbox and zoom retained"
+    },
+    {
+      "command": "ruff check on changed Python files; cargo fmt --all --check; git diff --check; Rust/Python catalog JSON equality",
+      "result": "passed"
+    }
+  ],
+  "regressions_resolved_during_validation": [
+    "Clap flattening initially reused bbox/resolution_m argument IDs; distinct tile_bbox/tile_resolution_m IDs fixed all eight affected parser tests.",
+    "The new NetCDF repeat test initially passed overwrite=true and expected skip; corrected it to use the raw-attached decoded download API with overwrite=false. All 13 NetCDF tests then passed."
+  ],
+  "limitations": [
+    "New zoom levels have not been tested against live providers individually; existing online acceptance and terms remain unchanged.",
+    "Windy and BMKG remain raw-only and are not admitted for local scientific projection.",
+    "OpenSnow remains unavailable pending canonical raw and frame-time evidence.",
+    "Web Mercator does not cover the poles; tile intersection is not evidence of radar observation coverage.",
+    "Requests download complete intersecting tiles, so decoded native bounds may extend beyond the requested viewport.",
+    "Automatic reduction obeys the 64-tile cap; stricter configured pixel, byte, temporary-memory or request budgets may still reject the operation.",
+    "Wunderground remains discovery-only at its fixed zoom-1 plan: its adapter does not enable raw acquisition without a verified provider response contract, so viewport tile selection does not apply to it.",
+    "Automatic selection also keeps the mosaic within 15 Mpx so the raw preview memory cap accepts every plan the selector returns; an explicit zoom over that budget is refused.",
+    "A wrapped (west > east) viewport wider than 180 degrees is rejected as a probable west/east swap.",
+    "RainViewer geometry and numeric-decode online readback covers zoom 1 only; frames at other zooms carry offline-only evidence and provenance markers."
+  ]
+}

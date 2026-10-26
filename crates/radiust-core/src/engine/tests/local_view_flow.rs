@@ -1,5 +1,6 @@
 use super::super::*;
 use crate::model::GeographicPoint;
+use crate::source::tile_plan::PlanTile;
 use crate::source::{SourceAdapter, SourceContext, SourceRegistry};
 use futures_util::future::BoxFuture;
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
@@ -11,6 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Clone, Copy)]
 enum DiscoveryMode {
     Frame,
+    SelectedTiles,
     OldFrame,
     Empty,
     Error,
@@ -74,11 +76,21 @@ impl SourceAdapter for ControlledAdapter {
     fn discover(
         self: Arc<Self>,
         _target: DiscoveryTarget,
-        _context: SourceContext,
+        context: SourceContext,
     ) -> BoxFuture<'static, crate::errors::CoreResult<Vec<FrameRef>>> {
         self.discoveries.fetch_add(1, Ordering::SeqCst);
         Box::pin(async move {
             match self.discovery {
+                DiscoveryMode::SelectedTiles => {
+                    let request =
+                        context.query.tiles.as_ref().expect("local view passes tile viewport");
+                    let plan = crate::source::tile_plan::TilePlan::select(Some(request), 512, 7)?;
+                    let mut frame = rainviewer_frame();
+                    frame.locator["zoom"] = serde_json::json!(plan.zoom);
+                    frame.locator["tile_selection"] = serde_json::json!(plan);
+                    frame.logical_id = crate::identity::logical_id(&frame).unwrap();
+                    Ok(vec![frame])
+                }
                 DiscoveryMode::OldFrame if self.source == "rainviewer" => {
                     let mut frame = rainviewer_frame();
                     frame.valid_time = "2020-01-01T00:00:00.000000Z".into();
@@ -156,6 +168,35 @@ impl SourceAdapter for ControlledAdapter {
                             artifacts: vec![artifact],
                             private_locator: None,
                         });
+                    }
+                    if frame.locator.get("tile_selection").is_some() {
+                        let plan = crate::source::tile_plan::TilePlan::from_locator(&frame, 7)?;
+                        let mut encoded = Cursor::new(Vec::new());
+                        DynamicImage::ImageRgba8(RgbaImage::from_pixel(
+                            512,
+                            512,
+                            Rgba([0, 0xa3, 0xe0, 0xff]),
+                        ))
+                        .write_to(&mut encoded, ImageFormat::Png)
+                        .unwrap();
+                        let bytes = encoded.into_inner();
+                        let artifacts = plan
+                            .tiles()
+                            .map(|PlanTile { x, y, .. }| {
+                                let mut file = tempfile::NamedTempFile::new_in(&temp_root).unwrap();
+                                file.write_all(&bytes).unwrap();
+                                RawArtifact {
+                                    receipt: ArtifactReceipt {
+                                        name: plan.name(x, y),
+                                        media_type: "image/png".into(),
+                                        size_bytes: bytes.len() as u64,
+                                        sha256: hex::encode(Sha256::digest(&bytes)),
+                                    },
+                                    path: file.into_temp_path(),
+                                }
+                            })
+                            .collect();
+                        return Ok(RawFrame { frame, artifacts, private_locator: None });
                     }
                     let missing = (matches!(mode, FetchMode::AllMissing))
                         .then(transparent_png)
@@ -707,6 +748,45 @@ async fn local_view_keeps_all_missing_frames_and_does_not_fallback() {
             && attempt.state == LocalViewCandidateState::NotStarted
             && attempt.reason == "not_needed_after_selection"
     }));
+}
+
+#[tokio::test]
+async fn local_view_selects_tiles_and_projects_their_actual_geometry() {
+    for (longitude, zoom) in [(10.0, None), (179.99, Some(4))] {
+        let (engine, _temp, _, fetches) = make_engine(
+            spatial_catalog(false, false, false),
+            DiscoveryMode::SelectedTiles,
+            FetchMode::Fixture,
+            DiscoveryMode::Empty,
+        );
+        let result = engine
+            .local_view(LocalViewRequest {
+                center: Some(GeographicPoint { longitude, latitude: 20.0 }),
+                radius_km: Some(50.0),
+                resolution_m: Some(1000.0),
+                zoom,
+                source: Some("rainviewer".into()),
+                ..LocalViewRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(result.status, LocalViewStatus::Selected, "{:?}", result.error);
+        assert_eq!(fetches.load(Ordering::SeqCst), 1);
+        let frame = result.selected.as_ref().unwrap();
+        assert_eq!(frame.locator["zoom"], zoom.unwrap_or(7));
+        let processing = result.processing.as_ref().unwrap();
+        assert!(processing.input_receipts.len() <= 4);
+        let LocalViewData::Numeric(dataset) = result.data.as_ref().unwrap() else {
+            panic!("expected numeric")
+        };
+        let grid = result.grid.as_ref().unwrap();
+        for (index, in_view) in grid.in_view.iter().enumerate() {
+            if *in_view {
+                assert_eq!(dataset.fields[0].quality[index], 0);
+                assert_eq!(dataset.fields[0].values[index], 20.0);
+            }
+        }
+    }
 }
 
 #[tokio::test]

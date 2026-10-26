@@ -4,7 +4,8 @@ pub use crate::dbz::wrap_native_reflectivity;
 use crate::errors::{CoreError, CoreResult};
 use crate::limits::{Limits, RasterBufferLease, RasterMemoryBudget, RasterWorkControl};
 use crate::model::{Grid, RadarField, RawFrame};
-use crate::source::rainviewer::{self, TILE_SIZE, ZOOM};
+use crate::source::rainviewer::{self, TILE_SIZE};
+use crate::source::tile_plan::PlanTile;
 use crate::source::tw;
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader};
 use sha2::{Digest, Sha256};
@@ -39,8 +40,6 @@ ffffffff ffffffff ffffffff ffffffff ffffffff ffffffff ffffffff ffffffff
 00ff00ff 00ff00ff 00ff00ff 00ff00ff 00ff00ff 00ff00ff 00ff00ff
 "#;
 
-const TILE_COUNT: u32 = 1 << ZOOM;
-const TILE_ARTIFACTS: usize = (TILE_COUNT * TILE_COUNT) as usize;
 const QUALITY_VALID: u16 = 0;
 const QUALITY_TRANSPARENT: u16 = 1;
 const QUALITY_UNKNOWN_COLOR: u16 = 4;
@@ -80,19 +79,26 @@ fn decode_rainviewer_inner(
     control: Option<&RasterWorkControl>,
 ) -> CoreResult<BudgetedRadarField> {
     check_raster_work(control)?;
-    rainviewer::validate_science_frame(&raw.frame)?;
-    if raw.artifacts.len() != TILE_ARTIFACTS {
+    let plan = rainviewer::validate_science_frame(&raw.frame)?;
+    let expected = plan
+        .tiles()
+        .map(|PlanTile { x, y, column, row }| (plan.name(x, y), (column, row)))
+        .collect::<HashMap<_, _>>();
+    let tile_artifacts = expected.len();
+    if raw.artifacts.len() != tile_artifacts {
         return Err(CoreError::Transport(format!(
-            "RainViewer frame has {} tiles, expected {TILE_ARTIFACTS}",
+            "RainViewer frame has {} tiles, expected {tile_artifacts}",
             raw.artifacts.len()
         )));
     }
 
-    let world_width = TILE_COUNT
+    let world_width = plan
+        .columns
         .checked_mul(TILE_SIZE)
         .ok_or_else(|| CoreError::ResourceLimit("RainViewer grid dimensions overflow".into()))?;
+    let world_height = plan.rows * TILE_SIZE;
     let world_pixels = u64::from(world_width)
-        .checked_mul(u64::from(world_width))
+        .checked_mul(u64::from(world_height))
         .ok_or_else(|| CoreError::ResourceLimit("RainViewer grid dimensions overflow".into()))?;
     limits.validate_pixels(world_pixels)?;
     let rgba_len = usize::try_from(world_pixels)
@@ -104,8 +110,8 @@ fn decode_rainviewer_inner(
         .and_then(|width| width.checked_mul(4))
         .ok_or_else(|| CoreError::ResourceLimit("RainViewer grid dimensions overflow".into()))?;
     let tile_row_bytes = TILE_SIZE as usize * 4;
-    let axes_bytes = u64::from(world_width)
-        .checked_mul(2 * std::mem::size_of::<f64>() as u64)
+    let axes_bytes = (u64::from(world_width) + u64::from(world_height))
+        .checked_mul(std::mem::size_of::<f64>() as u64)
         .ok_or_else(|| CoreError::ResourceLimit("RainViewer axis buffer size overflow".into()))?;
     let mosaic_bytes = u64::try_from(rgba_len)
         .map_err(|_| CoreError::ResourceLimit("RainViewer mosaic size overflow".into()))?;
@@ -115,7 +121,7 @@ fn decode_rainviewer_inner(
         .try_reserve_exact(rgba_len)
         .map_err(|_| CoreError::ResourceLimit("RainViewer mosaic could not be allocated".into()))?;
     mosaic.resize(rgba_len, 0_u8);
-    let mut seen = [[false; TILE_COUNT as usize]; TILE_COUNT as usize];
+    let mut seen = std::collections::HashSet::new();
     let mut frame_bytes = 0_u64;
 
     for artifact in &raw.artifacts {
@@ -123,11 +129,12 @@ fn decode_rainviewer_inner(
         if artifact.receipt.media_type != "image/png" {
             return Err(CoreError::Transport("RainViewer tile is not a PNG artifact".into()));
         }
-        let (tile_x, tile_y) = tile_coordinates(&artifact.receipt.name)?;
-        if seen[tile_y as usize][tile_x as usize] {
+        let &(tile_x, tile_y) = expected.get(&artifact.receipt.name).ok_or_else(|| {
+            CoreError::Transport("RainViewer tile is outside the selected plan".into())
+        })?;
+        if !seen.insert((tile_x, tile_y)) {
             return Err(CoreError::Transport("RainViewer frame contains a duplicate tile".into()));
         }
-        seen[tile_y as usize][tile_x as usize] = true;
 
         let metadata = std::fs::metadata(&artifact.path)
             .map_err(|_| CoreError::Temporary("RainViewer tile could not be read".into()))?;
@@ -190,7 +197,7 @@ fn decode_rainviewer_inner(
         }
         drop(tile_work_lease);
     }
-    if seen.iter().flatten().any(|present| !present) {
+    if seen.len() != tile_artifacts {
         return Err(CoreError::Transport("RainViewer frame is missing a tile".into()));
     }
 
@@ -198,23 +205,9 @@ fn decode_rainviewer_inner(
     drop(mosaic);
     drop(mosaic_lease);
     let axes_lease = memory.reserve(axes_bytes)?;
-    let axis_len = usize::try_from(world_width)
-        .map_err(|_| CoreError::ResourceLimit("RainViewer axis dimensions overflow".into()))?;
-    let mut x = Vec::new();
-    let mut y = Vec::new();
-    x.try_reserve_exact(axis_len)
-        .map_err(|_| CoreError::ResourceLimit("RainViewer x-axis allocation failed".into()))?;
-    y.try_reserve_exact(axis_len)
-        .map_err(|_| CoreError::ResourceLimit("RainViewer y-axis allocation failed".into()))?;
-    for column in 0..world_width {
-        x.push((f64::from(column) + 0.5) / f64::from(world_width) * 360.0 - 180.0);
-    }
-    for row in 0..world_width {
-        check_raster_work(control)?;
-        let normalized = (f64::from(row) + 0.5) / f64::from(world_width);
-        y.push((std::f64::consts::PI * (1.0 - 2.0 * normalized)).sinh().atan().to_degrees());
-    }
-    let shape = vec![world_width as usize, world_width as usize];
+    check_raster_work(control)?;
+    let (x, y) = plan.axes(TILE_SIZE);
+    let shape = vec![world_height as usize, world_width as usize];
     let tile_origin = raw.frame.locator["host"].as_str().unwrap_or_default();
     let tile_path = raw.frame.locator["path"].as_str().unwrap_or_default();
     let field = RadarField {
@@ -229,9 +222,21 @@ fn decode_rainviewer_inner(
             "source=rainviewer".into(),
             "product=composite".into(),
             format!("upstream_uri={tile_origin}{tile_path}"),
-            format!("tile_plan=zoom-{ZOOM},size-{TILE_SIZE},universal-blue-v2"),
+            format!("tile_plan=zoom-{},size-{TILE_SIZE},universal-blue-v2", plan.zoom),
+            format!(
+                "tile_extent=x-{},y-{},columns-{},rows-{}",
+                plan.x_start, plan.y_start, plan.columns, plan.rows
+            ),
             "decoder=rainviewer-universal-blue-v1".into(),
-        ],
+        ]
+        .into_iter()
+        .chain((plan.zoom != rainviewer::ONLINE_VERIFIED_ZOOM).then(|| {
+            format!(
+                "tile_zoom_verification=offline-only,online-verified-zoom-{}",
+                rainviewer::ONLINE_VERIFIED_ZOOM
+            )
+        }))
+        .collect(),
     };
     field
         .validate()
@@ -382,26 +387,6 @@ pub(crate) fn decode_tw_grid_with_memory(
         .validate()
         .map_err(|_| CoreError::Transport("source tw decoded grid is inconsistent".into()))?;
     Ok(BudgetedRadarField { field, _leases: vec![output_lease] })
-}
-
-fn tile_coordinates(name: &str) -> CoreResult<(u32, u32)> {
-    let suffix = name
-        .strip_prefix("tile-z1-x")
-        .and_then(|value| value.strip_suffix(".png"))
-        .ok_or_else(|| CoreError::Transport("RainViewer tile name is invalid".into()))?;
-    let (x, y) = suffix
-        .split_once("-y")
-        .ok_or_else(|| CoreError::Transport("RainViewer tile name is invalid".into()))?;
-    let x = x
-        .parse::<u32>()
-        .map_err(|_| CoreError::Transport("RainViewer tile name is invalid".into()))?;
-    let y = y
-        .parse::<u32>()
-        .map_err(|_| CoreError::Transport("RainViewer tile name is invalid".into()))?;
-    if x >= TILE_COUNT || y >= TILE_COUNT {
-        return Err(CoreError::Transport("RainViewer tile coordinate is invalid".into()));
-    }
-    Ok((x, y))
 }
 
 fn color_table() -> &'static HashMap<u32, f32> {

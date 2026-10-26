@@ -77,6 +77,8 @@ enum Command {
         base_time: Option<String>,
         #[arg(long = "max-age")]
         max_age_secs: Option<f64>,
+        #[command(flatten)]
+        tiles: TileArgs,
     },
     /// Plan or acquire selected frames.
     Download {
@@ -141,6 +143,8 @@ enum Command {
         base_time: Option<String>,
         #[arg(long = "max-age")]
         max_age_secs: Option<f64>,
+        #[command(flatten)]
+        tiles: TileArgs,
     },
     /// Replay a committed raw manifest offline through the native decoder and writers.
     Replay {
@@ -219,6 +223,8 @@ enum Command {
         base_time: Option<String>,
         #[arg(long, value_parser = ["auto", "kitty", "iterm2", "ansi", "text"], default_value = "auto")]
         renderer: String,
+        #[command(flatten)]
+        tiles: TileArgs,
     },
     /// Inspect runtime and local storage readiness.
     Doctor {
@@ -237,6 +243,47 @@ enum Command {
         #[command(subcommand)]
         command: CacheCommand,
     },
+}
+
+#[derive(Clone, Debug, Default, clap::Args)]
+struct TileArgs {
+    /// Acquisition viewport west,south,east,north (may cross the antimeridian).
+    #[arg(long = "tile-bbox", id = "tile_bbox", allow_hyphen_values = true)]
+    bbox: Option<String>,
+    /// Tile zoom; omitted means automatic selection for a viewport/local view.
+    #[arg(long)]
+    zoom: Option<u32>,
+    /// Desired ground spacing in meters for automatic tile zoom.
+    #[arg(long = "tile-resolution-m", id = "tile_resolution_m")]
+    resolution_m: Option<f64>,
+}
+
+impl TileArgs {
+    fn request(&self) -> Result<Option<radiust_core::source::tile_plan::TileRequest>, String> {
+        if self.bbox.is_none() && self.zoom.is_none() && self.resolution_m.is_none() {
+            return Ok(None);
+        }
+        let bbox = self
+            .bbox
+            .as_deref()
+            .map(|text| {
+                let values = text
+                    .split(',')
+                    .map(|v| v.trim().parse::<f64>())
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| "invalid --tile-bbox")?;
+                <[f64; 4]>::try_from(values)
+                    .map_err(|_| "--tile-bbox requires west,south,east,north")
+            })
+            .transpose()?;
+        let request = radiust_core::source::tile_plan::TileRequest {
+            bbox,
+            zoom: self.zoom,
+            resolution_m: self.resolution_m,
+        };
+        request.validate().map_err(|error| error.to_string())?;
+        Ok(Some(request))
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -397,6 +444,7 @@ fn build_query(
         selector,
         base_time,
         max_age_secs,
+        ..Query::default()
     };
     let multi_source = query.source.as_deref() == Some("all") || !query.sources.is_empty();
     query.validate(multi_source).map_err(|error| error.to_string())?;
@@ -2712,6 +2760,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             end,
             base_time,
             max_age_secs,
+            tiles,
         } => commands::discover::run(
             commands::discover::Args {
                 sources,
@@ -2723,6 +2772,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                 end,
                 base_time,
                 max_age_secs,
+                tiles,
             },
             &context,
         ),
@@ -2756,6 +2806,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             end,
             base_time,
             max_age_secs,
+            tiles,
         } => commands::download::run(
             commands::download::Args {
                 source,
@@ -2787,6 +2838,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                 end,
                 base_time,
                 max_age_secs,
+                tiles,
             },
             &context,
         ),
@@ -2819,6 +2871,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
             at,
             base_time,
             renderer,
+            tiles,
         } => {
             let options = CatRenderOptions { palette, vmin, vmax, width, height };
             if legacy_display && (raw || decoded || gray || dbz) {
@@ -2867,6 +2920,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                 let request = LocalViewRequest {
                     radius_km,
                     resolution_m,
+                    zoom: tiles.zoom,
                     source: source.clone(),
                     product: product.clone(),
                     station: stations.first().cloned(),
@@ -2877,7 +2931,11 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                     },
                     ..LocalViewRequest::default()
                 };
-                let invalid = if gray || legacy_display {
+                let invalid = if tiles.bbox.is_some() || tiles.resolution_m.is_some() {
+                    Some(
+                        "local views use --radius-km and --resolution-m for tile selection; only --zoom can override it",
+                    )
+                } else if gray || legacy_display {
                     Some("local views do not support --gray or --legacy-display")
                 } else if frame_index.is_some() {
                     Some("--frame-index applies only to a local --file image")
@@ -2935,6 +2993,9 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                     cli.verbose,
                 );
             }
+            if file.is_some() && tiles.request()?.is_some() {
+                return Err("tile selection cannot be combined with --file".into());
+            }
             options.validate()?;
             if legacy_display && !cli.json {
                 eprintln!("warning: --legacy-display is deprecated; use --gray");
@@ -2981,7 +3042,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                             "--variable requires --decoded or --dbz for SOURCE previews".into()
                         );
                     }
-                    let query = build_query(
+                    let mut query = build_query(
                         vec![source],
                         product,
                         stations,
@@ -2992,6 +3053,7 @@ fn run_cli(cli: Cli) -> Result<u8, String> {
                         base_time,
                         None,
                     )?;
+                    query.tiles = tiles.request()?;
                     if decoded && !supports_native_decoded(&query) {
                         return Err(format!(
                             "native scientific preview supports only rainviewer/composite, tw/grid, or rdcap/reflectivity; selected {}{}",
@@ -3266,6 +3328,45 @@ mod tests {
             vec!["radiust", "list", "sources", "--quiet"],
         ] {
             assert!(Cli::try_parse_from(args).unwrap().quiet);
+        }
+    }
+
+    #[test]
+    fn tile_selection_flags_parse_for_discovery_download_and_local_preview() {
+        let cli = Cli::try_parse_from([
+            "radiust",
+            "discover",
+            "rainviewer",
+            "--tile-bbox",
+            "170,1,-170,10",
+            "--zoom",
+            "3",
+        ])
+        .unwrap();
+        let Command::Discover { tiles, .. } = cli.command else { panic!("discover") };
+        let request = tiles.request().unwrap().unwrap();
+        assert_eq!(request.bbox, Some([170.0, 1.0, -170.0, 10.0]));
+        assert_eq!(request.zoom, Some(3));
+        let cli = Cli::try_parse_from([
+            "radiust",
+            "download",
+            "windy",
+            "--raw-only",
+            "--tile-bbox",
+            "10,20,11,21",
+            "--tile-resolution-m",
+            "1000",
+        ])
+        .unwrap();
+        let Command::Download { tiles, .. } = cli.command else { panic!("download") };
+        assert_eq!(tiles.request().unwrap().unwrap().resolution_m, Some(1000.0));
+        let cli = Cli::try_parse_from(["radiust", "cat", "rainviewer", "--local", "--zoom", "6"])
+            .unwrap();
+        let Command::Cat { tiles, local, .. } = cli.command else { panic!("cat") };
+        assert!(local);
+        assert_eq!(tiles.zoom, Some(6));
+        for bbox in ["1,2,3", "nan,2,3,4", "1,4,3,2", "181,2,3,4"] {
+            assert!(TileArgs { bbox: Some(bbox.into()), ..TileArgs::default() }.request().is_err());
         }
     }
 

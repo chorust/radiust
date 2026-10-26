@@ -15,15 +15,14 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
 
-const EXPECTED_TILE_COUNT: usize = 4;
 const MAX_TILE_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_FRAME_BYTES: u64 = 64 * 1024 * 1024;
-const MAX_PREVIEW_PIXELS: u64 = 1_048_576;
+const MAX_PREVIEW_PIXELS: u64 = 16_777_216;
 const MAX_PREVIEW_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
 const DECODE_MEMORY_PER_PIXEL: u64 = 12;
 const RGBA_BYTES_PER_PIXEL: u64 = 4;
 
-/// A lossless 2×2 PNG tile composition for a verified source frame.
+/// A lossless rectangular PNG tile composition for a verified source frame.
 #[derive(Debug)]
 pub struct SourceTilePreview {
     pub preview: Preview,
@@ -88,7 +87,7 @@ pub fn preview_source_tiles(raw: &RawFrame, limits: &Limits) -> CoreResult<Sourc
         format: "PNG".into(),
         size_bytes,
         sha256: hex::encode(digest.finalize()),
-        tile_count: EXPECTED_TILE_COUNT,
+        tile_count: layout.tiles.len(),
     })
 }
 
@@ -97,10 +96,10 @@ fn index_artifacts<'a>(
     layout: &VerifiedTileLayout,
     limits: &Limits,
 ) -> CoreResult<BTreeMap<(u32, u32), (&'a RawArtifact, PathBuf)>> {
-    if artifacts.len() < EXPECTED_TILE_COUNT {
+    if artifacts.len() < layout.tiles.len() {
         return Err(transport_error("raw tile preview is missing tile coordinates"));
     }
-    if artifacts.len() > EXPECTED_TILE_COUNT {
+    if artifacts.len() > layout.tiles.len() {
         return Err(transport_error("raw tile preview has an unexpected tile count"));
     }
 
@@ -148,7 +147,7 @@ fn index_artifacts<'a>(
         by_position.insert((x, y), (artifact, path));
     }
 
-    if by_position.len() != EXPECTED_TILE_COUNT {
+    if by_position.len() != layout.tiles.len() {
         return Err(transport_error("raw tile preview is missing tile coordinates"));
     }
     Ok(by_position)
@@ -196,9 +195,9 @@ fn validate_layout_budget(
     layout: &VerifiedTileLayout,
     limits: &Limits,
 ) -> CoreResult<(u32, u32, u64, u64, u64)> {
-    if layout.tiles.len() != EXPECTED_TILE_COUNT
-        || layout.columns != 2
-        || layout.rows != 2
+    if layout.tiles.len() as u64 != u64::from(layout.columns) * u64::from(layout.rows)
+        || layout.columns == 0
+        || layout.rows == 0
         || layout.tile_width == 0
         || layout.tile_height == 0
     {

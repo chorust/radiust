@@ -23,7 +23,8 @@ const PRODUCT: &str = "reflectivity";
 const HOST: &str = "rdr.windy.com";
 const LOCATOR_VERSION: &str = "windy-legacy-v1";
 const CADENCE_SECONDS: i64 = 300;
-const ZOOM: u32 = 1;
+use super::tile_plan::{PlanTile, TilePlan};
+pub(crate) const MAX_ZOOM: u32 = 10;
 const TILE_SIZE: u32 = 256;
 
 pub struct WindySourceAdapter;
@@ -85,7 +86,9 @@ impl SourceAdapter for WindySourceAdapter {
             }) {
                 return Ok(Vec::new());
             }
-            Ok(vec![frame_from_time(frame_time)?])
+            let plan = TilePlan::select(context.query.tiles.as_ref(), TILE_SIZE, MAX_ZOOM)?;
+            context.limits.validate_pixels(plan.pixels(TILE_SIZE))?;
+            Ok(vec![frame_with_plan(frame_time, &plan)?])
         })
     }
 
@@ -280,8 +283,13 @@ fn floor_time(now: DateTime<Utc>) -> CoreResult<DateTime<Utc>> {
         .ok_or_else(|| CoreError::Transport("source windy frame time is invalid".into()))
 }
 
+#[cfg(test)]
 fn frame_from_time(valid_time: DateTime<Utc>) -> CoreResult<FrameRef> {
-    let tiles = tiles_for_time(valid_time);
+    frame_with_plan(valid_time, &TilePlan::default())
+}
+
+fn frame_with_plan(valid_time: DateTime<Utc>, plan: &TilePlan) -> CoreResult<FrameRef> {
+    let tiles = tiles_for_plan(valid_time, plan);
     let revision = format!("windy-{}", valid_time.timestamp());
     let mut frame = FrameRef {
         source: SOURCE.into(),
@@ -305,24 +313,26 @@ fn frame_from_time(valid_time: DateTime<Utc>) -> CoreResult<FrameRef> {
             "revision": revision,
         }),
     };
+    if !plan.is_default() {
+        frame.locator["tile_selection"] = json!(plan);
+    }
     frame.logical_id = logical_id(&frame)
         .map_err(|_| CoreError::Transport("source windy frame identity is invalid".into()))?;
     Ok(frame)
 }
 
-fn tiles_for_time(valid_time: DateTime<Utc>) -> Vec<Tile> {
+fn tiles_for_plan(valid_time: DateTime<Utc>, plan: &TilePlan) -> Vec<Tile> {
     let path_time = valid_time.format("%Y/%m/%d/%H%M");
     let max_time = valid_time.format("%Y%m%d%H%M%S");
-    let mut tiles = Vec::with_capacity(((1 << ZOOM) * (1 << ZOOM)) as usize);
-    for y in 0..(1 << ZOOM) {
-        for x in 0..(1 << ZOOM) {
-            tiles.push(Tile {
-                name: format!("tile-z{ZOOM}-x{x}-y{y}.png"),
+    let zoom = plan.zoom;
+    let mut tiles = Vec::new();
+    for PlanTile { x, y, .. } in plan.tiles() {
+        tiles.push(Tile {
+                name: plan.name(x, y),
                 url: format!(
-                    "https://{HOST}/radar2/composite/{path_time}/{ZOOM}/{x}/{y}/reflectivity.png?multichannel=true&maxt={max_time}"
+                    "https://{HOST}/radar2/composite/{path_time}/{zoom}/{x}/{y}/reflectivity.png?multichannel=true&maxt={max_time}"
                 ),
             });
-        }
     }
     tiles
 }
@@ -343,7 +353,8 @@ fn frame_plan(frame: &FrameRef) -> Option<Vec<Tile>> {
     {
         return None;
     }
-    let expected = tiles_for_time(valid_time);
+    let plan = TilePlan::from_locator(frame, MAX_ZOOM).ok()?;
+    let expected = tiles_for_plan(valid_time, &plan);
     let revision = format!("windy-{}", valid_time.timestamp());
     if frame.revision.as_deref() != Some(revision.as_str())
         || frame.locator.get("station").and_then(Value::as_str) != Some("global")
@@ -369,6 +380,10 @@ fn frame_plan(frame: &FrameRef) -> Option<Vec<Tile>> {
         }
     }
     Some(expected)
+}
+
+pub(super) fn has_verified_raw_tile_plan(frame: &FrameRef) -> bool {
+    frame_plan(frame).is_some()
 }
 
 fn use_playwright(context: &SourceContext) -> CoreResult<bool> {
@@ -559,6 +574,37 @@ mod tests {
         assert!(
             adapter.discover(target(), context(historical, true, BTreeMap::new())).await.is_err()
         );
+    }
+
+    #[test]
+    fn selected_view_urls_and_raw_layout_share_the_same_plan() {
+        let plan = TilePlan::select(
+            Some(&super::super::tile_plan::TileRequest {
+                bbox: Some([170.0, 1.0, -170.0, 10.0]),
+                zoom: Some(3),
+                resolution_m: None,
+            }),
+            TILE_SIZE,
+            MAX_ZOOM,
+        )
+        .unwrap();
+        let frame = frame_with_plan(floor_time(Utc::now()).unwrap(), &plan).unwrap();
+        let tiles = frame_plan(&frame).unwrap();
+        assert_eq!(tiles.len(), 2);
+        assert!(tiles[0].url.contains("/3/7/3/reflectivity.png"));
+        assert!(tiles[1].url.contains("/3/0/3/reflectivity.png"));
+        for tile in &tiles {
+            assert!(
+                WindySourceAdapter.allows_artifact_url(&frame, &Url::parse(&tile.url).unwrap())
+            );
+        }
+        let layout = super::super::legacy::verified_tile_layout(&frame).unwrap();
+        assert_eq!((layout.columns, layout.rows), (2, 1));
+        assert_eq!(layout.tiles[1].x, 1);
+        let mut forged = frame.clone();
+        forged.locator["artifacts"][0]["url"] = json!(tiles[0].url);
+        forged.logical_id = logical_id(&forged).unwrap();
+        assert!(frame_plan(&forged).is_none());
     }
 
     #[test]

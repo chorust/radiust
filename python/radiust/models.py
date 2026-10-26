@@ -178,6 +178,33 @@ class SourceInfo:
         return defaults[0] if defaults else (self.products[0] if len(self.products) == 1 else None)
 
 
+def _validate_tiles(tiles: Mapping[str, Any]) -> None:
+    """Reject malformed tile requests before they reach the native selector."""
+    unknown = set(tiles) - {"bbox", "zoom", "resolution_m"}
+    if unknown:
+        raise UnsupportedQueryError(f"unknown tiles keys: {sorted(unknown)}")
+    bbox = tiles.get("bbox")
+    if bbox is not None and (
+        len(bbox) != 4
+        or not all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+            for v in bbox
+        )
+    ):
+        raise UnsupportedQueryError("tiles.bbox must be four finite numbers: west,south,east,north")
+    zoom = tiles.get("zoom")
+    if zoom is not None and (isinstance(zoom, bool) or not isinstance(zoom, int) or not 0 <= zoom <= 22):
+        raise UnsupportedQueryError("tiles.zoom must be an integer in 0..=22")
+    resolution = tiles.get("resolution_m")
+    if resolution is not None and (
+        isinstance(resolution, bool)
+        or not isinstance(resolution, (int, float))
+        or not math.isfinite(resolution)
+        or resolution <= 0
+    ):
+        raise UnsupportedQueryError("tiles.resolution_m must be a positive finite number")
+
+
 @dataclass(frozen=True, slots=True)
 class Query:
     source: str
@@ -189,9 +216,13 @@ class Query:
     end: datetime | None = None
     base_time: datetime | None = None
     max_age: timedelta | None = None
+    tiles: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         validate_identifier(self.source, "source")
+        if self.tiles is not None:
+            object.__setattr__(self, "tiles", _freeze_mapping(self.tiles))
+            _validate_tiles(self.tiles)
         stations = tuple(self.stations)
         if len(stations) != len(set(stations)):
             raise UnsupportedQueryError("stations must not contain duplicates")
@@ -632,6 +663,7 @@ class LocalViewRequest:
     station: str | None = None
     mode: str = "auto"
     resampling: str = "nearest"
+    zoom: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
         center = self.center
@@ -658,6 +690,7 @@ class LocalViewRequest:
             "station": self.station,
             "mode": self.mode,
             "resampling": self.resampling,
+            "zoom": self.zoom,
         }
 
 

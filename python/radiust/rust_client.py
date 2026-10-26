@@ -604,6 +604,7 @@ def _query_record(query: Any) -> dict[str, Any] | None:
             "end": query.end.isoformat() if query.end else None,
             "base_time": query.base_time.isoformat() if query.base_time else None,
             "max_age_secs": query.max_age.total_seconds() if query.max_age else None,
+            **({"tiles": _json_value(query.tiles)} if query.tiles is not None else {}),
         }
     return _json_value(dict(query))
 
@@ -740,6 +741,7 @@ class Client:
         center: tuple[float, float] | Mapping[str, float] | None = None,
         radius_km: float | None = None,
         resolution_m: float | None = None,
+        zoom: int | None = None,
         source: str | None = None,
         product: str | None = None,
         station: str | None = None,
@@ -756,6 +758,7 @@ class Client:
             station=station,
             mode=mode,
             resampling=resampling,
+            zoom=zoom,
         )
         return self._run(self._alocal_view(request, progress=progress))
 
@@ -1419,6 +1422,7 @@ class AsyncClient:
         center: tuple[float, float] | Mapping[str, float] | None = None,
         radius_km: float | None = None,
         resolution_m: float | None = None,
+        zoom: int | None = None,
         source: str | None = None,
         product: str | None = None,
         station: str | None = None,
@@ -1436,6 +1440,7 @@ class AsyncClient:
             station=station,
             mode=mode,
             resampling=resampling,
+            zoom=zoom,
         )
         return await Client._alocal_view(self, request, progress=progress)
 

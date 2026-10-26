@@ -67,6 +67,18 @@
           "default": true,
           "mutable": true,
           "metadata": {
+            "tile_acquisition": {
+              "scheme": "tms",
+              "tile_size": 256,
+              "zoom_min": 0,
+              "zoom_max": 10,
+              "default_without_view": "zoom_1_world",
+              "viewport_selection": true,
+              "automatic_zoom": true,
+              "max_tiles": 64,
+              "verification": "offline_contract_only",
+              "evidence": "validation-results/tile-viewport-offline.json"
+            },
             "spatial": {
               "schema_version": 1,
               "kind": "unknown",
@@ -846,6 +858,18 @@
           "default": true,
           "mutable": true,
           "metadata": {
+            "tile_acquisition": {
+              "scheme": "xyz",
+              "tile_size": 512,
+              "zoom_min": 0,
+              "zoom_max": 7,
+              "default_without_view": "zoom_1_world",
+              "viewport_selection": true,
+              "automatic_zoom": true,
+              "max_tiles": 64,
+              "verification": "offline_contract_only",
+              "evidence": "validation-results/tile-viewport-offline.json"
+            },
             "spatial": {
               "schema_version": 1,
               "kind": "composite",
@@ -7415,6 +7439,18 @@
           "default": true,
           "mutable": true,
           "metadata": {
+            "tile_acquisition": {
+              "scheme": "xyz",
+              "tile_size": 256,
+              "zoom_min": 0,
+              "zoom_max": 10,
+              "default_without_view": "zoom_1_world",
+              "viewport_selection": true,
+              "automatic_zoom": true,
+              "max_tiles": 64,
+              "verification": "offline_contract_only",
+              "evidence": "validation-results/tile-viewport-offline.json"
+            },
             "spatial": {
               "schema_version": 1,
               "kind": "unknown",

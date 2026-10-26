@@ -22,10 +22,23 @@ pub struct Query {
     pub base_time: Option<String>,
     #[serde(default)]
     pub max_age_secs: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tiles: Option<crate::source::tile_plan::TileRequest>,
 }
 
 impl Query {
     pub fn validate(&self, multi_source: bool) -> Result<(), ModelError> {
+        if self.tiles.is_some()
+            && self
+                .source
+                .as_deref()
+                .is_some_and(|source| !matches!(source, "all" | "rainviewer" | "windy" | "bmkg"))
+        {
+            return Err(ModelError::InvalidQuery("tile selection is unsupported for this source"));
+        }
+        if self.tiles.as_ref().is_some_and(|tiles| tiles.validate().is_err()) {
+            return Err(ModelError::InvalidQuery("invalid tile request"));
+        }
         if self.source.as_deref() == Some("all")
             && (!self.sources.is_empty() || self.product.is_some() || !self.stations.is_empty())
         {
@@ -118,6 +131,7 @@ impl Default for Query {
             selector: TimeSelector::Latest,
             base_time: None,
             max_age_secs: None,
+            tiles: None,
         }
     }
 }
@@ -435,10 +449,23 @@ pub struct LocalViewRequest {
     pub mode: LocalViewMode,
     #[serde(default)]
     pub resampling: LocalViewResampling,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zoom: Option<u32>,
 }
 
 impl LocalViewRequest {
     pub fn validate(&self) -> Result<(), ModelError> {
+        if self.zoom.is_some()
+            && self
+                .source
+                .as_deref()
+                .is_some_and(|source| !matches!(source, "rainviewer" | "windy" | "bmkg"))
+        {
+            return Err(ModelError::InvalidLocalView("tile zoom is unsupported for this source"));
+        }
+        if self.zoom.is_some_and(|zoom| zoom > crate::source::tile_plan::MAX_REQUEST_ZOOM) {
+            return Err(ModelError::InvalidLocalView("zoom must be in 0..=22"));
+        }
         if self.center.is_some_and(|center| center.validate().is_err()) {
             return Err(ModelError::InvalidLocalView("center must be a valid WGS84 position"));
         }

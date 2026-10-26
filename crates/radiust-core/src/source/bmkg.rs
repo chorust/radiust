@@ -16,9 +16,11 @@ const HOST: &str = "inasiam.bmkg.go.id";
 const PATH_PREFIX: &str = "/api23/mpl_req/radar/radar/0";
 const LOCATOR_VERSION: &str = "bmkg-legacy-v1";
 const CADENCE_SECONDS: i64 = 600;
-const ZOOM: u32 = 1;
+use super::tile_plan::{PlanTile, TilePlan};
+pub(crate) const MAX_ZOOM: u32 = 10;
+const TILE_SIZE: u32 = 256;
 
-/// BMKG publishes a synthetic latest timestamp and four TMS tiles. It has no
+/// BMKG uses a cadence-derived latest timestamp and selected TMS tiles. It has no
 /// verified scientific decoder, so this adapter only discovers and acquires
 /// the original tile bytes.
 pub struct BmkgSourceAdapter;
@@ -60,7 +62,12 @@ impl SourceAdapter for BmkgSourceAdapter {
                     "source bmkg discovery requires network access".into(),
                 ));
             }
-            select_latest_at(&context.query, Utc::now())
+            let frames = select_latest_at(&context.query, Utc::now())?;
+            for frame in &frames {
+                let plan = TilePlan::from_locator(frame, MAX_ZOOM)?;
+                context.limits.validate_pixels(plan.pixels(TILE_SIZE))?;
+            }
+            Ok(frames)
         })
     }
 }
@@ -105,13 +112,19 @@ fn select_latest_at(query: &Query, now: DateTime<Utc>) -> CoreResult<Vec<FrameRe
     }) {
         return Ok(Vec::new());
     }
-    Ok(vec![frame_from_time(valid_time)?])
+    let plan = TilePlan::select(query.tiles.as_ref(), TILE_SIZE, MAX_ZOOM)?;
+    Ok(vec![frame_with_plan(valid_time, &plan)?])
 }
 
+#[cfg(test)]
 fn frame_from_time(valid_time: DateTime<Utc>) -> CoreResult<FrameRef> {
+    frame_with_plan(valid_time, &TilePlan::default())
+}
+
+fn frame_with_plan(valid_time: DateTime<Utc>, tiles: &TilePlan) -> CoreResult<FrameRef> {
     let epoch_seconds = valid_time.timestamp();
     let stamp = valid_time.format("%Y%m%d%H%M").to_string();
-    let plan = frame_plan_for_time(epoch_seconds, &stamp)
+    let plan = frame_plan_for_time(epoch_seconds, &stamp, tiles)
         .ok_or_else(|| CoreError::Transport("source bmkg frame locator is invalid".into()))?;
     let revision = format!("bmkg-{epoch_seconds}");
     let mut frame = FrameRef {
@@ -136,6 +149,9 @@ fn frame_from_time(valid_time: DateTime<Utc>) -> CoreResult<FrameRef> {
             "name": plan.names[0],
         }),
     };
+    if !tiles.is_default() {
+        frame.locator["tile_selection"] = json!(tiles);
+    }
     frame.logical_id = logical_id(&frame).map_err(|_| {
         CoreError::Transport("source bmkg frame identity could not be computed".into())
     })?;
@@ -158,7 +174,8 @@ fn frame_plan(frame: &FrameRef) -> Option<FramePlan> {
         return None;
     }
     let stamp = valid_time.format("%Y%m%d%H%M").to_string();
-    let plan = frame_plan_for_time(epoch_seconds, &stamp)?;
+    let tiles = TilePlan::from_locator(frame, MAX_ZOOM).ok()?;
+    let plan = frame_plan_for_time(epoch_seconds, &stamp, &tiles)?;
     let revision = format!("bmkg-{epoch_seconds}");
     if frame.revision.as_deref() != Some(revision.as_str())
         || frame.locator.get("station").and_then(Value::as_str) != Some("global")
@@ -170,7 +187,7 @@ fn frame_plan(frame: &FrameRef) -> Option<FramePlan> {
         return None;
     }
     let artifacts = frame.locator.get("artifacts")?.as_array()?;
-    if artifacts.len() != 3 {
+    if artifacts.len() != plan.urls.len() - 1 {
         return None;
     }
     for (artifact, (url, name)) in artifacts.iter().zip(plan.urls.iter().zip(&plan.names).skip(1)) {
@@ -189,7 +206,7 @@ pub(super) fn has_verified_raw_tile_plan(frame: &FrameRef) -> bool {
     frame_plan(frame).is_some()
 }
 
-fn frame_plan_for_time(epoch_seconds: i64, stamp: &str) -> Option<FramePlan> {
+fn frame_plan_for_time(epoch_seconds: i64, stamp: &str, tiles: &TilePlan) -> Option<FramePlan> {
     if stamp.len() != 12
         || !stamp.bytes().all(|byte| byte.is_ascii_digit())
         || epoch_seconds.rem_euclid(CADENCE_SECONDS) != 0
@@ -198,14 +215,13 @@ fn frame_plan_for_time(epoch_seconds: i64, stamp: &str) -> Option<FramePlan> {
     }
     let mut urls = Vec::with_capacity(4);
     let mut names = Vec::with_capacity(4);
-    for y in 0..(1 << ZOOM) {
-        for x in 0..(1 << ZOOM) {
-            let tms_y = (1 << ZOOM) - 1 - y;
-            urls.push(format!(
-                "https://{HOST}{PATH_PREFIX}/{stamp}/{stamp}/{ZOOM}/{x}/{tms_y}.png?overlays=contourf"
-            ));
-            names.push(format!("tile-z{ZOOM}-x{x}-y{y}.png"));
-        }
+    let zoom = tiles.zoom;
+    for PlanTile { x, y, .. } in tiles.tiles() {
+        let tms_y = (1 << zoom) - 1 - y;
+        urls.push(format!(
+            "https://{HOST}{PATH_PREFIX}/{stamp}/{stamp}/{zoom}/{x}/{tms_y}.png?overlays=contourf"
+        ));
+        names.push(tiles.name(x, y));
     }
     Some(FramePlan { urls, names })
 }
@@ -249,6 +265,27 @@ mod tests {
         );
         assert_eq!(frame.logical_id, logical_id(&frame).unwrap());
         assert_eq!(frame_identity(&frame).unwrap()["locator"]["url"], Value::Null);
+    }
+
+    #[test]
+    fn selected_view_uses_tms_urls_but_xyz_mosaic_positions() {
+        let query = Query {
+            tiles: Some(super::super::tile_plan::TileRequest {
+                bbox: Some([10.0, 20.0, 11.0, 21.0]),
+                zoom: Some(5),
+                resolution_m: None,
+            }),
+            ..Query::default()
+        };
+        let frame = select_latest_at(&query, fixture_time()).unwrap().remove(0);
+        let plan = frame_plan(&frame).unwrap();
+        assert_eq!(plan.names, ["tile-z5-x16-y14.png"]);
+        assert!(plan.urls[0].contains("/5/16/17.png?overlays=contourf"));
+        assert!(BmkgSourceAdapter.allows_artifact_url(&frame, &Url::parse(&plan.urls[0]).unwrap()));
+        let layout = super::super::legacy::verified_tile_layout(&frame).unwrap();
+        assert_eq!((layout.columns, layout.rows), (1, 1));
+        assert_eq!((layout.tiles[0].x, layout.tiles[0].y), (0, 0));
+        assert_ne!(frame.logical_id, fixture_frame().logical_id);
     }
 
     #[test]

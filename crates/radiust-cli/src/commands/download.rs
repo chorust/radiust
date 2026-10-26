@@ -40,6 +40,7 @@ pub(crate) struct Args {
     pub end: Option<String>,
     pub base_time: Option<String>,
     pub max_age_secs: Option<f64>,
+    pub tiles: crate::TileArgs,
 }
 
 pub(crate) fn run(mut args: Args, context: &Context<'_>) -> Result<u8, String> {
@@ -49,7 +50,7 @@ pub(crate) fn run(mut args: Args, context: &Context<'_>) -> Result<u8, String> {
     let Some(source) = args.source.take() else {
         return local_error(context, "invalid_query", "provide SOURCE or --file PATH", "validate");
     };
-    let query = crate::build_query(
+    let mut query = crate::build_query(
         vec![source],
         args.product,
         args.stations,
@@ -60,6 +61,7 @@ pub(crate) fn run(mut args: Args, context: &Context<'_>) -> Result<u8, String> {
         args.base_time,
         args.max_age_secs,
     )?;
+    query.tiles = args.tiles.request()?;
     if args.dbz && args.variable.as_deref().is_some_and(|variable| variable != "reflectivity") {
         let message = "--dbz requires the reflectivity variable";
         crate::emit(
@@ -247,6 +249,7 @@ fn run_local_dbz(args: Args, file: PathBuf, context: &Context<'_>) -> Result<u8,
         || args.end.is_some()
         || args.base_time.is_some()
         || args.max_age_secs.is_some()
+        || args.tiles.request()?.is_some()
     {
         return local_error(
             context,

@@ -20,6 +20,7 @@ pub(crate) mod rdcap;
 mod sg;
 mod th;
 mod th_royalrain;
+pub mod tile_plan;
 pub mod tiles;
 pub(crate) mod tw;
 mod tw_http;

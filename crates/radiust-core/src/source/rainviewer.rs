@@ -21,7 +21,10 @@ const API_URL: &str = "https://api.rainviewer.com/public/weather-maps.json";
 const TILE_ORIGIN: &str = "https://tilecache.rainviewer.com";
 const TILE_HOST: &str = "tilecache.rainviewer.com";
 pub(crate) const TILE_SIZE: u32 = 512;
-pub(crate) const ZOOM: u32 = 1;
+pub(crate) const MAX_ZOOM: u32 = 7;
+/// The only zoom with online numeric and geometry readback; others are offline-only.
+pub(crate) const ONLINE_VERIFIED_ZOOM: u32 = 1;
+use super::tile_plan::{PlanTile, TilePlan};
 const COLOR_SCHEME: u32 = 2;
 const TILE_OPTIONS: &str = "0_0";
 const LOCATOR_VERSION: &str = "rainviewer-v2";
@@ -42,11 +45,9 @@ impl SourceAdapter for RainViewerSourceAdapter {
         let Ok(plan) = frame_plan(frame) else {
             return false;
         };
-        (0..(1 << ZOOM)).any(|y| {
-            (0..(1 << ZOOM)).any(|x| {
-                url.as_str() == tile_url(&plan.path, x, y)
-                    && url.host_str().is_some_and(|host| self.allows_artifact_host(host))
-            })
+        plan.tiles.tiles().any(|PlanTile { x, y, .. }| {
+            url.as_str() == tile_url(&plan.path, plan.tiles.zoom, x, y)
+                && url.host_str().is_some_and(|host| self.allows_artifact_host(host))
         })
     }
 
@@ -71,7 +72,12 @@ impl SourceAdapter for RainViewerSourceAdapter {
                 .get_bytes_coalesced(API_URL, &[], &context.request_coalescer)
                 .await?;
             let (host, candidates) = parse_manifest(&payload)?;
-            select_frames(&host, candidates, &context.query, Utc::now())
+            let frames = select_frames(&host, candidates, &context.query, Utc::now())?;
+            for frame in &frames {
+                let plan = frame_plan(frame)?.tiles;
+                context.limits.validate_pixels(plan.pixels(TILE_SIZE))?;
+            }
+            Ok(frames)
         })
     }
 
@@ -88,61 +94,70 @@ impl SourceAdapter for RainViewerSourceAdapter {
                 )));
             }
             let plan = frame_plan(&frame)?;
-            let mut artifacts = Vec::with_capacity(((1 << ZOOM) * (1 << ZOOM)) as usize);
+            context.limits.validate_pixels(plan.tiles.pixels(TILE_SIZE))?;
+            let mut artifacts = Vec::with_capacity((plan.tiles.columns * plan.tiles.rows) as usize);
             let mut total_bytes = 0_u64;
 
-            for y in 0..(1 << ZOOM) {
-                for x in 0..(1 << ZOOM) {
-                    if context.request_budget.cancellation.is_cancelled() {
-                        return Err(CoreError::Cancelled);
-                    }
-                    let address = tile_url(&plan.path, x, y);
-                    let parsed_url = Url::parse(&address).map_err(|_| invalid_frame())?;
-                    if !self.allows_artifact_url(&frame, &parsed_url) {
-                        return Err(invalid_frame());
-                    }
-
-                    let name = format!("tile-z{ZOOM}-x{x}-y{y}.png");
-                    let destination = temp_root.join(format!("{}.png", uuid::Uuid::new_v4()));
-                    let remaining_frame_bytes =
-                        context.limits.max_frame_bytes.saturating_sub(total_bytes);
-                    let response_limit =
-                        context.limits.max_artifact_bytes.min(remaining_frame_bytes);
-                    let receipt = context
-                        .http_transport
-                        .get_to_path_same_origin_limited_with_headers(
-                            &address,
-                            &[],
-                            &destination,
-                            response_limit,
-                        )
-                        .await?;
-                    let path = match tempfile::TempPath::try_from_path(destination.clone()) {
-                        Ok(path) => path,
-                        Err(_) => {
-                            let _ = std::fs::remove_file(destination);
-                            return Err(CoreError::Temporary(
-                                "RainViewer tile could not be retained".into(),
-                            ));
-                        }
-                    };
-                    validate_png_file(&path).await?;
-                    if context.request_budget.cancellation.is_cancelled() {
-                        return Err(CoreError::Cancelled);
-                    }
-
-                    total_bytes = total_bytes.saturating_add(receipt.size_bytes);
-                    context.limits.validate_bytes(receipt.size_bytes, total_bytes)?;
-                    artifacts.push(RawArtifact {
-                        receipt: ArtifactReceipt {
-                            name,
-                            media_type: "image/png".into(),
-                            size_bytes: receipt.size_bytes,
-                            sha256: receipt.sha256,
-                        },
-                        path,
-                    });
+            for PlanTile { x, y, .. } in plan.tiles.tiles() {
+                if context.request_budget.cancellation.is_cancelled() {
+                    return Err(CoreError::Cancelled);
                 }
+                let address = tile_url(&plan.path, plan.tiles.zoom, x, y);
+                let parsed_url = Url::parse(&address).map_err(|_| invalid_frame())?;
+                if !self.allows_artifact_url(&frame, &parsed_url) {
+                    return Err(invalid_frame());
+                }
+
+                let name = plan.tiles.name(x, y);
+                let destination = temp_root.join(format!("{}.png", uuid::Uuid::new_v4()));
+                let remaining_frame_bytes =
+                    context.limits.max_frame_bytes.saturating_sub(total_bytes);
+                let remaining_temp_bytes =
+                    context.limits.max_temp_bytes.saturating_sub(total_bytes);
+                let response_limit = context
+                    .limits
+                    .max_artifact_bytes
+                    .min(remaining_frame_bytes)
+                    .min(remaining_temp_bytes);
+                if response_limit == 0 {
+                    return Err(CoreError::ResourceLimit(
+                        "RainViewer tiles exceed the configured byte limit".into(),
+                    ));
+                }
+                let receipt = context
+                    .http_transport
+                    .get_to_path_same_origin_limited_with_headers(
+                        &address,
+                        &[],
+                        &destination,
+                        response_limit,
+                    )
+                    .await?;
+                let path = match tempfile::TempPath::try_from_path(destination.clone()) {
+                    Ok(path) => path,
+                    Err(_) => {
+                        let _ = std::fs::remove_file(destination);
+                        return Err(CoreError::Temporary(
+                            "RainViewer tile could not be retained".into(),
+                        ));
+                    }
+                };
+                validate_png_file(&path).await?;
+                if context.request_budget.cancellation.is_cancelled() {
+                    return Err(CoreError::Cancelled);
+                }
+
+                total_bytes = total_bytes.saturating_add(receipt.size_bytes);
+                context.limits.validate_bytes(receipt.size_bytes, total_bytes)?;
+                artifacts.push(RawArtifact {
+                    receipt: ArtifactReceipt {
+                        name,
+                        media_type: "image/png".into(),
+                        size_bytes: receipt.size_bytes,
+                        sha256: receipt.sha256,
+                    },
+                    path,
+                });
             }
 
             Ok(RawFrame { frame, artifacts, private_locator: None })
@@ -159,6 +174,7 @@ struct Candidate {
 #[derive(Clone, Debug)]
 struct FramePlan {
     path: String,
+    tiles: TilePlan,
 }
 
 fn validate_target_and_query(target: &DiscoveryTarget, query: &Query) -> CoreResult<()> {
@@ -302,7 +318,19 @@ fn select_frames(
                 .collect()
         }
     };
-    selected.into_iter().map(|candidate| frame_from_candidate(host, candidate)).collect()
+    let plan = TilePlan::select(query.tiles.as_ref(), TILE_SIZE, MAX_ZOOM)?;
+    selected
+        .into_iter()
+        .map(|candidate| {
+            let mut frame = frame_from_candidate(host, candidate)?;
+            if !plan.is_default() {
+                frame.locator["zoom"] = json!(plan.zoom);
+                frame.locator["tile_selection"] = json!(plan);
+                frame.logical_id = logical_id(&frame).map_err(|_| invalid_frame())?;
+            }
+            Ok(frame)
+        })
+        .collect()
 }
 
 fn frame_from_candidate(host: &str, candidate: Candidate) -> CoreResult<FrameRef> {
@@ -321,7 +349,7 @@ fn frame_from_candidate(host: &str, candidate: Candidate) -> CoreResult<FrameRef
             "host": host,
             "path": candidate.path,
             "tile_size": TILE_SIZE,
-            "zoom": ZOOM,
+            "zoom": TilePlan::default().zoom,
             "color": COLOR_SCHEME,
             "options": TILE_OPTIONS,
         }),
@@ -344,11 +372,12 @@ fn frame_plan(frame: &FrameRef) -> CoreResult<FramePlan> {
     {
         return Err(invalid());
     }
+    let tiles = TilePlan::from_locator(frame, MAX_ZOOM)?;
     let locator = frame.locator.as_object().ok_or_else(invalid)?;
     if locator.get("api_url").and_then(Value::as_str) != Some(API_URL)
         || locator.get("host").and_then(Value::as_str) != Some(TILE_ORIGIN)
         || locator.get("tile_size").and_then(Value::as_u64) != Some(TILE_SIZE as u64)
-        || locator.get("zoom").and_then(Value::as_u64) != Some(ZOOM as u64)
+        || locator.get("zoom").and_then(Value::as_u64) != Some(tiles.zoom as u64)
         || locator.get("color").and_then(Value::as_u64) != Some(COLOR_SCHEME as u64)
         || locator.get("options").and_then(Value::as_str) != Some(TILE_OPTIONS)
     {
@@ -365,15 +394,15 @@ fn frame_plan(frame: &FrameRef) -> CoreResult<FramePlan> {
     {
         return Err(invalid());
     }
-    Ok(FramePlan { path })
+    Ok(FramePlan { path, tiles })
 }
 
-pub(crate) fn validate_science_frame(frame: &FrameRef) -> CoreResult<()> {
-    frame_plan(frame).map(|_| ())
+pub(crate) fn validate_science_frame(frame: &FrameRef) -> CoreResult<TilePlan> {
+    frame_plan(frame).map(|plan| plan.tiles)
 }
 
-fn tile_url(path: &str, x: u32, y: u32) -> String {
-    format!("{TILE_ORIGIN}{path}/{TILE_SIZE}/{ZOOM}/{x}/{y}/{COLOR_SCHEME}/{TILE_OPTIONS}.png")
+fn tile_url(path: &str, zoom: u32, x: u32, y: u32) -> String {
+    format!("{TILE_ORIGIN}{path}/{TILE_SIZE}/{zoom}/{x}/{y}/{COLOR_SCHEME}/{TILE_OPTIONS}.png")
 }
 
 fn invalid_frame() -> CoreError {
@@ -567,7 +596,7 @@ mod tests {
         assert!(!adapter.allows_artifact_host("tilecache.rainviewer.com.evil.test"));
         for y in 0..2 {
             for x in 0..2 {
-                let url = Url::parse(&tile_url("/v2/radar/7cc4a10f8d53", x, y)).unwrap();
+                let url = Url::parse(&tile_url("/v2/radar/7cc4a10f8d53", 1, x, y)).unwrap();
                 assert!(adapter.allows_artifact_url(&frame, &url));
             }
         }
@@ -698,6 +727,92 @@ mod tests {
             field.provenance.iter().any(|entry| entry == "decoder=rainviewer-universal-blue-v1")
         );
         field.validate().unwrap();
+    }
+
+    #[test]
+    fn selected_tiles_bind_urls_pixels_geometry_and_identity() {
+        use super::super::tile_plan::TileRequest;
+        use crate::limits::Limits;
+        use std::io::Write;
+        let mut identities = std::collections::HashSet::new();
+        for bbox in
+            [[10.0, 20.0, 11.0, 21.0], [170.0, 1.0, -170.0, 10.0], [10.0, -20.0, 11.0, 21.0]]
+        {
+            let (host, candidates, timestamp) = candidates_and_host();
+            let frame = select_frames(
+                &host,
+                candidates,
+                &Query {
+                    tiles: Some(TileRequest {
+                        bbox: Some(bbox),
+                        zoom: Some(3),
+                        resolution_m: None,
+                    }),
+                    ..Query::default()
+                },
+                at_epoch(timestamp),
+            )
+            .unwrap()
+            .remove(0);
+            assert!(identities.insert(frame.logical_id.clone()));
+            let plan = frame_plan(&frame).unwrap().tiles;
+            let mut artifacts = Vec::new();
+            for PlanTile { x, y, column, row } in plan.tiles() {
+                let address = tile_url(frame.locator["path"].as_str().unwrap(), plan.zoom, x, y);
+                assert!(
+                    RainViewerSourceAdapter
+                        .allows_artifact_url(&frame, &Url::parse(&address).unwrap())
+                );
+                let color = if (column + row) % 2 == 0 {
+                    image::Rgba([0x63, 0x61, 0x59, 0x14])
+                } else {
+                    image::Rgba([0, 0xa3, 0xe0, 0xff])
+                };
+                let mut encoded = std::io::Cursor::new(Vec::new());
+                image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(512, 512, color))
+                    .write_to(&mut encoded, image::ImageFormat::Png)
+                    .unwrap();
+                let bytes = encoded.into_inner();
+                let mut file = tempfile::NamedTempFile::new().unwrap();
+                file.write_all(&bytes).unwrap();
+                artifacts.push(RawArtifact {
+                    receipt: ArtifactReceipt {
+                        name: plan.name(x, y),
+                        media_type: "image/png".into(),
+                        size_bytes: bytes.len() as u64,
+                        sha256: hex::encode(Sha256::digest(&bytes)),
+                    },
+                    path: file.into_temp_path(),
+                });
+            }
+            let mut raw = RawFrame { frame, artifacts, private_locator: None };
+            let preview =
+                crate::source::tiles::preview_source_tiles(&raw, &Limits::default()).unwrap();
+            let field = crate::science::decode_rainviewer(&raw, &Limits::default()).unwrap();
+            assert_eq!(field.shape, [plan.rows as usize * 512, plan.columns as usize * 512]);
+            assert_eq!(
+                (preview.preview.width, preview.preview.height),
+                (plan.columns * 512, plan.rows * 512)
+            );
+            assert_eq!(preview.tile_count, (plan.columns * plan.rows) as usize);
+            let world = (512 * (1 << plan.zoom)) as f64;
+            assert!(
+                (field.grid.x[0] - ((plan.x_start * 512) as f64 + 0.5) / world * 360.0 + 180.0)
+                    .abs()
+                    < 1e-10
+            );
+            for PlanTile { column, row, .. } in plan.tiles() {
+                let index =
+                    (row as usize * 512 + 100) * field.shape[1] + column as usize * 512 + 100;
+                assert_eq!(field.values[index], if (column + row) % 2 == 0 { -10.0 } else { 20.0 });
+                assert_eq!(field.quality[index], 0);
+            }
+            let limited = Limits { max_pixels: 1, ..Limits::default() };
+            assert!(crate::science::decode_rainviewer(&raw, &limited).is_err());
+            raw.artifacts.pop();
+            assert!(crate::science::decode_rainviewer(&raw, &Limits::default()).is_err());
+            assert!(crate::source::tiles::preview_source_tiles(&raw, &Limits::default()).is_err());
+        }
     }
 
     #[test]

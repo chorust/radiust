@@ -27,9 +27,31 @@ with radiust.Client() as client:
 
 `discover`、`fetch`、`fetch_many` 和 `download` 接受同步 `progress(stage, completed, total)` 回调。进度由 Engine 的安全生命周期事件驱动：`discover_targets` 表示 Rust 正在处理发现目标，`discover` 表示返回帧数，`acquire`/`decode` 表示单帧获取和解码，`resolve`/`fetch` 表示批量解析与获取，`download` 表示下载报告进度。事件不包含 locator、凭据或错误详情，进度为尽力通知；同一 Client 上带回调的操作会串行隔离事件流，未带回调的操作仍可并发。异步客户端的回调在其事件循环线程运行。
 
+## 按视图获取瓦片
+
+RainViewer、Windy、BMKG 查询可通过 `Query.tiles` 传入获取范围、zoom 和自动选择所需的地面分辨率；同步与异步客户端复用相同的 Rust 选择器。
+
+```python
+query = radiust.Query(
+    "rainviewer", latest=True,
+    tiles={"bbox": (120.0, 23.0, 122.0, 25.0), "zoom": 6},
+)
+with radiust.Client(config=config) as client:
+    field = client.fetch(query)
+    # 或自动选择 zoom：省略 zoom，按 resolution_m 或约 1024 像素视图选级别。
+    auto_query = radiust.Query(
+        "rainviewer", latest=True,
+        tiles={"bbox": (170.0, 1.0, -170.0, 10.0), "resolution_m": 1000},
+    )
+```
+
+`tiles.bbox` 为 WGS84 的 west/south/east/north，允许 west > east 跨日期变更线，只下载相交的完整瓦片。它与 `download(bbox=..., resolution=...)` 的输出重网格参数独立。RainViewer zoom 实现为 0–7，Windy/BMKG 为 0–10；最多 64 片且拼图不超过 1500 万像素（保证 raw 预览内存上限可接受），自动模式可降低级别，显式超限会报错；west > east 的跨线范围不得宽于 180°，否则按 west/east 写反拒绝。Wunderground 仍为仅发现，不适用。无 `tiles` 的普通查询保持 zoom=1 全球默认值。RainViewer 解码结果保留实际瓦片范围与像元中心，跨线经度轴连续；Windy/BMKG 仍为 raw-only，不能据此推断科学能力。新增级别只有离线合同验证，未逐级在线验收。
+
 ## 位置驱动的局部视图
 
 `Client.local_view()` 和 `await AsyncClient.local_view()` 委托共享 Engine，以配置位置为原点生成 WGS84 椭球 AEQD 局部网格。默认半径为 50 km、请求间距为 1 km；显式参数可覆盖范围、间距、来源、产品、站点、模式和采样方式。
+
+RainViewer 局部视图会根据中心、半径和 `resolution_m` 自动选择 zoom 与所需瓦片，包含采样边缘；`client.local_view(source="rainviewer", zoom=6)` 或异步同名参数可指定级别。解码几何与所选瓦片同步，输出仍为请求的 AEQD 网格。
 
 两种入口都接受 `progress(stage, completed, total)`；位置操作使用 `local_view` 阶段，开始时为 `(0, None)`，探测期间报告已处理候选数，成功完成时为 `(1, 1)`。取消和超时保留已有选择诊断。
 
