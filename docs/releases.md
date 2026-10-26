@@ -6,7 +6,7 @@
 
 RainViewer、Windy、BMKG 的视图瓦片选择：可指定或自动选择 zoom，只下载相交瓦片（最多 64 片且拼图不超过 1500 万像素），RainViewer 解码几何与所选瓦片一致，Windy/BMKG 仍为 raw-only；未传瓦片参数时保持 zoom=1 全球默认与帧身份。新 zoom 级别只有离线合同验证，未逐级在线验收，Wunderground 仍为仅发现，详见 [验证记录](../validation-results/tile-viewport-offline.json)。`radiust cat` 默认把被排除的候选折叠为一行摘要，`--verbose` 显示完整清单。
 
-离线验证：Core lib 414 项通过/1 项忽略，集成与 CLI 套件通过，fmt／ruff 通过；未运行 live 上游验证。`tests/contract/test_cli_cat.py` 中一项在升版前的 HEAD 上同样失败，未在本版处理。
+离线验证：Core lib 414 项通过/1 项忽略，集成与 CLI 套件通过，fmt／ruff 通过；未运行 live 上游验证。`test_cli_cat.py` 中一项测试原先会读取开发者的 `~/.config/radiust/config.yaml` 而在有位置配置的机器上失败，现已隔离 HOME 与工作目录。
 
 ## v0.1.8 位置局部视图（待发布）
 

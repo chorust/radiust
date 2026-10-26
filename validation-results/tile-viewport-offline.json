@@ -71,7 +71,7 @@
     {
       "command": ".venv/bin/pytest -q tests/contract/test_bridge.py tests/contract/test_local_view.py tests/integration/test_local_view.py tests/contract/test_discovery_models.py",
       "result": "28 passed, 6 skipped",
-      "note": "Six cross-entry fixture replays require extension-module,test-support; the installed extension was built without test-support; tests/contract/test_cli_cat.py::test_bare_cat_uses_local_view_and_source_file_conflict_stays_invalid fails identically with these changes stashed (expects location_missing, gets network_disabled)"
+      "note": "Six cross-entry fixture replays require extension-module,test-support; the installed extension was built without test-support; test_cli_cat bare-cat test was environment-dependent (read the developer user config) and now isolates HOME and cwd"
     },
     {
       "command": "Python public Query to native Rust Query JSON round-trip",

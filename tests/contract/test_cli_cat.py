@@ -16,7 +16,10 @@ def _set_cf_time(dataset: xr.Dataset, values: np.ndarray) -> None:
     dataset["time"].attrs["calendar"] = "proleptic_gregorian"
 
 
-def test_bare_cat_uses_local_view_and_source_file_conflict_stays_invalid(tmp_path):
+def test_bare_cat_uses_local_view_and_source_file_conflict_stays_invalid(tmp_path, monkeypatch):
+    # The user (~/.config) and project (./config.yaml) layers must not supply a location.
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     config = tmp_path / "config.yaml"
     config.write_text("runtime:\n  allow_network: false\n", encoding="utf-8")
