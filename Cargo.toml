@@ -1,5 +1,10 @@
 [workspace]
-members = ["crates/radiust-core", "crates/radiust-cli", "crates/radiust-python"]
+members = [
+    "crates/radiust-core",
+    "crates/radiust-cli",
+    "crates/radiust-python",
+    "crates/radiust-ffi",
+]
 resolver = "2"
 
 [workspace.package]

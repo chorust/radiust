@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Radiust Desktop — 雷达预览</title>
+  <style>
+    :root {
+      --bg: #0b1016;
+      --panel: #141a22;
+      --line: #2a3441;
+      --text: #e8eef5;
+      --muted: #93a0b0;
+      --accent: #3d9cf0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .banner {
+      background: #3a2a12;
+      color: #f3d9a4;
+      padding: 10px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid #5a4520;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: calc(100vh - 42px);
+    }
+    aside {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 16px;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+    .row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 4px 0; }
+    .row span:last-child { color: var(--muted); text-align: right; }
+    section { margin: 16px 0; }
+    section h2 { font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin: 0 0 8px; }
+    main { padding: 16px 20px 28px; display: flex; flex-direction: column; gap: 12px; }
+    .prov {
+      display: flex; flex-wrap: wrap; gap: 10px 18px;
+      font-size: 13px; color: var(--muted);
+      padding: 8px 0;
+    }
+    .prov strong { color: var(--text); font-weight: 600; }
+    .stage {
+      flex: 1;
+      min-height: 520px;
+      background:
+        linear-gradient(45deg, #1a222c 25%, transparent 25%),
+        linear-gradient(-45deg, #1a222c 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1a222c 75%),
+        linear-gradient(-45deg, transparent 75%, #1a222c 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      background-color: #0f151c;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .stage img {
+      max-width: 100%;
+      max-height: min(72vh, 900px);
+      image-rendering: auto;
+      background: #000;
+    }
+    .hint {
+      position: absolute; left: 12px; bottom: 12px;
+      background: rgba(0,0,0,.65);
+      color: #c9d4e0;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      max-width: min(90%, 420px);
+    }
+    button {
+      border: 0; border-radius: 8px; padding: 9px 12px;
+      background: var(--accent); color: #041018; font-weight: 600; cursor: pointer; width: 100%;
+    }
+    .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    云环境浏览器预览（非 macOS SwiftUI 真机）。下方为 Engine 拉到的日本 <code>rdcap</code>／<code>JPMAKI</code> 科学 PNG；回波稀疏时画面会偏暗，不等于没加载。
+  </div>
+  <div class="app">
+    <aside>
+      <h1>Radiust</h1>
+      <div class="sub">打开即看 · 退出即停 · 无 daemon</div>
+      <section>
+        <h2>观测</h2>
+        <div class="row"><span>来源</span><span>rdcap</span></div>
+        <div class="row"><span>站点</span><span>JPMAKI</span></div>
+        <div class="row"><span>地区</span><span>日本 (jp)</span></div>
+        <div class="row"><span>模式</span><span>科学 PNG</span></div>
+      </section>
+      <section>
+        <h2>说明</h2>
+        <p class="note">先前脚手架只有设置壳，还没接拉取，所以你看不到图。现已用同进程 Engine 下载并显示真实帧。</p>
+        <p class="note">无底图时黑底上只有回波；少雨时段几乎全黑是正常现象。</p>
+      </section>
+      <button type="button" onclick="location.reload()">刷新预览页</button>
+    </aside>
+    <main>
+      <div class="prov" id="prov">
+        <span>观测时间 <strong id="valid">加载中…</strong></span>
+        <span>来源 <strong>rdcap</strong></span>
+        <span>产品 <strong>reflectivity</strong></span>
+        <span>站点 <strong>JPMAKI</strong></span>
+      </div>
+      <div class="stage">
+        <img id="radar" src="radar.png" alt="Japan RDCAP JPMAKI reflectivity" />
+        <div class="hint">黑底 = 无／弱回波区。棋盘格是预览页背景，不是雷达数据。</div>
+      </div>
+    </main>
+  </div>
+  <script>
+    // Filled when a sidecar meta.json is present; otherwise keep static labels.
+    fetch("meta.json").then(r => r.ok ? r.json() : null).then(meta => {
+      if (!meta) return;
+      document.getElementById("valid").textContent = meta.valid_time || "(unknown)";
+      if (meta.png) document.getElementById("radar").src = meta.png + "?t=" + Date.now();
+    }).catch(() => {
+      document.getElementById("valid").textContent = "(见 radar.png / Engine 拉取结果)";
+    });
+    document.getElementById("radar").onload = () => {
+      if (!document.getElementById("valid").textContent || document.getElementById("valid").textContent.startsWith("加载")) {
+        document.getElementById("valid").textContent = "(已显示 PNG；完整时间戳见 Engine meta)";
+      }
+    };
+  </script>
+</body>
+</html>

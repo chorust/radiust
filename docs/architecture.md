@@ -33,7 +33,7 @@ flowchart TB
 
 [`radiust-core`](../crates/radiust-core/README.md) 是普通 Rust library crate，同时提供 `rlib` 与 `cdylib`。桌面端或其他 Rust 调用方可依赖它，使用共享的 `Engine`、`CoreConfig`、`Query`、`FrameRef`、`DiscoveryReport`、`RawFrame`、错误、来源 adapter 接口、transport、限额和取消机制；报告数据不包含 provider locator 的 URL 或凭据。原始获取的临时文件由 `RawFrame` 持有，释放对象时清理。
 
-这个边界让未来 macOS 桌面应用可以复用发现、网络策略、资源限额、来源调度、科学处理和结构化结果，并由自己的 UI 层呈现进度和报告。当前没有桌面 UI、后台服务、IPC 协议或 Swift/Objective-C 绑定。Engine 已接入 RainViewer 与 TW grid 的已验证科学解码，以及 PNG、NetCDF4、GeoTIFF、Zarr v2 输出和本地/远端提交；其他来源科学解码和真实 S3/OSS provider 尚未验收。`CoreConfig` 接受若干输出设置只代表配置值校验，不代表输出路径可用。
+这个边界让未来 macOS 桌面应用可以复用发现、网络策略、资源限额、来源调度、科学处理和结构化结果，并由自己的 UI 层呈现进度和报告。仓库现有 SwiftUI 脚手架（`apps/desktop`）与同进程 C ABI（`crates/radiust-ffi`），**不**提供 daemon／Unix socket／常驻后台；该脚手架尚未构成 Desktop 产品验收。Engine 已接入 RainViewer 与 TW grid 的已验证科学解码，以及 PNG、NetCDF4、GeoTIFF、Zarr v2 输出和本地/远端提交；其他来源科学解码和真实 S3/OSS provider 尚未验收。`CoreConfig` 接受若干输出设置只代表配置值校验，不代表输出路径可用。
 
 crate 的 PyO3 支持由可选 `extension-module` feature 打开；Python wheel 构建仍由 Maturin 配置驱动。Rust library API 当前处于迁移期，不应视为稳定桌面 SDK，也不提供供 Swift 直接调用的 ABI。相关代码见 [`lib.rs`](../crates/radiust-core/src/lib.rs)、[`model.rs`](../crates/radiust-core/src/model.rs) 和 [`config.rs`](../crates/radiust-core/src/config.rs)。
 

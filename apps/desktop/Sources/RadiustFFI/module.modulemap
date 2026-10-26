@@ -1,0 +1,4 @@
+module RadiustFFI {
+    header "../../../../crates/radiust-ffi/include/radiust_ffi.h"
+    export *
+}

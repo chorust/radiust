@@ -2565,6 +2565,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "radiust-ffi"
+version = "0.1.0"
+dependencies = [
+ "radiust-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "radiust-python"
 version = "0.1.8"
 dependencies = [
